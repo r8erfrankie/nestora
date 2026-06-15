@@ -4,7 +4,7 @@ import { useState, useMemo, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { notifyContractorNewWorkOrder, notifyLandlordStatusChange, deleteWorkOrder } from './actions';
+import { notifyLandlordStatusChange, deleteWorkOrder, createWorkOrder } from './actions';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -520,7 +520,7 @@ export function WorkOrdersClient({
     if (formError) setFormError('');
   };
 
-  // Create work order
+  // Create work order -- delegated to Server Action so all email sending and logic stays on server only
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -541,58 +541,31 @@ export function WorkOrdersClient({
     setFormError('');
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      const prop = properties.find((p) => p.id === form.property_id);
 
-      const { data: inserted, error } = await supabase
-        .from('work_orders')
-        .insert({
-          title: form.title.trim(),
-          description: form.description.trim() || null,
-          priority: form.priority,
-          due_date: form.due_date || null,
-          property_id: form.property_id,
-          assigned_contractor: form.assigned_contractor.trim() || null,
-          assigned_contractor_email: form.assigned_contractor_email.trim() || null,
-          cost: form.cost ? parseFloat(form.cost) : 0,
-          user_id: user.id,
-          status: 'Open',
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
+      const inserted = await createWorkOrder({
+        title: form.title.trim(),
+        description: form.description.trim() || null,
+        priority: form.priority,
+        due_date: form.due_date || null,
+        property_id: form.property_id,
+        assigned_contractor: form.assigned_contractor.trim() || null,
+        assigned_contractor_email: form.assigned_contractor_email.trim() || null,
+        cost: form.cost ? parseFloat(form.cost) : 0,
+        propertyName: prop?.name || null,
+      });
 
       if (inserted) {
-        // Enrich with property name from local list to avoid join permission issues in mutation select
-        const prop = properties.find((p) => p.id === inserted.property_id);
+        // Enrich with property name from local list to avoid join permission issues
         const newWO: WorkOrder = {
           ...inserted,
           properties: prop ? { id: prop.id, name: prop.name } : null,
         };
         setWorkOrders((prev) => [newWO, ...prev]);
 
-        // Upload any photos selected during creation
+        // Upload any photos selected during creation (this stays client-side as it's storage upload)
         if (pendingPhotoFiles.length > 0) {
           await uploadPendingPhotos(newWO.id);
-        }
-
-        // Send notification to contractor if email provided
-        if (form.assigned_contractor_email) {
-          try {
-            await notifyContractorNewWorkOrder({
-              title: newWO.title,
-              description: newWO.description,
-              priority: newWO.priority,
-              due_date: newWO.due_date,
-              propertyName: newWO.properties?.name,
-              assigned_contractor_email: form.assigned_contractor_email,
-            });
-          } catch (emailErr) {
-            // email failure non-fatal
-          }
         }
       }
       setIsCreateOpen(false);

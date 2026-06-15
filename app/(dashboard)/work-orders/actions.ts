@@ -129,3 +129,57 @@ Nestora Team`,
     // email send failure is non-fatal for the user flow
   }
 }
+
+export async function createWorkOrder(data: {
+  title: string;
+  description?: string | null;
+  priority: string;
+  due_date?: string | null;
+  property_id: string;
+  assigned_contractor?: string | null;
+  assigned_contractor_email?: string | null;
+  cost?: number | null;
+  propertyName?: string | null;
+}) {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data: inserted, error } = await supabase
+    .from('work_orders')
+    .insert({
+      title: data.title,
+      description: data.description || null,
+      priority: data.priority,
+      due_date: data.due_date || null,
+      property_id: data.property_id,
+      assigned_contractor: data.assigned_contractor || null,
+      assigned_contractor_email: data.assigned_contractor_email || null,
+      cost: data.cost || 0,
+      user_id: user.id,
+      status: 'Open',
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  // Send notification to contractor if email provided -- this is server only
+  if (data.assigned_contractor_email) {
+    try {
+      await notifyContractorNewWorkOrder({
+        title: inserted.title,
+        description: inserted.description,
+        priority: inserted.priority,
+        due_date: inserted.due_date,
+        propertyName: data.propertyName,
+        assigned_contractor_email: data.assigned_contractor_email,
+      });
+    } catch (emailErr) {
+      // non-fatal
+    }
+  }
+
+  return inserted;
+}
