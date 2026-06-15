@@ -9,7 +9,7 @@ const requiredServerEnv = [
 ] as const;
 
 const optionalServerEnv = [
-  'RESEND_API_KEY', // for email notifications; if missing, notifications are skipped
+  'RESEND_API_KEY', // ONLY used for work order notifications via double-dynamic import in email-actions (server-only). Never for auth/login. Missing = notifications skipped gracefully.
 ] as const;
 
 export function validateEnv() {

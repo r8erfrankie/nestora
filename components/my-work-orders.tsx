@@ -3,6 +3,10 @@
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
+// NOTE: This client component performs direct Supabase browser-client updates for contractor self-updates
+// (status/notes/photos). It imports *nothing* from work-orders/crud-actions or email.
+// Therefore it has no path to Resend/RESEND_API_KEY. Landlord-side updates (in work-orders-client) go
+// through crud-actions server actions that use dynamic imports only for notifications.
 import {
   Dialog,
   DialogContent,

@@ -84,8 +84,11 @@ export async function updateWorkOrderStatus(id: string, newStatus: string) {
   // Send notification to landlord (the owner) -- server only
   if (user.email) {
     try {
-      // Dynamic import ONLY: this ensures the Resend/email-actions module (and RESEND_API_KEY)
-      // is never part of any client bundle, including the sign-in page or dashboard clients.
+      // Double-dynamic isolation:
+      // 1. We dynamically import('./email-actions') here (inside the server action).
+      // 2. email-actions.ts itself does `await import('resend')` *inside* the notify function.
+      // Result: 'resend' package + RESEND_API_KEY usage has no static presence in *any* module graph
+      // that can reach a client bundle (work-orders-client, properties-client, my-work-orders, login, etc.).
       const { notifyLandlordStatusChange } = await import('./email-actions');
       await notifyLandlordStatusChange({
         title: wo.title,
@@ -138,8 +141,11 @@ export async function createWorkOrder(data: {
   // Send notification to contractor if email provided -- this is server only
   if (data.assigned_contractor_email) {
     try {
-      // Dynamic import ONLY: this ensures the Resend/email-actions module (and RESEND_API_KEY)
-      // is never part of any client bundle, including the sign-in page or dashboard clients.
+      // Double-dynamic isolation:
+      // 1. We dynamically import('./email-actions') here (inside the server action).
+      // 2. email-actions.ts itself does `await import('resend')` *inside* the notify function.
+      // Result: 'resend' package + RESEND_API_KEY usage has no static presence in *any* module graph
+      // that can reach a client bundle (work-orders-client, properties-client, my-work-orders, login, etc.).
       const { notifyContractorNewWorkOrder } = await import('./email-actions');
       await notifyContractorNewWorkOrder({
         title: inserted.title,

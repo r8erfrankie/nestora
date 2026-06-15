@@ -1,16 +1,17 @@
 'use server';
 
 /**
- * Work order email notifications ONLY.
- * 
- * - Uses Resend SDK + RESEND_API_KEY (server-only).
- * - This module MUST NOT be statically imported by any client component or non-server module.
- * - Callers (crud-actions.ts) use `await import('./email-actions')` (dynamic) inside server action functions.
- * - Login / magic link auth flow does NOT use or import this at all (uses Supabase signInWithOtp directly).
- * - If you see "invalid api key" or RESEND header errors on /login, it is from a stale build/cache — restart + rm -rf .next.
+ * Work order email notifications ONLY (Resend).
+ *
+ * HARD ISOLATION:
+ * - The 'resend' package is loaded via *dynamic import inside the functions only*.
+ * - email-actions.ts has **no static top-level import** of 'resend'.
+ * - Callers MUST use `await import('./email-actions')` (dynamic, from inside other 'use server' files only).
+ * - No client component ('use client') may import this file (statically or otherwise).
+ * - The login/magic-link flow NEVER touches this (uses pure Supabase signInWithOtp in its own server action).
+ * - Even requiring this module (via the dynamic import in crud) will not pull 'resend' until a notify function actually executes.
+ * - Stale dev caches (.next, HMR) are the #1 cause of lingering "invalid api key" / header errors — always rm -rf .next + full dev server restart + hard browser refresh after changes.
  */
-
-import { Resend } from 'resend';
 
 export async function notifyContractorNewWorkOrder(data: {
   title: string;
@@ -27,6 +28,9 @@ export async function notifyContractorNewWorkOrder(data: {
 
   if (!data.assigned_contractor_email) return;
 
+  // Dynamic/lazy import of the Resend SDK itself — this file has no static dependency on 'resend'.
+  // Guarantees the package is only ever required in a server execution context when a notification is sent.
+  const { Resend } = await import('resend');
   const resend = new Resend(process.env.RESEND_API_KEY);
 
   try {
@@ -70,6 +74,9 @@ export async function notifyLandlordStatusChange(data: {
 
   if (!data.landlordEmail) return;
 
+  // Dynamic/lazy import of the Resend SDK itself — this file has no static dependency on 'resend'.
+  // Guarantees the package is only ever required in a server execution context when a notification is sent.
+  const { Resend } = await import('resend');
   const resend = new Resend(process.env.RESEND_API_KEY);
 
   try {
