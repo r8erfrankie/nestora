@@ -8,9 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Layers, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { sendMagicLink } from './actions';
-// Note: this client never imports 'resend', RESEND_API_KEY, Supabase client directly, or any email sending logic.
-// All auth email (magic link) is handled exclusively by the Server Action above using Supabase signInWithOtp.
-// Work-order Resend usage is double-dynamic + server-actions only (never reachable from login or any 'use client' static import).
 
 export default function LoginClient() {
   const [email, setEmail] = useState('');

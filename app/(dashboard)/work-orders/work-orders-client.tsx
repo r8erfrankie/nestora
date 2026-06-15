@@ -5,9 +5,6 @@ import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { deleteWorkOrder, createWorkOrder, updateWorkOrderStatus } from './crud-actions';
-// SAFE: Only imports the CRUD facade. All email/notify logic (Resend) is inside crud's *dynamic* imports
-// of email-actions, which in turn lazy-imports 'resend' only on actual notify execution (server only).
-// No direct or static reference to email-actions or 'resend' from this (or any other) client component.
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -555,7 +552,6 @@ export function WorkOrdersClient({
         assigned_contractor: form.assigned_contractor.trim() || null,
         assigned_contractor_email: form.assigned_contractor_email.trim() || null,
         cost: form.cost ? parseFloat(form.cost) : 0,
-        propertyName: prop?.name || null,
       });
 
       if (inserted) {

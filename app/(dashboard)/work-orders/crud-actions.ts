@@ -49,28 +49,18 @@ export async function updateWorkOrderStatus(id: string, newStatus: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  // Fetch current to get old status and details for notify, and check ownership
+  // Check ownership and current status (defense in depth, RLS is primary)
   const { data: wo, error: fetchErr } = await supabase
     .from('work_orders')
-    .select('user_id, title, status, properties(name)')
+    .select('user_id, status')
     .eq('id', id)
-    .single() as {
-      data: {
-        user_id: string;
-        title: string;
-        status: string;
-        properties: { name: string } | null;
-      } | null;
-      error: any;
-    };
+    .single();
 
   if (fetchErr || !wo || wo.user_id !== user.id) {
     throw new Error('Not authorized to update this work order');
   }
 
-  const previousStatus = wo.status;
-
-  if (newStatus === previousStatus) {
+  if (newStatus === wo.status) {
     return; // no change
   }
 
@@ -80,27 +70,6 @@ export async function updateWorkOrderStatus(id: string, newStatus: string) {
     .eq('id', id);
 
   if (updateErr) throw updateErr;
-
-  // Send notification to landlord (the owner) -- server only
-  if (user.email) {
-    try {
-      // Double-dynamic isolation:
-      // 1. We dynamically import('./email-actions') here (inside the server action).
-      // 2. email-actions.ts itself does `await import('resend')` *inside* the notify function.
-      // Result: 'resend' package + RESEND_API_KEY usage has no static presence in *any* module graph
-      // that can reach a client bundle (work-orders-client, properties-client, my-work-orders, login, etc.).
-      const { notifyLandlordStatusChange } = await import('./email-actions');
-      await notifyLandlordStatusChange({
-        title: wo.title,
-        propertyName: wo.properties?.name || null,
-        oldStatus: previousStatus,
-        newStatus,
-        landlordEmail: user.email,
-      });
-    } catch (emailErr) {
-      // non-fatal
-    }
-  }
 }
 
 export async function createWorkOrder(data: {
@@ -112,7 +81,6 @@ export async function createWorkOrder(data: {
   assigned_contractor?: string | null;
   assigned_contractor_email?: string | null;
   cost?: number | null;
-  propertyName?: string | null;
 }) {
   const supabase = await createClient();
 
@@ -137,28 +105,6 @@ export async function createWorkOrder(data: {
     .single();
 
   if (error) throw error;
-
-  // Send notification to contractor if email provided -- this is server only
-  if (data.assigned_contractor_email) {
-    try {
-      // Double-dynamic isolation:
-      // 1. We dynamically import('./email-actions') here (inside the server action).
-      // 2. email-actions.ts itself does `await import('resend')` *inside* the notify function.
-      // Result: 'resend' package + RESEND_API_KEY usage has no static presence in *any* module graph
-      // that can reach a client bundle (work-orders-client, properties-client, my-work-orders, login, etc.).
-      const { notifyContractorNewWorkOrder } = await import('./email-actions');
-      await notifyContractorNewWorkOrder({
-        title: inserted.title,
-        description: inserted.description,
-        priority: inserted.priority,
-        due_date: inserted.due_date,
-        propertyName: data.propertyName,
-        assigned_contractor_email: data.assigned_contractor_email,
-      });
-    } catch (emailErr) {
-      // non-fatal
-    }
-  }
 
   return inserted;
 }

@@ -1,9 +1,7 @@
 'use server';
 
-// IMPORTANT: Magic link authentication uses ONLY Supabase's native signInWithOtp.
-// NO Resend, RESEND_API_KEY, or any custom email client is used or imported here (or anywhere in app/login/*).
-// This guarantees that RESEND_API_KEY never appears in client bundles or auth headers for the sign-in page.
-// Work order notification emails (using Resend) are isolated via *double* dynamic import (crud -> email-actions -> 'resend' inside funcs) and only in other Server Actions. Login flow has zero reference.
+// Magic link uses only Supabase's native signInWithOtp via Server Action.
+// No external email providers or API keys are used or referenced in the login flow.
 
 import { createClient } from '@/lib/supabase/server';
 import { headers } from 'next/headers';

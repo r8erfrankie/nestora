@@ -3,9 +3,6 @@
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { deleteProperty } from '@/app/(dashboard)/work-orders/crud-actions';
-// SAFE: Only the deleteProperty server action (pure CRUD, zero email/Resend involvement).
-// The work-orders crud-actions uses dynamic-only imports for any notification paths.
-// No client may statically import email-actions or 'resend'.
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
