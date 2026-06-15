@@ -1,8 +1,8 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { Resend } from 'resend';
 import { validateEnv } from '@/lib/env';
+import { notifyContractorNewWorkOrder, notifyLandlordStatusChange } from './email-actions';
 
 // Validate required env vars on server startup (this runs in Node, not the browser)
 validateEnv();
@@ -46,87 +46,48 @@ export async function deleteProperty(id: string) {
   if (error) throw error;
 }
 
-export async function notifyContractorNewWorkOrder(data: {
-  title: string;
-  description?: string | null;
-  priority: string;
-  due_date?: string | null;
-  propertyName?: string | null;
-  assigned_contractor_email: string;
-}) {
-  if (!process.env.RESEND_API_KEY) {
-    console.warn('RESEND_API_KEY not set - skipping email notification');
-    return;
+export async function updateWorkOrderStatus(id: string, newStatus: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Fetch current to get old status and details for notify, and check ownership
+  const { data: wo, error: fetchErr } = await supabase
+    .from('work_orders')
+    .select('user_id, title, status, properties(name)')
+    .eq('id', id)
+    .single();
+
+  if (fetchErr || !wo || wo.user_id !== user.id) {
+    throw new Error('Not authorized to update this work order');
   }
 
-  if (!data.assigned_contractor_email) return;
+  const previousStatus = wo.status;
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
-
-  try {
-    await resend.emails.send({
-      from: 'Nestora <onboarding@resend.dev>',
-      to: data.assigned_contractor_email,
-      subject: `New Work Order Assigned: ${data.title}`,
-      text: `Hello,
-
-A new work order has been created and assigned to you.
-
-Title: ${data.title}
-Property: ${data.propertyName || 'N/A'}
-Priority: ${data.priority}
-Due Date: ${data.due_date || 'Not specified'}
-
-Description:
-${data.description || 'No description provided.'}
-
-Please log in to Nestora to view full details and accept the work order.
-
-Best regards,
-Nestora Team`,
-    });
-  } catch (error) {
-    // email send failure is non-fatal for the user flow
-  }
-}
-
-export async function notifyLandlordStatusChange(data: {
-  title: string;
-  propertyName?: string | null;
-  oldStatus: string;
-  newStatus: string;
-  landlordEmail: string;
-}) {
-  if (!process.env.RESEND_API_KEY) {
-    console.warn('RESEND_API_KEY not set - skipping email notification');
-    return;
+  if (newStatus === previousStatus) {
+    return; // no change
   }
 
-  if (!data.landlordEmail) return;
+  const { error: updateErr } = await supabase
+    .from('work_orders')
+    .update({ status: newStatus })
+    .eq('id', id);
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  if (updateErr) throw updateErr;
 
-  try {
-    await resend.emails.send({
-      from: 'Nestora <onboarding@resend.dev>',
-      to: data.landlordEmail,
-      subject: `Work Order Status Updated: ${data.title}`,
-      text: `Hello,
-
-The status of the following work order has been changed:
-
-Title: ${data.title}
-Property: ${data.propertyName || 'N/A'}
-Previous Status: ${data.oldStatus}
-New Status: ${data.newStatus}
-
-Please log in to Nestora to view the details.
-
-Best regards,
-Nestora Team`,
-    });
-  } catch (error) {
-    // email send failure is non-fatal for the user flow
+  // Send notification to landlord (the owner) -- server only
+  if (user.email) {
+    try {
+      await notifyLandlordStatusChange({
+        title: wo.title,
+        propertyName: wo.properties?.name || null,
+        oldStatus: previousStatus,
+        newStatus,
+        landlordEmail: user.email,
+      });
+    } catch (emailErr) {
+      // non-fatal
+    }
   }
 }
 

@@ -4,7 +4,7 @@ import { useState, useMemo, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { notifyLandlordStatusChange, deleteWorkOrder, createWorkOrder } from './actions';
+import { deleteWorkOrder, createWorkOrder, updateWorkOrderStatus } from './actions';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -585,7 +585,6 @@ export function WorkOrdersClient({
   // Update status (used in detail view)
   const updateStatus = async (newStatus: string | null) => {
     if (!newStatus || !selectedWorkOrder) return;
-    if (!selectedWorkOrder) return;
 
     const previousStatus = selectedWorkOrder.status;
 
@@ -596,32 +595,7 @@ export function WorkOrdersClient({
     setIsUpdatingStatus(true);
 
     try {
-      const { error } = await supabase
-        .from('work_orders')
-        .update({ status: newStatus })
-        .eq('id', selectedWorkOrder.id);
-
-      if (error) throw error;
-
-      // Send notification to landlord (current user) only if status actually changed
-      if (newStatus !== previousStatus) {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (user?.email) {
-          try {
-            await notifyLandlordStatusChange({
-              title: selectedWorkOrder.title,
-              propertyName: selectedWorkOrder.properties?.name,
-              oldStatus: previousStatus,
-              newStatus,
-              landlordEmail: user.email,
-            });
-          } catch (emailErr) {
-            // email non-fatal
-          }
-        }
-      }
+      await updateWorkOrderStatus(selectedWorkOrder.id, newStatus);
     } catch (err) {
       const reverted = { ...selectedWorkOrder, status: previousStatus };
       setSelectedWorkOrder(reverted);
