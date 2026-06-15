@@ -56,7 +56,15 @@ export async function updateWorkOrderStatus(id: string, newStatus: string) {
     .from('work_orders')
     .select('user_id, title, status, properties(name)')
     .eq('id', id)
-    .single();
+    .single() as {
+      data: {
+        user_id: string;
+        title: string;
+        status: string;
+        properties: { name: string } | null;
+      } | null;
+      error: any;
+    };
 
   if (fetchErr || !wo || wo.user_id !== user.id) {
     throw new Error('Not authorized to update this work order');

@@ -32,8 +32,8 @@ export async function createClient() {
             );
           } catch {
             // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions (we do — see middleware.ts).
+            // This can be ignored if you have proxy refreshing
+            // user sessions (we do — see proxy.ts).
           }
         },
       },

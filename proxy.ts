@@ -6,7 +6,8 @@ import { validateEnv } from '@/lib/env';
 validateEnv();
 
 /**
- * Supabase Auth middleware for Next.js App Router.
+ * Supabase Auth proxy for Next.js App Router.
+ * (Uses the "proxy" file convention per this version of Next — middleware.ts is deprecated.)
  *
  * Refreshes the user's session on every request and handles cookie-based auth.
  * Protects dashboard routes and redirects unauthenticated users to /login.
@@ -14,7 +15,7 @@ validateEnv();
  * The aggressive matcher below ensures this never runs for dev HMR chunks, static assets,
  * or font files — preventing script load failures and refresh loops on hard reloads.
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -77,7 +78,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Run middleware on all routes except:
+     * Run proxy on all routes except:
      * - Everything under /_next/ (static chunks, images, Turbopack/Webpack HMR client scripts,
      *   hot updates, dev websocket, etc.). This prevents HMR script load failures and refresh loops.
      * - Static assets (images, fonts, icons, etc.)
