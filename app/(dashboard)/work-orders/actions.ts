@@ -7,8 +7,6 @@ import { validateEnv } from '@/lib/env';
 // Validate required env vars on server startup (this runs in Node, not the browser)
 validateEnv();
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function deleteWorkOrder(id: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -63,6 +61,8 @@ export async function notifyContractorNewWorkOrder(data: {
 
   if (!data.assigned_contractor_email) return;
 
+  const resend = new Resend(process.env.RESEND_API_KEY);
+
   try {
     await resend.emails.send({
       from: 'Nestora <onboarding@resend.dev>',
@@ -103,6 +103,8 @@ export async function notifyLandlordStatusChange(data: {
   }
 
   if (!data.landlordEmail) return;
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
 
   try {
     await resend.emails.send({

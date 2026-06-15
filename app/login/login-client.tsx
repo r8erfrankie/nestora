@@ -2,12 +2,12 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import { buttonVariants } from '@/components/ui/button';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Layers, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { sendMagicLink } from './actions';
 
 export default function LoginClient() {
   const [email, setEmail] = useState('');
@@ -25,8 +25,6 @@ export default function LoginClient() {
 
   const searchParams = useSearchParams();
   const urlError = searchParams.get('error');
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 
   // Live computed validation for enabling the submit button and showing feedback
   const trimmedEmail = email.trim();
@@ -50,40 +48,24 @@ export default function LoginClient() {
       return;
     }
 
-    // Helpful guard when using placeholder env vars
-    if (!supabaseUrl || supabaseUrl.includes('your-project-ref')) {
-      setError(
-        'Supabase not configured yet. Update .env.local with your real project URL and anon key, then restart the dev server.'
-      );
-      return;
-    }
-
     setLoading(true);
     setError('');
     setMessage('');
 
     try {
-      const supabase = createClient();
-      const { error: signInError } = await supabase.auth.signInWithOtp({
-        email: trimmed.toLowerCase(),
-        options: {
-          // Magic link will redirect here after clicking the email link
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-
-      if (signInError) {
-        const msg = signInError.message.toLowerCase();
+      const result = await sendMagicLink(trimmed);
+      if (result.error) {
+        const msg = result.error.toLowerCase();
         if (msg.includes('rate limit') || msg.includes('too many requests')) {
           setError(
             'Email rate limit exceeded. Please wait a few minutes before requesting another magic link, or try logging in with a different email address.'
           );
         } else if (msg.includes('sending') || msg.includes('confirmation') || msg.includes('email')) {
           setError(
-            'Error sending confirmation email. This is usually due to Supabase email rate limits or misconfigured SMTP. Wait a bit, use a different test email, or configure Resend SMTP in your Supabase dashboard (see instructions in previous responses).'
+            'Error sending magic link email. Please wait a bit, use a different test email, or check your email provider configuration.'
           );
         } else {
-          setError(signInError.message);
+          setError(result.error);
         }
       } else {
         setMessage(`Magic link sent to ${email}. Check your inbox (and spam folder).`);
