@@ -1,5 +1,15 @@
 'use server';
 
+/**
+ * Work order email notifications ONLY.
+ * 
+ * - Uses Resend SDK + RESEND_API_KEY (server-only).
+ * - This module MUST NOT be statically imported by any client component or non-server module.
+ * - Callers (crud-actions.ts) use `await import('./email-actions')` (dynamic) inside server action functions.
+ * - Login / magic link auth flow does NOT use or import this at all (uses Supabase signInWithOtp directly).
+ * - If you see "invalid api key" or RESEND header errors on /login, it is from a stale build/cache — restart + rm -rf .next.
+ */
+
 import { Resend } from 'resend';
 
 export async function notifyContractorNewWorkOrder(data: {

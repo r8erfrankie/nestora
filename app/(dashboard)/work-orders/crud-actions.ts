@@ -84,7 +84,8 @@ export async function updateWorkOrderStatus(id: string, newStatus: string) {
   // Send notification to landlord (the owner) -- server only
   if (user.email) {
     try {
-      // Dynamic import to ensure email logic (which uses RESEND secret) is never part of client bundles
+      // Dynamic import ONLY: this ensures the Resend/email-actions module (and RESEND_API_KEY)
+      // is never part of any client bundle, including the sign-in page or dashboard clients.
       const { notifyLandlordStatusChange } = await import('./email-actions');
       await notifyLandlordStatusChange({
         title: wo.title,
@@ -137,7 +138,8 @@ export async function createWorkOrder(data: {
   // Send notification to contractor if email provided -- this is server only
   if (data.assigned_contractor_email) {
     try {
-      // Dynamic import to ensure email logic (which uses RESEND secret) is never part of client bundles
+      // Dynamic import ONLY: this ensures the Resend/email-actions module (and RESEND_API_KEY)
+      // is never part of any client bundle, including the sign-in page or dashboard clients.
       const { notifyContractorNewWorkOrder } = await import('./email-actions');
       await notifyContractorNewWorkOrder({
         title: inserted.title,
