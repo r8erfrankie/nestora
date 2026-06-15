@@ -552,6 +552,7 @@ export function WorkOrdersClient({
         assigned_contractor: form.assigned_contractor.trim() || null,
         assigned_contractor_email: form.assigned_contractor_email.trim() || null,
         cost: form.cost ? parseFloat(form.cost) : 0,
+        propertyName: prop?.name || null,
       });
 
       if (inserted) {

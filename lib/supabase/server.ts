@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { validateEnv } from '@/lib/env';
 
@@ -80,4 +81,26 @@ export async function getCurrentUserRole(): Promise<UserRole> {
 
   const role = profile?.role as UserRole | undefined;
   return role === 'contractor' ? 'contractor' : 'landlord';
+}
+
+/**
+ * Creates a Supabase admin client using the service role key.
+ * ONLY use in Server Actions / server code. Never expose the service role key to the client.
+ * Used e.g. for generating magic links (so we can send the email ourselves via Resend instead of Supabase).
+ */
+export function createAdminClient() {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for admin operations like generating magic links.');
+  }
+
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
 }

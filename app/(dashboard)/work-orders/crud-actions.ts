@@ -49,18 +49,28 @@ export async function updateWorkOrderStatus(id: string, newStatus: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  // Check ownership and current status (defense in depth, RLS is primary)
+  // Fetch current for ownership + notify details
   const { data: wo, error: fetchErr } = await supabase
     .from('work_orders')
-    .select('user_id, status')
+    .select('user_id, title, status, properties(name)')
     .eq('id', id)
-    .single();
+    .single() as {
+      data: {
+        user_id: string;
+        title: string;
+        status: string;
+        properties: { name: string } | null;
+      } | null;
+      error: any;
+    };
 
   if (fetchErr || !wo || wo.user_id !== user.id) {
     throw new Error('Not authorized to update this work order');
   }
 
-  if (newStatus === wo.status) {
+  const previousStatus = wo.status;
+
+  if (newStatus === previousStatus) {
     return; // no change
   }
 
@@ -70,6 +80,22 @@ export async function updateWorkOrderStatus(id: string, newStatus: string) {
     .eq('id', id);
 
   if (updateErr) throw updateErr;
+
+  // Send notification via Resend (Server Action only, dynamic import for isolation)
+  if (user.email) {
+    try {
+      const { notifyLandlordStatusChange } = await import('@/app/actions/email');
+      await notifyLandlordStatusChange({
+        title: wo.title,
+        propertyName: wo.properties?.name || null,
+        oldStatus: previousStatus,
+        newStatus,
+        landlordEmail: user.email,
+      });
+    } catch (emailErr) {
+      // non-fatal
+    }
+  }
 }
 
 export async function createWorkOrder(data: {
@@ -81,6 +107,7 @@ export async function createWorkOrder(data: {
   assigned_contractor?: string | null;
   assigned_contractor_email?: string | null;
   cost?: number | null;
+  propertyName?: string | null;
 }) {
   const supabase = await createClient();
 
@@ -105,6 +132,23 @@ export async function createWorkOrder(data: {
     .single();
 
   if (error) throw error;
+
+  // Send notification to contractor via Resend if email provided (Server Action only, dynamic import for isolation)
+  if (data.assigned_contractor_email) {
+    try {
+      const { notifyContractorNewWorkOrder } = await import('@/app/actions/email');
+      await notifyContractorNewWorkOrder({
+        title: inserted.title,
+        description: inserted.description,
+        priority: inserted.priority,
+        due_date: inserted.due_date,
+        propertyName: data.propertyName,
+        assigned_contractor_email: data.assigned_contractor_email,
+      });
+    } catch (emailErr) {
+      // non-fatal
+    }
+  }
 
   return inserted;
 }
