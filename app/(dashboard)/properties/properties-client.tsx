@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { deleteProperty } from '@/app/(dashboard)/work-orders/actions';
+import { deleteProperty } from '@/app/(dashboard)/work-orders/crud-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';

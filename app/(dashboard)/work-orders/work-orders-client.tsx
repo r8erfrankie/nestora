@@ -4,7 +4,7 @@ import { useState, useMemo, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { deleteWorkOrder, createWorkOrder, updateWorkOrderStatus } from './actions';
+import { deleteWorkOrder, createWorkOrder, updateWorkOrderStatus } from './crud-actions';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
