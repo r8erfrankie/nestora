@@ -28,6 +28,9 @@ export async function sendMagicLink(email: string) {
   const protocol = host.includes('localhost') ? 'http' : 'https';
   const emailRedirectTo = `${protocol}://${host}/auth/callback`;
 
+  console.log('[Magic Link] Generating link with redirectTo:', emailRedirectTo);
+  console.log('[Magic Link] Host used:', host, 'Protocol:', protocol);
+
   // Use admin client + generateLink so Supabase does NOT send its own email.
   // This gives us the magic link URL that we will email ourselves using Resend.
   const admin = createAdminClient();

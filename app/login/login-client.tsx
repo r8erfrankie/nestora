@@ -145,7 +145,7 @@ export default function LoginClient() {
                     {error ||
                       (urlError === 'Unable to sign in with magic link'
                         ? 'Unable to sign in. Please request a new link.'
-                        : 'An error occurred.')}
+                        : urlError)}
                   </div>
                 )}
 
