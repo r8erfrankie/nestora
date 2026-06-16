@@ -30,9 +30,63 @@ export default function LoginClient() {
   const trimmedEmail = email.trim();
   const isValidEmail = trimmedEmail.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail);
 
+  // Cooldown to prevent hitting Supabase email rate limits (per email)
+  const [cooldownEnd, setCooldownEnd] = useState<number | null>(null);
+  const [currentCooldown, setCurrentCooldown] = useState(0);
+
+  // Timer for cooldown display
+  useEffect(() => {
+    if (!cooldownEnd) {
+      setCurrentCooldown(0);
+      return;
+    }
+
+    const updateCooldown = () => {
+      const remaining = Math.max(0, Math.ceil((cooldownEnd - Date.now()) / 1000));
+      setCurrentCooldown(remaining);
+      if (remaining === 0) {
+        setCooldownEnd(null);
+      }
+    };
+
+    updateCooldown();
+    const intervalId = setInterval(updateCooldown, 1000);
+    return () => clearInterval(intervalId);
+  }, [cooldownEnd]);
+
+  // Load persisted cooldown for this email (survives refresh)
+  const loadCooldown = (emailAddr: string) => {
+    if (!emailAddr) return;
+    const key = `magicLinkCooldown_${emailAddr.toLowerCase()}`;
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      const end = parseInt(stored, 10);
+      if (end > Date.now()) {
+        setCooldownEnd(end);
+      } else {
+        localStorage.removeItem(key);
+      }
+    }
+  };
+
+  // Reload cooldown when email changes
+  useEffect(() => {
+    if (trimmedEmail) {
+      loadCooldown(trimmedEmail);
+    }
+  }, [trimmedEmail]);
+
+  // Start a cooldown (in seconds) and persist it
+  const startCooldown = (seconds: number, emailAddr: string) => {
+    const end = Date.now() + seconds * 1000;
+    setCooldownEnd(end);
+    const key = `magicLinkCooldown_${emailAddr.toLowerCase()}`;
+    localStorage.setItem(key, end.toString());
+  };
+
   const handleLogin = async (e?: { preventDefault?: () => void }) => {
     e?.preventDefault?.();
-    if (loading) return;
+    if (loading || currentCooldown > 0) return;
 
     const trimmed = email.trim();
 
@@ -60,6 +114,8 @@ export default function LoginClient() {
           setError(
             'Email rate limit exceeded. Please wait a few minutes before requesting another magic link, or try logging in with a different email address.'
           );
+          // Enforce longer cooldown in UI to avoid repeated hits
+          startCooldown(180, trimmed); // 3 minutes
         } else if (msg.includes('sending') || msg.includes('confirmation') || msg.includes('email')) {
           setError(
             'Error sending magic link email. Please wait a bit, use a different test email, or check your email provider configuration.'
@@ -69,6 +125,8 @@ export default function LoginClient() {
         }
       } else {
         setMessage(`Magic link sent to ${email}. Check your inbox (and spam folder).`);
+        // Standard cooldown after successful request
+        startCooldown(60, trimmed); // 1 minute
       }
     } catch {
       setError('Something went wrong. Please try again.');
@@ -80,7 +138,7 @@ export default function LoginClient() {
   const resetForm = () => {
     setMessage('');
     setError('');
-    setEmail('');
+    // Keep the email so the user can easily request another after the cooldown
   };
 
   return (
@@ -116,13 +174,15 @@ export default function LoginClient() {
                 <button
                   type="button"
                   onClick={resetForm}
+                  disabled={currentCooldown > 0}
                   className={cn(
                     buttonVariants({ variant: 'outline' }),
-                    'w-full touch-manipulation'
+                    'w-full touch-manipulation',
+                    currentCooldown > 0 && 'cursor-not-allowed opacity-60'
                   )}
                   data-1p-ignore="true"
                 >
-                  Send another link
+                  {currentCooldown > 0 ? `Send another in ${currentCooldown}s` : 'Send another link'}
                 </button>
                 <p className="text-muted-foreground text-xs">
                   The link will sign you in automatically and redirect you to the dashboard.
@@ -209,14 +269,15 @@ export default function LoginClient() {
                     // Explicit visual + cursor feedback in addition to the native disabled
                     // attribute. Helps on mobile where :disabled styles or pointer-events
                     // can be finicky, and makes the "enabled" state (full color) obvious.
-                    loading || !isValidEmail
+                    loading || !isValidEmail || currentCooldown > 0
                       ? 'cursor-not-allowed opacity-60'
                       : 'bg-primary text-primary-foreground active:scale-[0.985] active:opacity-90'
                   )}
-                  disabled={loading || !isValidEmail}
-                  onClick={() => handleLogin()}
+                  disabled={loading || !isValidEmail || currentCooldown > 0}
                 >
-                  {loading ? (
+                  {currentCooldown > 0 ? (
+                    `Wait ${currentCooldown}s before sending again`
+                  ) : loading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Sending magic link...

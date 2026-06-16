@@ -6,49 +6,52 @@ import { headers } from 'next/headers';
 export async function sendMagicLink(email: string) {
   const trimmed = email.trim().toLowerCase();
 
-  // Use stable site URL if available, otherwise fall back to dynamic host
+  // Use stable site URL
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-  
-  let emailRedirectTo: string;
+  const emailRedirectTo = siteUrl 
+    ? `${siteUrl}/auth/callback` 
+    : `${process.env.VERCEL_URL ? 'https' : 'http'}://${process.env.VERCEL_URL || 'localhost:3000'}/auth/callback`;
 
-  if (siteUrl) {
-    emailRedirectTo = `${siteUrl}/auth/callback`;
-  } else {
-    // Fallback for local/dev
-    const headersList = await headers();
-    const host = headersList.get('x-forwarded-host') || headersList.get('host') || 'localhost:3000';
-    const protocol = host.includes('localhost') ? 'http' : 'https';
-    emailRedirectTo = `${protocol}://${host}/auth/callback`;
-  }
-
-  console.log('[Magic Link] Using redirectTo:', emailRedirectTo);
+  console.log('[Magic Link] Generating link with redirectTo:', emailRedirectTo);
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return [];
-        },
+        getAll() { return []; },
         setAll() {},
       },
     }
   );
 
-  const { error } = await supabase.auth.signInWithOtp({
+  // Generate magic link (does NOT send email)
+  const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+    type: 'magiclink',
     email: trimmed,
     options: {
-      emailRedirectTo,
-      shouldCreateUser: true,
+      redirectTo: emailRedirectTo,
     },
   });
 
-  if (error) {
-    console.error('signInWithOtp error:', error);
-    return { error: error.message || 'Failed to send magic link.' };
+  if (linkError || !linkData?.properties?.action_link) {
+    console.error('generateLink error:', linkError);
+    return { error: linkError?.message || 'Failed to generate magic link.' };
   }
 
- 
- return { success: true };
+  const magicLink = linkData.properties.action_link;
+
+  // Send email using Resend (dynamic import)
+  try {
+    const { sendMagicLinkEmail } = await import('@/app/actions/email');
+    await sendMagicLinkEmail({
+      to: trimmed,
+      magicLink,
+    });
+  } catch (emailErr) {
+    console.error('Resend sendMagicLinkEmail failed:', emailErr);
+  }
+
+  return { success: true };
 }
+
