@@ -1,18 +1,8 @@
 'use server';
 
-import { createAdminClient } from '@/lib/supabase/server';
+import { createServerClient } from '@supabase/ssr';
 import { headers } from 'next/headers';
 
-/**
- * Magic link email is sent using Resend via a Server Action only.
- * We use Supabase admin.generateLink (service role) — the server-side equivalent
- * of what signInWithOtp does for the "magiclink" type — to generate a secure
- * one-time magic link *without* triggering Supabase's native email delivery.
- * We then email the user the link ourselves using Resend.
- *
- * The client component (login-client.tsx) only ever calls this Server Action.
- * Resend + the service role key are never exposed to the client.
- */
 export async function sendMagicLink(email: string) {
   const trimmed = email.trim().toLowerCase();
 
@@ -60,4 +50,4 @@ export async function sendMagicLink(email: string) {
   }
 
   return { success: true };
-}}
+}
