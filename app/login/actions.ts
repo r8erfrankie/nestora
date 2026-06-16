@@ -10,7 +10,6 @@ import { headers } from 'next/headers';'use server';
 
 'use server';
 
-import { createServerClient } from '@supabase/ssr';
 
 export async function sendMagicLink(email: string) {
   const trimmed = email.trim().toLowerCase();
