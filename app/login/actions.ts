@@ -1,4 +1,5 @@
-'use server';
+import { createServerClient } from '@supabase/ssr';
+import { headers } from 'next/headers';'use server';
 
 // Magic link email is sent using Resend via a Server Action only.
 // We use Supabase (admin.generateLink with service role - the underlying mechanism for signInWithOtp magic links)
@@ -6,13 +7,14 @@
 // Then we send the actual email (with the link) using Resend from inside this Server Action.
 // The client component only ever calls this Server Action (never touches Resend or the key).
 
-import { createAdminClient } from '@/lib/supabase/server';
+'use server';
+
+import { createServerClient } from '@supabase/ssr';
 import { headers } from 'next/headers';
 
 export async function sendMagicLink(email: string) {
   const trimmed = email.trim().toLowerCase();
 
-  // Compute redirect URL safely
   const headersList = await headers();
   const host = headersList.get('x-forwarded-host') || headersList.get('host') || 'localhost:3000';
   const protocol = host.includes('localhost') ? 'http' : 'https';
@@ -26,14 +28,13 @@ export async function sendMagicLink(email: string) {
     {
       cookies: {
         getAll() {
-          return []; // not needed for signInWithOtp
+          return [];
         },
         setAll() {},
       },
     }
   );
 
-  // Use normal signInWithOtp (more reliable than generateLink in many cases)
   const { error } = await supabase.auth.signInWithOtp({
     email: trimmed,
     options: {
@@ -46,10 +47,6 @@ export async function sendMagicLink(email: string) {
     console.error('signInWithOtp error:', error);
     return { error: error.message || 'Failed to send magic link.' };
   }
-
-  // Note: By default Supabase will try to send an email.
-  // If you want to fully control the email with Resend, you should use generateLink instead.
-  // For now, this version lets Supabase send the email (simpler and more reliable).
 
   return { success: true };
 }
