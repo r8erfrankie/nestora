@@ -10,59 +10,46 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { headers } from 'next/headers';
 
 export async function sendMagicLink(email: string) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-
-  // Helpful guard when using placeholder env vars (server-side now)
-  if (!supabaseUrl || supabaseUrl.includes('your-project-ref')) {
-    return {
-      error: 'Supabase not configured yet. Update .env.local with your real project URL and anon key, then restart the server.',
-    };
-  }
-
   const trimmed = email.trim().toLowerCase();
 
-  // Compute redirect URL on server to avoid hardcoding.
-  // Prefer x-forwarded-host for Vercel/prod compatibility, fallback for local.
+  // Compute redirect URL safely
   const headersList = await headers();
   const host = headersList.get('x-forwarded-host') || headersList.get('host') || 'localhost:3000';
   const protocol = host.includes('localhost') ? 'http' : 'https';
   const emailRedirectTo = `${protocol}://${host}/auth/callback`;
 
-  console.log('[Magic Link] Generating link with redirectTo:', emailRedirectTo);
-  console.log('[Magic Link] Host used:', host, 'Protocol:', protocol);
+  console.log('[Magic Link] Using redirectTo:', emailRedirectTo);
 
-  // Use admin client + generateLink so Supabase does NOT send its own email.
-  // This gives us the magic link URL that we will email ourselves using Resend.
-  const admin = createAdminClient();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return []; // not needed for signInWithOtp
+        },
+        setAll() {},
+      },
+    }
+  );
 
-  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-    type: 'magiclink',
+  // Use normal signInWithOtp (more reliable than generateLink in many cases)
+  const { error } = await supabase.auth.signInWithOtp({
     email: trimmed,
     options: {
-      redirectTo: emailRedirectTo,
+      emailRedirectTo,
+      shouldCreateUser: true,
     },
   });
 
-  if (linkError || !linkData?.properties?.action_link) {
-    return { error: linkError?.message || 'Failed to generate magic link.' };
+  if (error) {
+    console.error('signInWithOtp error:', error);
+    return { error: error.message || 'Failed to send magic link.' };
   }
 
-  const magicLink = linkData.properties.action_link;
-
-  // Send the email using Resend — all inside this Server Action (dynamic import for strong isolation).
-  try {
-    const { sendMagicLinkEmail } = await import('@/app/actions/email');
-    await sendMagicLinkEmail({
-      to: trimmed,
-      magicLink,
-    });
-  } catch (emailErr) {
-    // If email send fails we can still surface a generic message (the link was generated).
-    // In production you might want more sophisticated handling / logging.
-    console.error('Resend sendMagicLinkEmail failed (non-fatal for generation):', emailErr);
-    // For reliability, we still return success so user sees the "check your email" state.
-    // (The link is valid even if this particular send had a transient issue.)
-  }
+  // Note: By default Supabase will try to send an email.
+  // If you want to fully control the email with Resend, you should use generateLink instead.
+  // For now, this version lets Supabase send the email (simpler and more reliable).
 
   return { success: true };
 }

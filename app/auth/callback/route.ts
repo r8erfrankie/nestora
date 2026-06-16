@@ -1,45 +1,42 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
+/**
+ * Supabase auth callback (magic links, OAuth, etc.).
+ * Uses the project's standard createClient (SSR cookie handling).
+ *
+ * On success: exchange the PKCE code and redirect to the final destination (dashboard by default).
+ * On error: redirect to a friendly error page (instead of bouncing straight back to the login form).
+ *
+ * IMPORTANT: The emailRedirectTo / redirectTo you pass in signInWithOtp (or generateLink)
+ * must be *exactly* registered in Supabase Dashboard → Authentication → Redirect URLs.
+ */
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
-  const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/dashboard'
+  const { searchParams, origin } = new URL(request.url);
+  const code = searchParams.get('code');
+  // Default to root (the dashboard in this app). Can be overridden with ?next=...
+  const next = searchParams.get('next') ?? '/';
 
   if (code) {
-    const cookieStore = await cookies()
-    
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) => {
-                cookieStore.set({ name, value, ...options })
-              })
-            } catch (error) {
-              // Handle cookie setting errors
-            }
-          },
-        },
-      }
-    )
-
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const supabase = await createClient();
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`)
+      const forwardedHost = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
+      const isLocalEnv = process.env.NODE_ENV === 'development';
+
+      if (isLocalEnv) {
+        return NextResponse.redirect(`${origin}${next}`);
+      } else if (forwardedHost) {
+        return NextResponse.redirect(`https://${forwardedHost}${next}`);
+      } else {
+        return NextResponse.redirect(`${origin}${next}`);
+      }
     } else {
-      console.error('Auth exchange error:', error)
+      console.error('[Auth Callback] exchangeCodeForSession error:', error);
     }
   }
 
-  // Redirect to error page if exchange fails
-  return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+  // Graceful error handling: dedicated page instead of /login?error=...
+  return NextResponse.redirect(`${origin}/auth/auth-code-error`);
 }
