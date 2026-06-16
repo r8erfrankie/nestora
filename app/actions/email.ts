@@ -1,7 +1,5 @@
 'use server';
 
-import { Resend } from 'resend';
-
 /**
  * Centralized email sending using Resend.
  *
@@ -20,6 +18,8 @@ async function getResendClient() {
     console.warn('RESEND_API_KEY not set — skipping email send');
     return null;
   }
+  // Fully lazy: even loading the email module via dynamic import won't pull 'resend' until a send function executes.
+  const { Resend } = await import('resend');
   return new Resend(process.env.RESEND_API_KEY);
 }
 

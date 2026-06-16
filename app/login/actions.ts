@@ -1,8 +1,9 @@
 'use server';
 
 // Magic link email is sent using Resend via a Server Action only.
-// We use Supabase admin.generateLink (service role) to create the secure magic link token/link
-// WITHOUT triggering Supabase's native email sender, then send a custom email via Resend.
+// We use Supabase (admin.generateLink with service role - the underlying mechanism for signInWithOtp magic links)
+// to generate the secure magic link WITHOUT triggering Supabase's native email sender.
+// Then we send the actual email (with the link) using Resend from inside this Server Action.
 // The client component only ever calls this Server Action (never touches Resend or the key).
 
 import { createAdminClient } from '@/lib/supabase/server';
@@ -20,9 +21,10 @@ export async function sendMagicLink(email: string) {
 
   const trimmed = email.trim().toLowerCase();
 
-  // Compute redirect URL on server to avoid hardcoding
+  // Compute redirect URL on server to avoid hardcoding.
+  // Prefer x-forwarded-host for Vercel/prod compatibility, fallback for local.
   const headersList = await headers();
-  const host = headersList.get('host') || 'localhost:3000';
+  const host = headersList.get('x-forwarded-host') || headersList.get('host') || 'localhost:3000';
   const protocol = host.includes('localhost') ? 'http' : 'https';
   const emailRedirectTo = `${protocol}://${host}/auth/callback`;
 
