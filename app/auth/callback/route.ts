@@ -17,11 +17,22 @@ export async function GET(request: Request) {
   // Default to root (the dashboard in this app). Can be overridden with ?next=...
   const next = searchParams.get('next') ?? '/';
 
+  console.log('[Auth Callback] Hit with code:', !!code, 'origin:', origin, 'next:', next);
+  console.log('[Auth Callback] Full search params:', Object.fromEntries(searchParams.entries()));
+
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
+      // Calling getUser() after a successful exchange can help "flush" / commit
+      // the session cookies to the outgoing redirect response in some Next.js
+      // + middleware + route handler combinations. This is a common robustness
+      // step for magic link flows.
+      await supabase.auth.getUser();
+
+      console.log('[Auth Callback] exchangeCodeForSession + getUser succeeded. Redirecting to:', next);
+
       const forwardedHost = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
       const isLocalEnv = process.env.NODE_ENV === 'development';
 
@@ -34,6 +45,7 @@ export async function GET(request: Request) {
       }
     } else {
       console.error('[Auth Callback] exchangeCodeForSession error:', error);
+      // You can also log more details: console.error('Full error:', JSON.stringify(error));
     }
   }
 

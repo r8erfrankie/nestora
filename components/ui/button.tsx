@@ -55,11 +55,16 @@ function Button({
     // We translate the familiar `asChild` prop (for shadcn/ui compatibility)
     // into passing the child element via `render`.
     // The caller guarantees a single React element child when asChild is used.
+    //
+    // We must set nativeButton={false} when rendering a non-<button> element
+    // (e.g. a Link), otherwise Base UI warns that we're losing native button
+    // semantics (important for forms/accessibility).
     return (
       <ButtonPrimitive
         data-slot="button"
         className={cn(buttonVariants({ variant, size, className }))}
         render={children as React.ReactElement}
+        nativeButton={false}
         {...props}
       />
     );
