@@ -22,9 +22,7 @@ export async function GET(request: Request) {
               cookiesToSet.forEach(({ name, value, options }) =>
                 cookieStore.set(name, value, options)
               )
-            } catch {
-              // The `setAll` method was called from a Server Component.
-            }
+            } catch {}
           },
         },
       }
@@ -37,6 +35,5 @@ export async function GET(request: Request) {
     }
   }
 
-  // If something goes wrong, send user to error page
   return NextResponse.redirect(`${origin}/auth/auth-code-error`)
 }
