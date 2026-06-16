@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { Button as ButtonPrimitive } from '@base-ui/react/button';
 import { cva, type VariantProps } from 'class-variance-authority';
 
@@ -45,15 +46,33 @@ function Button({
   variant = 'default',
   size = 'default',
   asChild,
+  children,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants> & { asChild?: boolean }) {
+  if (asChild) {
+    // Base UI uses the `render` prop for polymorphic "as child" composition
+    // (instead of the older Radix `asChild` + Slot pattern).
+    // We translate the familiar `asChild` prop (for shadcn/ui compatibility)
+    // into passing the child element via `render`.
+    // The caller guarantees a single React element child when asChild is used.
+    return (
+      <ButtonPrimitive
+        data-slot="button"
+        className={cn(buttonVariants({ variant, size, className }))}
+        render={children as React.ReactElement}
+        {...props}
+      />
+    );
+  }
+
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
-      {...(asChild ? { asChild: true } : {})}
       {...props}
-    />
+    >
+      {children}
+    </ButtonPrimitive>
   );
 }
 
