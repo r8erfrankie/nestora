@@ -49,5 +49,6 @@ export async function sendMagicLink(email: string) {
     return { error: error.message || 'Failed to send magic link.' };
   }
 
-  return { success: true };
+ 
+ return { success: true };
 }
