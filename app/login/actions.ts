@@ -7,10 +7,10 @@ import { headers } from 'next/headers';'use server';
 // Then we send the actual email (with the link) using Resend from inside this Server Action.
 // The client component only ever calls this Server Action (never touches Resend or the key).
 
+
 'use server';
 
 import { createServerClient } from '@supabase/ssr';
-import { headers } from 'next/headers';
 
 export async function sendMagicLink(email: string) {
   const trimmed = email.trim().toLowerCase();
