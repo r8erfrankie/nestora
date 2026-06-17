@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createProperty, updateProperty } from './actions';
 import { deleteProperty } from '@/app/(dashboard)/work-orders/crud-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -87,8 +87,6 @@ export function PropertiesClient({
   const [deleteTarget, setDeleteTarget] = useState<Property | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const supabase = createClient();
-
   // Derive a user-friendly load error message
   const loadErrorMessage = loadError
     ? loadError.message ||
@@ -162,66 +160,27 @@ export function PropertiesClient({
     setFormError('');
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        setFormError('You must be logged in.');
-        setSaving(false);
-        return;
-      }
+      const payload = {
+        name: trimmedName,
+        address: form.address.trim() || null,
+        type: form.type || null,
+        notes: form.notes.trim() || null,
+      };
 
       if (dialogMode === 'create') {
-        const { data: newProperty, error } = await supabase
-          .from('properties')
-          .insert({
-            name: trimmedName,
-            address: form.address.trim() || null,
-            type: form.type || null,
-            notes: form.notes.trim() || null,
-            user_id: user.id,
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        if (newProperty) {
-          setProperties((prev) => [newProperty as Property, ...prev]);
-        }
+        const newProperty = await createProperty(payload);
+        setProperties((prev) => [newProperty as Property, ...prev]);
       } else if (dialogMode === 'edit' && selectedProperty) {
-        const { data: updated, error } = await supabase
-          .from('properties')
-          .update({
-            name: trimmedName,
-            address: form.address.trim() || null,
-            type: form.type || null,
-            notes: form.notes.trim() || null,
-          })
-          .eq('id', selectedProperty.id)
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        if (updated) {
-          setProperties((prev) =>
-            prev.map((p) => (p.id === selectedProperty.id ? (updated as Property) : p))
-          );
-        }
+        const updated = await updateProperty(selectedProperty.id, payload);
+        setProperties((prev) =>
+          prev.map((p) => (p.id === selectedProperty.id ? (updated as Property) : p))
+        );
       }
 
       closeDialog();
     } catch (err: unknown) {
-      // Supabase errors are often PostgrestError objects (plain objects with .message, .details, etc.)
-      // not always instanceof Error, so extract safely.
-      const supabaseErr = err as { message?: string; details?: string; hint?: string };
-      const message =
-        supabaseErr?.message ||
-        supabaseErr?.details ||
-        'Failed to save property. Please try again.';
-      setFormError(message);
+      const supabaseErr = err as { message?: string; details?: string };
+      setFormError(supabaseErr?.message || supabaseErr?.details || 'Failed to save property. Please try again.');
     } finally {
       setSaving(false);
     }

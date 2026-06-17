@@ -2,7 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import {
+  createOnboardingProperty,
+  createOnboardingWorkOrder,
+  markUserOnboarded,
+} from '@/app/actions/onboarding-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -50,18 +54,12 @@ export function Onboarding({ greetingName }: OnboardingProps) {
   const [createdPropertyName, setCreatedPropertyName] = useState('');
 
   const router = useRouter();
-  const supabase = createClient();
 
   const markOnboarded = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from('profiles').update({ onboarded: true }).eq('id', user.id);
-      }
+      await markUserOnboarded();
       document.cookie = 'dev_force_onboarding=; path=/; max-age=0; samesite=lax';
-    } catch (err) {
+    } catch {
       // ignore, proceed with refresh
     }
     router.refresh();
@@ -77,31 +75,16 @@ export function Onboarding({ greetingName }: OnboardingProps) {
 
     setIsLoading(true);
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not logged in');
-
-      const { data: newProperty, error } = await supabase
-        .from('properties')
-        .insert({
-          name: propertyName.trim(),
-          address: propertyAddress.trim() || null,
-          type: propertyType || null,
-          notes: propertyNotes.trim() || null,
-          user_id: user.id,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      if (newProperty) {
-        setCreatedPropertyId(newProperty.id);
-        setCreatedPropertyName(newProperty.name);
-        setStep('workorder');
-        setWorkOrderTitle('Initial inspection or repair needed');
-      }
+      const newProperty = await createOnboardingProperty({
+        name: propertyName.trim(),
+        address: propertyAddress.trim() || null,
+        type: propertyType || null,
+        notes: propertyNotes.trim() || null,
+      });
+      setCreatedPropertyId(newProperty.id);
+      setCreatedPropertyName(newProperty.name);
+      setStep('workorder');
+      setWorkOrderTitle('Initial inspection or repair needed');
     } catch (err: any) {
       alert(err?.message || err?.details || 'Failed to add property. Please try again or go to the Properties page.');
     } finally {
@@ -115,24 +98,14 @@ export function Onboarding({ greetingName }: OnboardingProps) {
 
     setIsLoading(true);
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not logged in');
-
-      const { error } = await supabase.from('work_orders').insert({
+      await createOnboardingWorkOrder({
         title: workOrderTitle.trim(),
         description: workOrderDescription.trim() || null,
         priority: workOrderPriority,
         due_date: workOrderDueDate || null,
         property_id: createdPropertyId,
         assigned_contractor_email: workOrderContractorEmail.trim() || null,
-        user_id: user.id,
-        status: 'Open',
       });
-
-      if (error) throw error;
-
       await markOnboarded();
       setStep('complete');
     } catch (err: any) {

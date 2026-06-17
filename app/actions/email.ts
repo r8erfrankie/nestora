@@ -61,8 +61,6 @@ export async function notifyContractorNewWorkOrder(data: {
   assigned_contractor_email: string;
 }) {
   const resend = await getResendClient();
-  if (!resend) return;
-
   if (!data.assigned_contractor_email) return;
 
   const { error } = await resend.emails.send({
@@ -97,8 +95,6 @@ export async function notifyLandlordStatusChange(data: {
   landlordEmail: string;
 }) {
   const resend = await getResendClient();
-  if (!resend) return;
-
   if (!data.landlordEmail) return;
 
   const { error } = await resend.emails.send({
