@@ -32,8 +32,11 @@ export async function GET(request: Request) {
 
     if (!error) {
       return NextResponse.redirect(`${origin}${next}`)
+    } else {
+      console.error('Callback exchange error:', error)
     }
   }
 
+  // Redirect to error page so we can see what went wrong
   return NextResponse.redirect(`${origin}/auth/auth-code-error`)
 }
