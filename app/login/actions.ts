@@ -1,27 +1,16 @@
 'use server';
 
-import { createServerClient } from '@supabase/ssr';
-import { headers } from 'next/headers';
+import { createAdminClient } from '@/lib/supabase/server';
 
 export async function sendMagicLink(email: string) {
   const trimmed = email.trim().toLowerCase();
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-  const emailRedirectTo = siteUrl 
-    ? `${siteUrl}/auth/callback` 
+  const emailRedirectTo = siteUrl
+    ? `${siteUrl}/auth/callback`
     : `https://${process.env.VERCEL_URL}/auth/callback`;
 
-  // Use SERVICE ROLE key here
-  const supabaseAdmin = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        getAll() { return []; },
-        setAll() {},
-      },
-    }
-  );
+  const supabaseAdmin = createAdminClient();
 
   const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
     type: 'magiclink',

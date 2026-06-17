@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { MyWorkOrders, type MyWorkOrder } from '@/components/my-work-orders';
 import { getCurrentUserRole } from '@/lib/supabase/server';
 import { Onboarding } from '@/components/onboarding';
+import { timeAgo, getGreeting } from '@/lib/utils';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -24,6 +25,7 @@ export default async function DashboardPage() {
   const greetingName = user?.email
     ? user.email.split('@')[0].charAt(0).toUpperCase() + user.email.split('@')[0].slice(1)
     : 'there';
+  const greeting = getGreeting();
 
   const isLandlord = role === 'landlord';
 
@@ -56,7 +58,7 @@ export default async function DashboardPage() {
       <div className="space-y-8 p-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-[-0.02em]">
-            Good morning, {greetingName}
+            {greeting}, {greetingName}
           </h1>
           <p className="text-muted-foreground mt-1">Here are the work orders assigned to you.</p>
         </div>
@@ -137,18 +139,6 @@ export default async function DashboardPage() {
 
   const myAssignedWorkOrders: MyWorkOrder[] = (myAssignedWorkOrdersData as any) || [];
 
-  const getTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const diffMs = Date.now() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
-    const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays}d ago`;
-  };
-
   const hasProperties = (totalProperties || 0) > 0;
   const isOnboarded = profile?.onboarded ?? false;
   let showOnboarding = !hasProperties && !isOnboarded;
@@ -171,7 +161,7 @@ export default async function DashboardPage() {
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-[-0.02em]">
-            Good morning, {greetingName}
+            {greeting}, {greetingName}
           </h1>
           <p className="text-muted-foreground mt-1">
             Here&apos;s a clear overview of your properties and maintenance tasks.
@@ -277,7 +267,7 @@ export default async function DashboardPage() {
                     <div className="leading-snug">
                       <span className="text-foreground">{message}</span>
                       <div className="text-muted-foreground/70 mt-px text-[11px]">
-                        {getTimeAgo(activity.updated_at)}
+                        {timeAgo(activity.updated_at)}
                       </div>
                     </div>
                   </div>
@@ -298,16 +288,4 @@ export default async function DashboardPage() {
       </div>
     </div>
   );
-}
-
-function getTimeAgo(dateString: string) {
-  const date = new Date(dateString);
-  const diffMs = Date.now() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins < 1) return 'just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays}d ago`;
 }

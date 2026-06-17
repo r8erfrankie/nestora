@@ -8,10 +8,12 @@ import {
   FolderOpen,
   Users,
   BarChart3,
+  FileBarChart,
   Settings,
   Layers,
   Building2,
   ClipboardList,
+  CheckSquare,
 } from 'lucide-react';
 import { UserRole } from '@/lib/supabase/server';
 
@@ -25,7 +27,7 @@ const landlordNavItems: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/properties', label: 'Properties', icon: Building2 },
   { href: '/work-orders', label: 'Work Orders', icon: ClipboardList },
-  { href: '/reports', label: 'Reports', icon: BarChart3 },
+  { href: '/reports', label: 'Reports', icon: FileBarChart },
   { href: '/projects', label: 'Projects', icon: FolderOpen },
   { href: '/teams', label: 'Teams', icon: Users },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
@@ -34,7 +36,7 @@ const landlordNavItems: NavItem[] = [
 
 const contractorNavItems: NavItem[] = [
   { href: '/', label: 'My Work Orders', icon: ClipboardList },
-  { href: '/work-orders', label: 'All Assigned', icon: ClipboardList },
+  { href: '/work-orders', label: 'All Assigned', icon: CheckSquare },
 ];
 
 export function Sidebar({ role = 'landlord' }: { role?: UserRole }) {
