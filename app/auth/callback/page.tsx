@@ -28,27 +28,31 @@ function CallbackHandler() {
       return;
     }
 
-    // Implicit flow: tokens land in the URL hash fragment (#access_token=...).
-    // createBrowserClient auto-detects and processes them on init.
-    // Use onAuthStateChange to know when the session is ready.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        subscription.unsubscribe();
-        router.replace(next);
-      }
-    });
+    // Implicit flow: tokens are in the URL hash fragment (#access_token=...).
+    // With flowType:'pkce' set, the SDK ignores hash fragments automatically,
+    // so we parse them manually and call setSession directly.
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
 
-    // Fallback: if nothing fires within 4 seconds, redirect to error
-    const timeout = setTimeout(() => {
-      subscription.unsubscribe();
-      setError(true);
-      router.replace('/auth/auth-code-error');
-    }, 4000);
+    if (accessToken && refreshToken) {
+      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(({ error }) => {
+          if (error) {
+            console.error('setSession error:', error.message);
+            setError(true);
+            router.replace('/auth/auth-code-error');
+          } else {
+            router.replace(next);
+          }
+        });
+      return;
+    }
 
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timeout);
-    };
+    // No code, no hash tokens — nothing we can do
+    setError(true);
+    router.replace('/auth/auth-code-error');
   }, []);
 
   return (
