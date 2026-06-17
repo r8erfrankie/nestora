@@ -7,7 +7,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Layers, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { sendMagicLink } from './actions';
+import { createClient } from '@/lib/supabase/client';
 
 export default function LoginClient() {
   const [email, setEmail] = useState('');
@@ -107,26 +107,27 @@ export default function LoginClient() {
     setMessage('');
 
     try {
-      const result = await sendMagicLink(trimmed);
-      if (result.error) {
-        const msg = result.error.toLowerCase();
+      const supabase = createClient();
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: trimmed,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (otpError) {
+        const msg = otpError.message.toLowerCase();
         if (msg.includes('rate limit') || msg.includes('too many requests')) {
           setError(
-            'Email rate limit exceeded. Please wait a few minutes before requesting another magic link, or try logging in with a different email address.'
+            'Email rate limit exceeded. Please wait a few minutes before requesting another magic link.'
           );
-          // Enforce longer cooldown in UI to avoid repeated hits
-          startCooldown(180, trimmed); // 3 minutes
-        } else if (msg.includes('sending') || msg.includes('confirmation') || msg.includes('email')) {
-          setError(
-            'Error sending magic link email. Please wait a bit, use a different test email, or check your email provider configuration.'
-          );
+          startCooldown(180, trimmed);
         } else {
-          setError(result.error);
+          setError(otpError.message);
         }
       } else {
         setMessage(`Magic link sent to ${email}. Check your inbox (and spam folder).`);
-        // Standard cooldown after successful request
-        startCooldown(60, trimmed); // 1 minute
+        startCooldown(60, trimmed);
       }
     } catch {
       setError('Something went wrong. Please try again.');
