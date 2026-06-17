@@ -15,41 +15,40 @@
 
 async function getResendClient() {
   if (!process.env.RESEND_API_KEY) {
-    console.warn('RESEND_API_KEY not set — skipping email send');
-    return null;
+    throw new Error('RESEND_API_KEY is not set.');
   }
-  // Fully lazy: even loading the email module via dynamic import won't pull 'resend' until a send function executes.
   const { Resend } = await import('resend');
   return new Resend(process.env.RESEND_API_KEY);
 }
 
+// Returns undefined on success, throws on failure.
 export async function sendMagicLinkEmail(params: {
   to: string;
   magicLink: string;
 }) {
   const resend = await getResendClient();
-  if (!resend) return;
 
-  try {
-    await resend.emails.send({
-      from: 'Nestora <onboarding@resend.dev>',
-      to: params.to,
-      subject: 'Your magic link to sign in to Nestora',
-      html: `
-        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-          <h2>Welcome back to Nestora</h2>
-          <p>Click the button below to sign in securely. This link will expire soon.</p>
-          <a href="${params.magicLink}" style="display: inline-block; background: #111; color: white; padding: 12px 20px; border-radius: 6px; text-decoration: none; margin: 16px 0;">
-            Sign in to Nestora
-          </a>
-          <p style="font-size: 13px; color: #666;">Or copy this link: <br>${params.magicLink}</p>
-          <p style="font-size: 12px; color: #999;">If you didn't request this, you can safely ignore this email.</p>
-        </div>
-      `,
-      text: `Sign in to Nestora: ${params.magicLink}\n\nIf you didn't request this, ignore this email.`,
-    });
-  } catch (err) {
-    console.error('Failed to send magic link via Resend:', err);
+  // Resend v6 returns { data, error } — it does NOT throw on API errors.
+  const { error } = await resend.emails.send({
+    from: 'Nestora <onboarding@resend.dev>',
+    to: params.to,
+    subject: 'Your Nestora sign-in link',
+    html: `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2>Sign in to Nestora</h2>
+        <p>Click the button below to sign in. This link expires soon and can only be used once.</p>
+        <a href="${params.magicLink}" style="display: inline-block; background: #111; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 16px 0; font-size: 15px;">
+          Sign in to Nestora
+        </a>
+        <p style="font-size: 13px; color: #666;">Or paste this link into your browser:<br><a href="${params.magicLink}" style="color:#555;">${params.magicLink}</a></p>
+        <p style="font-size: 12px; color: #999;">If you didn't request this, you can safely ignore this email.</p>
+      </div>
+    `,
+    text: `Sign in to Nestora: ${params.magicLink}\n\nIf you didn't request this, ignore this email.`,
+  });
+
+  if (error) {
+    throw new Error(error.message ?? 'Resend returned an error without a message.');
   }
 }
 
@@ -66,12 +65,11 @@ export async function notifyContractorNewWorkOrder(data: {
 
   if (!data.assigned_contractor_email) return;
 
-  try {
-    await resend.emails.send({
-      from: 'Nestora <onboarding@resend.dev>',
-      to: data.assigned_contractor_email,
-      subject: `New Work Order Assigned: ${data.title}`,
-      text: `Hello,
+  const { error } = await resend.emails.send({
+    from: 'Nestora <onboarding@resend.dev>',
+    to: data.assigned_contractor_email,
+    subject: `New Work Order Assigned: ${data.title}`,
+    text: `Hello,
 
 A new work order has been created and assigned to you.
 
@@ -87,10 +85,8 @@ Please log in to Nestora to view full details and accept the work order.
 
 Best regards,
 Nestora Team`,
-    });
-  } catch (error) {
-    // non-fatal
-  }
+  });
+  if (error) console.error('[notifyContractorNewWorkOrder] Resend error:', error.message);
 }
 
 export async function notifyLandlordStatusChange(data: {
@@ -105,12 +101,11 @@ export async function notifyLandlordStatusChange(data: {
 
   if (!data.landlordEmail) return;
 
-  try {
-    await resend.emails.send({
-      from: 'Nestora <onboarding@resend.dev>',
-      to: data.landlordEmail,
-      subject: `Work Order Status Updated: ${data.title}`,
-      text: `Hello,
+  const { error } = await resend.emails.send({
+    from: 'Nestora <onboarding@resend.dev>',
+    to: data.landlordEmail,
+    subject: `Work Order Status Updated: ${data.title}`,
+    text: `Hello,
 
 The status of the following work order has been changed:
 
@@ -123,8 +118,6 @@ Please log in to Nestora to view the details.
 
 Best regards,
 Nestora Team`,
-    });
-  } catch (error) {
-    // non-fatal
-  }
+  });
+  if (error) console.error('[notifyLandlordStatusChange] Resend error:', error.message);
 }
