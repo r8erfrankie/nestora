@@ -1,25 +1,17 @@
-import { Card, CardContent } from '@/components/ui/card';
+import { createClient } from '@/lib/supabase/server';
+import { ProjectsClient } from './projects-client';
 
-export default function ProjectsPage() {
+export default async function ProjectsPage() {
+  const supabase = await createClient();
+
+  const { data: projects, error } = await supabase
+    .from('projects')
+    .select('*')
+    .order('created_at', { ascending: false });
+
   return (
     <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
-        <p className="text-muted-foreground mt-1">
-          Manage and track all your development and maintenance projects.
-        </p>
-      </div>
-
-      <Card className="border-dashed">
-        <CardContent className="flex min-h-[400px] items-center justify-center p-6">
-          <div className="text-center">
-            <p className="text-muted-foreground">This page is under development.</p>
-            <p className="text-muted-foreground mt-2 text-sm">
-              Project management features coming soon.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <ProjectsClient initialProjects={projects ?? []} loadError={error} />
     </div>
   );
 }

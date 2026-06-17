@@ -1,25 +1,25 @@
-import { Card, CardContent } from '@/components/ui/card';
+import { createClient } from '@/lib/supabase/server';
+import { SettingsClient } from './settings-client';
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, role')
+    .eq('id', user?.id ?? '')
+    .single();
+
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground mt-1">
-          Update your profile, preferences, notifications, and account security.
-        </p>
-      </div>
-
-      <Card className="border-dashed">
-        <CardContent className="flex min-h-[400px] items-center justify-center p-6">
-          <div className="text-center">
-            <p className="text-muted-foreground">This page is under development.</p>
-            <p className="text-muted-foreground mt-2 text-sm">
-              Account and application settings coming soon.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="p-6 max-w-2xl">
+      <SettingsClient
+        email={user?.email ?? ''}
+        fullName={profile?.full_name ?? null}
+        role={(profile?.role as 'landlord' | 'contractor') ?? 'landlord'}
+      />
     </div>
   );
 }

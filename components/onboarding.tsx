@@ -103,7 +103,7 @@ export function Onboarding({ greetingName }: OnboardingProps) {
         setWorkOrderTitle('Initial inspection or repair needed');
       }
     } catch (err: any) {
-      alert('Failed to add property. Please try again or go to the Properties page.');
+      alert(err?.message || err?.details || 'Failed to add property. Please try again or go to the Properties page.');
     } finally {
       setIsLoading(false);
     }
@@ -136,8 +136,8 @@ export function Onboarding({ greetingName }: OnboardingProps) {
       await markOnboarded();
       setStep('complete');
     } catch (err: any) {
-      alert('Failed to create work order. You can create one from the Work Orders page.');
-      await markOnboarded(); // Still mark as done so they don't see onboarding again
+      alert(err?.message || err?.details || 'Failed to create work order. You can create one from the Work Orders page.');
+      await markOnboarded();
     } finally {
       setIsLoading(false);
     }
