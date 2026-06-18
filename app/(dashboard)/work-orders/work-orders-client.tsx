@@ -44,7 +44,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Eye, Upload, Loader2, ClipboardList, Archive, Trash2, X } from 'lucide-react';
+import { Plus, Eye, Upload, Loader2, ClipboardList, Archive, Trash2, X, Pencil } from 'lucide-react';
 
 interface WorkOrder {
   id: string;
@@ -1247,30 +1247,7 @@ export function WorkOrdersClient({
                     </div>
                   </div>
                   <div className="sm:col-span-2">
-                    <div className="mb-1 flex items-center justify-between gap-2">
-                      <div className="text-muted-foreground text-xs">ASSIGNED CONTRACTOR</div>
-                      {!editingContractor && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const currentTrade = selectedWorkOrder.trade ?? '';
-                            const isPreset = TRADES_SET.has(currentTrade);
-                            setContractorEdit({
-                              name: selectedWorkOrder.assigned_contractor ?? '',
-                              email: selectedWorkOrder.assigned_contractor_email ?? '',
-                              trade: currentTrade
-                                ? isPreset ? currentTrade : 'Other'
-                                : '',
-                              customTrade: isPreset ? '' : currentTrade,
-                            });
-                            setEditingContractor(true);
-                          }}
-                          className="text-primary text-xs hover:underline"
-                        >
-                          Edit
-                        </button>
-                      )}
-                    </div>
+                    <div className="text-muted-foreground mb-1 text-xs">ASSIGNED CONTRACTOR</div>
 
                     {editingContractor ? (
                       <div className="space-y-3">
@@ -1352,20 +1329,40 @@ export function WorkOrdersClient({
                         </div>
                       </div>
                     ) : (
-                      <div>
+                      <div className="flex items-center gap-2">
                         <span>
                           {selectedWorkOrder.assigned_contractor || 'Not assigned'}
                         </span>
                         {selectedWorkOrder.assigned_contractor_email && (
-                          <span className="text-muted-foreground ml-1 text-xs">
+                          <span className="text-muted-foreground text-xs">
                             ({selectedWorkOrder.assigned_contractor_email})
                           </span>
                         )}
                         {selectedWorkOrder.trade && (
-                          <Badge variant="secondary" className="ml-2 text-xs">
+                          <Badge variant="secondary" className="text-xs">
                             {selectedWorkOrder.trade}
                           </Badge>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const currentTrade = selectedWorkOrder.trade ?? '';
+                            const isPreset = TRADES_SET.has(currentTrade);
+                            setContractorEdit({
+                              name: selectedWorkOrder.assigned_contractor ?? '',
+                              email: selectedWorkOrder.assigned_contractor_email ?? '',
+                              trade: currentTrade
+                                ? isPreset ? currentTrade : 'Other'
+                                : '',
+                              customTrade: isPreset ? '' : currentTrade,
+                            });
+                            setEditingContractor(true);
+                          }}
+                          className="text-muted-foreground hover:text-foreground -ml-0.5 rounded p-1 transition-colors"
+                          aria-label="Edit contractor assignment"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     )}
                   </div>
