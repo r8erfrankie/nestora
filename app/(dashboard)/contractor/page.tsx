@@ -7,10 +7,8 @@ export default async function ContractorDashboardPage() {
   const supabase = await createClient();
   const role = await getCurrentUserRole();
 
-  if (role === null) {
-    redirect('/select-role');
-  }
-
+  // Proxy guarantees role is non-null for all dashboard routes.
+  // Keep cross-role redirect as defense-in-depth.
   if (role !== 'contractor') {
     redirect('/');
   }

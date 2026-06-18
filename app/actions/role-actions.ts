@@ -1,22 +1,26 @@
 'use server';
 
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 
-export type RoleActionState = { error: string } | null;
+const ROLE_COOKIE_OPTIONS = {
+  httpOnly: true,
+  sameSite: 'lax' as const,
+  path: '/',
+  maxAge: 60 * 60 * 24 * 365, // 1 year
+};
 
-// FormData-based action compatible with useActionState.
-// redirect() is safe here because it's invoked via form submission,
-// not a bare event handler, so Next.js handles the redirect response
-// before it can surface as a NEXT_REDIRECT error on the client.
-export async function setUserRoleAction(
-  _prevState: RoleActionState,
-  formData: FormData,
-): Promise<RoleActionState> {
+// Plain form action — called via <form action={setUserRoleAction}>.
+// redirect() is safe here because it's invoked by a form POST, not an event
+// handler, so Next.js handles the redirect response before any client code runs.
+// All error paths also call redirect() (back to /select-role) so the client
+// never receives an unhandled error.
+export async function setUserRoleAction(formData: FormData) {
   const role = formData.get('role');
 
   if (role !== 'landlord' && role !== 'contractor') {
-    return { error: 'Invalid role selected.' };
+    redirect('/select-role');
   }
 
   const supabase = await createClient();
@@ -24,14 +28,22 @@ export async function setUserRoleAction(
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return { error: 'Not authenticated. Please try logging in again.' };
+  if (!user) {
+    redirect('/login');
+  }
 
   const { error } = await supabase
     .from('profiles')
     .update({ role })
     .eq('id', user.id);
 
-  if (error) return { error: error.message };
+  if (error) {
+    redirect('/select-role');
+  }
+
+  // Persist role in cookie so proxy can route without a DB query on every request.
+  const cookieStore = await cookies();
+  cookieStore.set('nestora_role', role, ROLE_COOKIE_OPTIONS);
 
   redirect(role === 'contractor' ? '/contractor-onboarding' : '/landlord-onboarding');
 }

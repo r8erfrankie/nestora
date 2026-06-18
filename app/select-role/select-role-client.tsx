@@ -1,20 +1,19 @@
 'use client';
 
-import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Building2, HardHat } from 'lucide-react';
-import { setUserRoleAction, type RoleActionState } from '@/app/actions/role-actions';
+import { setUserRoleAction } from '@/app/actions/role-actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-function SubmitCard({
-  icon,
-  title,
-  description,
-}: {
+interface RoleCardProps {
   icon: React.ReactNode;
   title: string;
   description: string;
-}) {
+}
+
+// Must be a separate component so useFormStatus reads the status of its
+// parent <form> element (the hook only works inside a form's subtree).
+function RoleCard({ icon, title, description }: RoleCardProps) {
   const { pending } = useFormStatus();
 
   return (
@@ -43,17 +42,6 @@ function SubmitCard({
 }
 
 export function SelectRoleClient() {
-  const [landlordState, landlordAction] = useActionState<RoleActionState, FormData>(
-    setUserRoleAction,
-    null,
-  );
-  const [contractorState, contractorAction] = useActionState<RoleActionState, FormData>(
-    setUserRoleAction,
-    null,
-  );
-
-  const error = landlordState?.error ?? contractorState?.error;
-
   return (
     <div className="flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-lg space-y-8">
@@ -63,28 +51,24 @@ export function SelectRoleClient() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <form action={landlordAction}>
+          <form action={setUserRoleAction}>
             <input type="hidden" name="role" value="landlord" />
-            <SubmitCard
+            <RoleCard
               icon={<Building2 className="h-8 w-8" />}
               title="Landlord"
               description="I own or manage rental properties and want to track maintenance."
             />
           </form>
 
-          <form action={contractorAction}>
+          <form action={setUserRoleAction}>
             <input type="hidden" name="role" value="contractor" />
-            <SubmitCard
+            <RoleCard
               icon={<HardHat className="h-8 w-8" />}
               title="Contractor"
               description="I do repairs and maintenance work assigned by property managers."
             />
           </form>
         </div>
-
-        {error && (
-          <p className="text-destructive text-center text-sm">{error}</p>
-        )}
       </div>
     </div>
   );

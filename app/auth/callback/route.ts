@@ -31,9 +31,8 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error) {
-      // Route the user based on their role so the dashboard layout never has
-      // to make this decision (avoids aggressive layout-level redirects).
       const { data: { user } } = await supabase.auth.getUser()
+
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -41,14 +40,25 @@ export async function GET(request: Request) {
           .eq('id', user.id)
           .single()
 
-        if (!profile?.role) {
-          // New user — no role chosen yet
+        const role = profile?.role
+
+        const roleCookieOptions = {
+          httpOnly: true,
+          sameSite: 'lax' as const,
+          path: '/',
+          maxAge: 60 * 60 * 24 * 365, // 1 year
+        }
+
+        if (!role) {
+          // New user — no role chosen yet; proxy will redirect from / to /select-role
           return NextResponse.redirect(`${origin}/select-role`)
         }
 
-        if (profile.role === 'contractor') {
-          return NextResponse.redirect(`${origin}/contractor`)
-        }
+        const destination =
+          role === 'contractor' ? `${origin}/contractor` : `${origin}${next}`
+        const res = NextResponse.redirect(destination)
+        res.cookies.set('nestora_role', role, roleCookieOptions)
+        return res
       }
 
       return NextResponse.redirect(`${origin}${next}`)
