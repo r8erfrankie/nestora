@@ -6,7 +6,7 @@ import Counter from 'yet-another-react-lightbox/plugins/counter';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { deleteWorkOrder, createWorkOrder, updateWorkOrderStatus } from './crud-actions';
+import { deleteWorkOrder, createWorkOrder, updateWorkOrderStatus, updateContractorAssignment } from './crud-actions';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -55,6 +55,7 @@ interface WorkOrder {
   status: string;
   assigned_contractor: string | null;
   assigned_contractor_email: string | null;
+  trade?: string | null;
   property_id: string;
   properties: { id: string; name: string } | null;
   notes?: string | null;
@@ -77,6 +78,22 @@ interface Photo {
 
 const PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'] as const;
 const STATUSES = ['Open', 'In Progress', 'Completed', 'Archived'] as const;
+const TRADES = [
+  'General',
+  'Plumbing',
+  'Electrical',
+  'HVAC',
+  'Roofing',
+  'Carpentry',
+  'Painting',
+  'Flooring',
+  'Landscaping',
+  'Appliance Repair',
+  'Pest Control',
+  'Cleaning',
+  'Locksmith',
+] as const;
+const TRADES_SET = new Set<string>(TRADES as unknown as string[]);
 
 export function WorkOrdersClient({
   initialWorkOrders,
@@ -119,8 +136,21 @@ export function WorkOrdersClient({
     property_id: '',
     assigned_contractor: '',
     assigned_contractor_email: '',
+    trade: '',
+    customTrade: '',
+    contractorKey: '',
     cost: '',
   });
+
+  // Contractor re-assignment state (detail view)
+  const [editingContractor, setEditingContractor] = useState(false);
+  const [contractorEdit, setContractorEdit] = useState({
+    name: '',
+    email: '',
+    trade: '',
+    customTrade: '',
+  });
+  const [savingContractor, setSavingContractor] = useState(false);
   const [formError, setFormError] = useState('');
   const [creating, setCreating] = useState(false);
 
@@ -147,6 +177,22 @@ export function WorkOrdersClient({
       loadError.details ||
       'Failed to load work orders. Make sure you have run supabase/work-orders.sql in your Supabase dashboard.'
     : null;
+
+  // Unique contractors already used across work orders — used as quick-pick suggestions
+  const knownContractors = useMemo(() => {
+    const seen = new Set<string>();
+    const list: { name: string; email: string }[] = [];
+    for (const wo of workOrders) {
+      if (wo.assigned_contractor && wo.assigned_contractor_email) {
+        const key = `${wo.assigned_contractor}|${wo.assigned_contractor_email}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({ name: wo.assigned_contractor, email: wo.assigned_contractor_email });
+        }
+      }
+    }
+    return list;
+  }, [workOrders]);
 
   // Computed sorted list (client-side for simplicity)
   const sortedWorkOrders = useMemo(() => {
@@ -185,6 +231,9 @@ export function WorkOrdersClient({
       property_id: properties[0]?.id || '',
       assigned_contractor: '',
       assigned_contractor_email: '',
+      trade: '',
+      customTrade: '',
+      contractorKey: '',
       cost: '',
     });
     setFormError('');
@@ -224,6 +273,36 @@ export function WorkOrdersClient({
     setSelectedWorkOrder(null);
     setPhotos([]);
     setLightboxOpen(false);
+    setEditingContractor(false);
+  };
+
+  const handleSaveContractor = async () => {
+    if (!selectedWorkOrder) return;
+    setSavingContractor(true);
+    try {
+      const effectiveTrade =
+        contractorEdit.trade === 'Other'
+          ? contractorEdit.customTrade.trim() || null
+          : contractorEdit.trade || null;
+      await updateContractorAssignment(selectedWorkOrder.id, {
+        assigned_contractor: contractorEdit.name.trim() || null,
+        assigned_contractor_email: contractorEdit.email.trim() || null,
+        trade: effectiveTrade,
+      });
+      const updated: WorkOrder = {
+        ...selectedWorkOrder,
+        assigned_contractor: contractorEdit.name.trim() || null,
+        assigned_contractor_email: contractorEdit.email.trim() || null,
+        trade: effectiveTrade,
+      };
+      setSelectedWorkOrder(updated);
+      setWorkOrders((prev) => prev.map((w) => (w.id === updated.id ? updated : w)));
+      setEditingContractor(false);
+    } catch {
+      alert('Failed to update contractor assignment.');
+    } finally {
+      setSavingContractor(false);
+    }
   };
 
   // --- New helpers for delete, archive, and create-time photos ---
@@ -543,6 +622,11 @@ export function WorkOrdersClient({
     try {
       const prop = properties.find((p) => p.id === form.property_id);
 
+      const effectiveTrade =
+        form.trade === 'Other'
+          ? form.customTrade.trim() || null
+          : form.trade || null;
+
       const inserted = await createWorkOrder({
         title: form.title.trim(),
         description: form.description.trim() || null,
@@ -551,6 +635,7 @@ export function WorkOrdersClient({
         property_id: form.property_id,
         assigned_contractor: form.assigned_contractor.trim() || null,
         assigned_contractor_email: form.assigned_contractor_email.trim() || null,
+        trade: effectiveTrade,
         cost: form.cost ? parseFloat(form.cost) : 0,
         propertyName: prop?.name || null,
       });
@@ -957,14 +1042,72 @@ export function WorkOrdersClient({
             {/* Contractor + photos — grouped so the form feels shorter */}
             <div className="border-border/60 space-y-3 border-t pt-3 sm:space-y-4 sm:pt-4">
               <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-                Contractor &amp; Photos — optional
+                Contractor, Trade &amp; Photos — optional
               </p>
+
+            {/* Trade */}
+            <div className="space-y-1.5 sm:space-y-2">
+              <label className="text-sm font-medium">Trade</label>
+              <Select value={form.trade} onValueChange={(v) => updateForm('trade', v ?? '')}>
+                <SelectTrigger className="!h-11 sm:!h-8">
+                  <SelectValue placeholder="Select trade (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TRADES.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                  <SelectItem value="Other">Other / Custom</SelectItem>
+                </SelectContent>
+              </Select>
+              {form.trade === 'Other' && (
+                <Input
+                  value={form.customTrade}
+                  onChange={(e) => updateForm('customTrade', e.target.value)}
+                  placeholder="Enter trade name"
+                  className="!h-11 sm:!h-8"
+                />
+              )}
+            </div>
+
+            {/* Quick-pick from previously used contractors */}
+            {knownContractors.length > 0 && (
+              <div className="space-y-1.5 sm:space-y-2">
+                <label className="text-sm font-medium">Quick pick contractor</label>
+                <Select
+                  value={form.contractorKey}
+                  onValueChange={(val) => {
+                    updateForm('contractorKey', val ?? '');
+                    const c = knownContractors.find(
+                      (k) => `${k.name}|${k.email}` === val
+                    );
+                    if (c) {
+                      updateForm('assigned_contractor', c.name);
+                      updateForm('assigned_contractor_email', c.email);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="!h-11 sm:!h-8">
+                    <SelectValue placeholder="Choose an existing contractor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {knownContractors.map((c) => (
+                      <SelectItem key={`${c.name}|${c.email}`} value={`${c.name}|${c.email}`}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Contractor name</label>
               <Input
                 value={form.assigned_contractor}
-                onChange={(e) => updateForm('assigned_contractor', e.target.value)}
+                onChange={(e) => {
+                  updateForm('assigned_contractor', e.target.value);
+                  updateForm('contractorKey', '');
+                }}
                 placeholder="e.g. ACME Plumbing"
                 className="!h-11 sm:!h-8"
               />
@@ -975,7 +1118,10 @@ export function WorkOrdersClient({
               <Input
                 type="email"
                 value={form.assigned_contractor_email}
-                onChange={(e) => updateForm('assigned_contractor_email', e.target.value)}
+                onChange={(e) => {
+                  updateForm('assigned_contractor_email', e.target.value);
+                  updateForm('contractorKey', '');
+                }}
                 placeholder="contractor@example.com"
                 className="!h-11 sm:!h-8"
               />
@@ -1100,16 +1246,128 @@ export function WorkOrdersClient({
                         : 'Not set'}
                     </div>
                   </div>
-                  <div>
-                    <div className="text-muted-foreground mb-1 text-xs">ASSIGNED CONTRACTOR</div>
-                    <div>
-                      {selectedWorkOrder.assigned_contractor || 'Not assigned'}
-                      {selectedWorkOrder.assigned_contractor_email && (
-                        <span className="text-muted-foreground ml-1 text-xs">
-                          ({selectedWorkOrder.assigned_contractor_email})
-                        </span>
+                  <div className="sm:col-span-2">
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <div className="text-muted-foreground text-xs">ASSIGNED CONTRACTOR</div>
+                      {!editingContractor && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const currentTrade = selectedWorkOrder.trade ?? '';
+                            const isPreset = TRADES_SET.has(currentTrade);
+                            setContractorEdit({
+                              name: selectedWorkOrder.assigned_contractor ?? '',
+                              email: selectedWorkOrder.assigned_contractor_email ?? '',
+                              trade: currentTrade
+                                ? isPreset ? currentTrade : 'Other'
+                                : '',
+                              customTrade: isPreset ? '' : currentTrade,
+                            });
+                            setEditingContractor(true);
+                          }}
+                          className="text-primary text-xs hover:underline"
+                        >
+                          Edit
+                        </button>
                       )}
                     </div>
+
+                    {editingContractor ? (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-medium">Name</label>
+                            <Input
+                              value={contractorEdit.name}
+                              onChange={(e) =>
+                                setContractorEdit((p) => ({ ...p, name: e.target.value }))
+                              }
+                              placeholder="e.g. ACME Plumbing"
+                              className="!h-11 sm:!h-8"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-medium">Email</label>
+                            <Input
+                              type="email"
+                              value={contractorEdit.email}
+                              onChange={(e) =>
+                                setContractorEdit((p) => ({ ...p, email: e.target.value }))
+                              }
+                              placeholder="contractor@example.com"
+                              className="!h-11 sm:!h-8"
+                            />
+                          </div>
+                          <div className="space-y-1.5 sm:col-span-2">
+                            <label className="text-xs font-medium">Trade</label>
+                            <Select
+                              value={contractorEdit.trade}
+                              onValueChange={(v) =>
+                                setContractorEdit((p) => ({ ...p, trade: v ?? '' }))
+                              }
+                            >
+                              <SelectTrigger className="!h-11 sm:!h-8">
+                                <SelectValue placeholder="Select trade (optional)" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {TRADES.map((t) => (
+                                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                                ))}
+                                <SelectItem value="Other">Other / Custom</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {contractorEdit.trade === 'Other' && (
+                              <Input
+                                value={contractorEdit.customTrade}
+                                onChange={(e) =>
+                                  setContractorEdit((p) => ({
+                                    ...p,
+                                    customTrade: e.target.value,
+                                  }))
+                                }
+                                placeholder="Enter trade name"
+                                className="mt-2 !h-11 sm:!h-8"
+                              />
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            disabled={savingContractor}
+                            onClick={handleSaveContractor}
+                          >
+                            {savingContractor && (
+                              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                            )}
+                            Save
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingContractor(false)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <span>
+                          {selectedWorkOrder.assigned_contractor || 'Not assigned'}
+                        </span>
+                        {selectedWorkOrder.assigned_contractor_email && (
+                          <span className="text-muted-foreground ml-1 text-xs">
+                            ({selectedWorkOrder.assigned_contractor_email})
+                          </span>
+                        )}
+                        {selectedWorkOrder.trade && (
+                          <Badge variant="secondary" className="ml-2 text-xs">
+                            {selectedWorkOrder.trade}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 

@@ -98,6 +98,40 @@ export async function updateWorkOrderStatus(id: string, newStatus: string) {
   }
 }
 
+export async function updateContractorAssignment(
+  id: string,
+  data: {
+    assigned_contractor: string | null;
+    assigned_contractor_email: string | null;
+    trade: string | null;
+  }
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data: wo, error: fetchErr } = await supabase
+    .from('work_orders')
+    .select('user_id')
+    .eq('id', id)
+    .single();
+
+  if (fetchErr || !wo || wo.user_id !== user.id) {
+    throw new Error('Not authorized to update this work order');
+  }
+
+  const { error } = await supabase
+    .from('work_orders')
+    .update({
+      assigned_contractor: data.assigned_contractor,
+      assigned_contractor_email: data.assigned_contractor_email,
+      trade: data.trade,
+    })
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
 export async function createWorkOrder(data: {
   title: string;
   description?: string | null;
@@ -106,6 +140,7 @@ export async function createWorkOrder(data: {
   property_id: string;
   assigned_contractor?: string | null;
   assigned_contractor_email?: string | null;
+  trade?: string | null;
   cost?: number | null;
   propertyName?: string | null;
 }) {
@@ -124,6 +159,7 @@ export async function createWorkOrder(data: {
       property_id: data.property_id,
       assigned_contractor: data.assigned_contractor || null,
       assigned_contractor_email: data.assigned_contractor_email || null,
+      trade: data.trade || null,
       cost: data.cost || 0,
       user_id: user.id,
       status: 'Open',
