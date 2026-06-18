@@ -1,27 +1,25 @@
 import { redirect } from 'next/navigation';
-import { createClient, getCurrentUserRole } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { getGreeting } from '@/lib/utils';
 import { ContractorClient, type ContractorWorkOrder } from './contractor-client';
 
 export default async function ContractorDashboardPage() {
   const supabase = await createClient();
-  const role = await getCurrentUserRole();
-
-  // Proxy guarantees role is non-null for all dashboard routes.
-  // Keep cross-role redirect as defense-in-depth.
-  if (role !== 'contractor') {
-    redirect('/');
-  }
-
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Single query for role + name (replaces getCurrentUserRole() + separate profile fetch).
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name')
+    .select('role, full_name')
     .eq('id', user?.id ?? '')
     .single();
+
+  // Defense-in-depth (proxy already routes by role).
+  if (profile?.role !== 'contractor') {
+    redirect('/');
+  }
 
   const fullName = (profile as any)?.full_name as string | null | undefined;
   const firstName = fullName ? fullName.trim().split(/\s+/)[0] : null;

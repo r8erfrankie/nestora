@@ -4,31 +4,28 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { ArrowUpRight, Clock, AlertTriangle, CheckCircle, Building2, Activity } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentUserRole } from '@/lib/supabase/server';
 import { Onboarding } from '@/components/onboarding';
 import { timeAgo, getGreeting } from '@/lib/utils';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const role = await getCurrentUserRole();
-
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Fetch onboarding status + name from profile
+  // Single query for role + onboarding + name — replaces getCurrentUserRole() + separate profile fetch.
   const { data: profile } = await supabase
     .from('profiles')
-    .select('onboarded, full_name')
+    .select('role, onboarded, full_name')
     .eq('id', user?.id || '')
     .single();
+
   const fullName = (profile as any)?.full_name as string | null | undefined;
   const greetingName = fullName ? fullName.trim().split(/\s+/)[0] : null;
   const greeting = getGreeting();
 
-  // Proxy guarantees role is non-null for all dashboard routes.
-  // Keep cross-role redirect as defense-in-depth.
-  if (role !== 'landlord') {
+  // Defense-in-depth (proxy already routes by role, this is a belt-and-suspenders fallback).
+  if (profile?.role !== 'landlord') {
     redirect('/contractor');
   }
 
