@@ -3,7 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { ArrowUpRight, Clock, AlertTriangle, CheckCircle, Building2, Activity } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { MyWorkOrders, type MyWorkOrder } from '@/components/my-work-orders';
 import { getCurrentUserRole } from '@/lib/supabase/server';
 import { Onboarding } from '@/components/onboarding';
 import { timeAgo, getGreeting } from '@/lib/utils';
@@ -29,41 +28,14 @@ export default async function DashboardPage() {
   const isLandlord = role === 'landlord';
 
   if (!isLandlord) {
-    // Contractor experience: clean, focused "My Work Orders" view
-    // (fetch only assigned work orders for the section)
-    const { data: myAssignedWorkOrdersData } = await supabase
-      .from('work_orders')
-      .select(
-        `
-        id,
-        title,
-        description,
-        status,
-        priority,
-        due_date,
-        notes,
-        updated_at,
-        assigned_contractor_email,
-        properties (id, name)
-      `
-      )
-      .eq('assigned_contractor_email', user?.email || 'no-match-for-contractor')
-      .order('due_date', { ascending: true, nullsFirst: true })
-      .limit(30);
-
-    const myAssignedWorkOrders: MyWorkOrder[] = (myAssignedWorkOrdersData as any) || [];
-
     return (
       <div className="space-y-8 p-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-[-0.02em]">
             {greeting}{greetingName ? `, ${greetingName}` : ''}
           </h1>
-          <p className="text-muted-foreground mt-1">Here are the work orders assigned to you.</p>
+          <p className="text-muted-foreground mt-1">Welcome to Nestora.</p>
         </div>
-
-        <MyWorkOrders initialWorkOrders={myAssignedWorkOrders} />
-
         <div className="text-muted-foreground border-border/60 border-t pt-4 text-center text-xs">
           Tip: Tap any job card to quickly update status, add notes, or attach photos from your
           phone.
@@ -114,29 +86,6 @@ export default async function DashboardPage() {
       .order('updated_at', { ascending: false })
       .limit(6),
   ]);
-
-  // Also fetch assigned for the "My Work Orders" section (useful for landlords who self-assign)
-  const { data: myAssignedWorkOrdersData } = await supabase
-    .from('work_orders')
-    .select(
-      `
-      id,
-      title,
-      description,
-      status,
-      priority,
-      due_date,
-      notes,
-      updated_at,
-      assigned_contractor_email,
-      properties (id, name)
-    `
-    )
-    .eq('assigned_contractor_email', user?.email || 'no-match-for-contractor')
-    .order('due_date', { ascending: true, nullsFirst: true })
-    .limit(20);
-
-  const myAssignedWorkOrders: MyWorkOrder[] = (myAssignedWorkOrdersData as any) || [];
 
   const hasProperties = (totalProperties || 0) > 0;
   const isOnboarded = profile?.onboarded ?? false;
@@ -231,9 +180,6 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* My Work Orders section (for self-assigned or testing) */}
-      <MyWorkOrders initialWorkOrders={myAssignedWorkOrders} />
 
       {/* Activity Feed */}
       <Card>

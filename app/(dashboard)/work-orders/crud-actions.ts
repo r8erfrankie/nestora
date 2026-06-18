@@ -103,6 +103,7 @@ export async function updateContractorAssignment(
   data: {
     assigned_contractor: string | null;
     assigned_contractor_email: string | null;
+    assigned_contractor_phone: string | null;
     trade: string | null;
   }
 ) {
@@ -139,6 +140,7 @@ export async function updateContractorAssignment(
     .update({
       assigned_contractor: data.assigned_contractor,
       assigned_contractor_email: data.assigned_contractor_email,
+      assigned_contractor_phone: data.assigned_contractor_phone,
       trade: data.trade,
     })
     .eq('id', id);
@@ -172,6 +174,7 @@ export async function createWorkOrder(data: {
   property_id: string;
   assigned_contractor?: string | null;
   assigned_contractor_email?: string | null;
+  assigned_contractor_phone?: string | null;
   trade?: string | null;
   cost?: number | null;
   propertyName?: string | null;
@@ -191,6 +194,7 @@ export async function createWorkOrder(data: {
       property_id: data.property_id,
       assigned_contractor: data.assigned_contractor || null,
       assigned_contractor_email: data.assigned_contractor_email || null,
+      assigned_contractor_phone: data.assigned_contractor_phone || null,
       trade: data.trade || null,
       cost: data.cost || 0,
       user_id: user.id,

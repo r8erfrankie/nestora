@@ -10,7 +10,11 @@ export default async function WorkOrdersPage({
   const params = await searchParams;
   const autoOpenCreate = params.create === '1';
 
-  const [{ data: workOrders, error: workOrdersError }, { data: properties }] = await Promise.all([
+  const [
+    { data: workOrders, error: workOrdersError },
+    { data: properties },
+    { data: contractors },
+  ] = await Promise.all([
     supabase
       .from('work_orders')
       .select(
@@ -21,6 +25,7 @@ export default async function WorkOrdersPage({
       )
       .order('created_at', { ascending: false }),
     supabase.from('properties').select('id, name').order('name'),
+    supabase.from('contractors').select('id, name, email, phone, trade').order('name'),
   ]);
 
   if (workOrdersError) {
@@ -32,6 +37,7 @@ export default async function WorkOrdersPage({
       <WorkOrdersClient
         initialWorkOrders={workOrders || []}
         properties={properties || []}
+        contractors={contractors || []}
         loadError={workOrdersError}
         autoOpenCreate={autoOpenCreate}
       />

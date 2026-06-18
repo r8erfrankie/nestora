@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUserRole } from '@/lib/supabase/server';
-import { TeamsClient, type ContractorStat } from './teams-client';
+import { TeamsClient, type Contractor } from './teams-client';
 import { Users } from 'lucide-react';
 
 export default async function TeamsPage() {
@@ -9,65 +9,45 @@ export default async function TeamsPage() {
 
   if (role === 'contractor') {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="mb-6">
-          <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-[-0.02em]">
-            <Users className="h-6 w-6" /> Teams
+          <h1 className="flex items-center gap-3 text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
+            <Users className="h-5 w-5 sm:h-6 sm:w-6" /> Teams
           </h1>
-          <p className="text-muted-foreground mt-1">Contractor team management is for landlords.</p>
+          <p className="text-muted-foreground mt-1 text-sm">Contractor team management is for landlords.</p>
         </div>
       </div>
     );
   }
 
-  const { data: workOrders } = await supabase
-    .from('work_orders')
-    .select('id, title, status, priority, due_date, updated_at, assigned_contractor_email, properties(name)')
-    .not('assigned_contractor_email', 'is', null)
-    .order('updated_at', { ascending: false });
-
-  // Group by contractor email
-  const contractorMap: Record<string, ContractorStat> = {};
-
-  for (const wo of workOrders ?? []) {
-    const email = wo.assigned_contractor_email as string;
-    if (!contractorMap[email]) {
-      contractorMap[email] = { email, total: 0, open: 0, completed: 0, lastActivity: null, workOrders: [] };
-    }
-    const c = contractorMap[email];
-    c.total += 1;
-    if (wo.status === 'Open' || wo.status === 'In Progress') c.open += 1;
-    if (wo.status === 'Completed') c.completed += 1;
-    if (!c.lastActivity || wo.updated_at > c.lastActivity) c.lastActivity = wo.updated_at;
-    c.workOrders.push({
-      id: wo.id,
-      title: wo.title,
-      status: wo.status,
-      priority: wo.priority,
-      due_date: wo.due_date ?? null,
-      propertyName: (wo.properties as any)?.name ?? null,
-    });
-  }
-
-  const contractors = Object.values(contractorMap).sort((a, b) => b.total - a.total);
+  const { data: contractors, error: contractorsError } = await supabase
+    .from('contractors')
+    .select('id, name, email, phone, trade, notes')
+    .order('name');
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-end justify-between">
-        <div>
-          <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-[-0.02em]">
-            <Users className="h-6 w-6" /> Teams
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Contractors assigned to your work orders.{' '}
-            {contractors.length > 0 && (
-              <span>{contractors.length} contractor{contractors.length !== 1 ? 's' : ''} active.</span>
-            )}
-          </p>
-        </div>
+    <div className="space-y-5 p-4 sm:space-y-6 sm:p-6">
+      <div>
+        <h1 className="flex items-center gap-3 text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
+          <Users className="h-5 w-5 sm:h-6 sm:w-6" /> Teams
+        </h1>
+        <p className="text-muted-foreground mt-1 text-sm">
+          Manage your contractor directory.
+          {(contractors?.length ?? 0) > 0 && (
+            <span> {contractors!.length} contractor{contractors!.length !== 1 ? 's' : ''}.</span>
+          )}
+        </p>
       </div>
 
-      <TeamsClient contractors={contractors} />
+      {contractorsError ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <strong>Setup required:</strong> Run{' '}
+          <code className="font-mono">supabase/contractors.sql</code> in your Supabase SQL editor to
+          enable the Teams feature.
+        </div>
+      ) : (
+        <TeamsClient initialContractors={(contractors as Contractor[]) || []} />
+      )}
     </div>
   );
 }
