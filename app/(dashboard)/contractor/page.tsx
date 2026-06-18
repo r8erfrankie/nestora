@@ -38,6 +38,7 @@ export default async function ContractorDashboardPage() {
       trade,
       notes,
       cost,
+      contractor_quote,
       created_at,
       updated_at,
       properties (id, name, address)
