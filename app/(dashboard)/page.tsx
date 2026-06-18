@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ArrowUpRight, Clock, AlertTriangle, CheckCircle, Building2, Activity } from 'lucide-react';
@@ -28,20 +29,7 @@ export default async function DashboardPage() {
   const isLandlord = role === 'landlord';
 
   if (!isLandlord) {
-    return (
-      <div className="space-y-8 p-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-[-0.02em]">
-            {greeting}{greetingName ? `, ${greetingName}` : ''}
-          </h1>
-          <p className="text-muted-foreground mt-1">Welcome to Nestora.</p>
-        </div>
-        <div className="text-muted-foreground border-border/60 border-t pt-4 text-center text-xs">
-          Tip: Tap any job card to quickly update status, add notes, or attach photos from your
-          phone.
-        </div>
-      </div>
-    );
+    redirect('/contractor');
   }
 
   // Landlord / default experience

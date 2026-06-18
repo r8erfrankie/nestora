@@ -13,7 +13,6 @@ import {
   Layers,
   Building2,
   ClipboardList,
-  CheckSquare,
 } from 'lucide-react';
 import { UserRole } from '@/lib/supabase/server';
 
@@ -35,8 +34,8 @@ const landlordNavItems: NavItem[] = [
 ];
 
 const contractorNavItems: NavItem[] = [
-  { href: '/', label: 'My Work Orders', icon: ClipboardList },
-  { href: '/work-orders', label: 'All Assigned', icon: CheckSquare },
+  { href: '/contractor', label: 'My Work Orders', icon: ClipboardList },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export function Sidebar({ role = 'landlord' }: { role?: UserRole }) {

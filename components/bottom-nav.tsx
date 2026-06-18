@@ -13,7 +13,6 @@ import {
   FileBarChart,
   FolderOpen,
   Settings,
-  CheckSquare,
   MoreHorizontal,
   Layers,
   X,
@@ -45,13 +44,12 @@ const landlordDrawerItems = [
 ] as const;
 
 const contractorBottomItems = [
-  { href: '/', label: 'My Work', icon: ClipboardList },
-  { href: '/work-orders', label: 'All Jobs', icon: CheckSquare },
+  { href: '/contractor', label: 'My Work', icon: ClipboardList },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ] as const;
 
 const contractorDrawerItems = [
-  { href: '/', label: 'My Work Orders', icon: ClipboardList },
-  { href: '/work-orders', label: 'All Assigned', icon: CheckSquare },
+  { href: '/contractor', label: 'My Work Orders', icon: ClipboardList },
   { href: '/settings', label: 'Settings', icon: Settings },
 ] as const;
 
