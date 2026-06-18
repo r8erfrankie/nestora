@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { validateEnv } from '@/lib/env';
 
 validateEnv();
@@ -30,6 +30,23 @@ export async function createContractor(data: {
     .single();
 
   if (error) throw error;
+
+  // If the contractor has an existing account with no role yet, set it to 'contractor'.
+  // Uses the admin client because RLS prevents a landlord from updating another user's profile.
+  if (data.email) {
+    try {
+      const adminClient = createAdminClient();
+      await adminClient
+        .from('profiles')
+        .update({ role: 'contractor' })
+        .eq('email', data.email.trim().toLowerCase())
+        .is('role', null);
+    } catch {
+      // Non-fatal: the contractor may not have a Nestora account yet, or
+      // SUPABASE_SERVICE_ROLE_KEY may not be configured in this environment.
+    }
+  }
+
   return inserted;
 }
 

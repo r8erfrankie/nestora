@@ -1,10 +1,17 @@
+import { redirect } from 'next/navigation';
 import { Sidebar } from '@/components/sidebar';
 import { Navbar } from '@/components/navbar';
 import { BottomNav } from '@/components/bottom-nav';
-import { getCurrentUserRole, UserRole } from '@/lib/supabase/server';
+import { getCurrentUserRole } from '@/lib/supabase/server';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const role: UserRole = await getCurrentUserRole();
+  const role = await getCurrentUserRole();
+
+  // New users who haven't chosen a role yet must go through role selection first.
+  if (role === null) {
+    redirect('/select-role');
+  }
+
   const isDevelopment = process.env.NODE_ENV === 'development';
 
   return (

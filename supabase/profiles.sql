@@ -6,8 +6,12 @@
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   email text,
-  role text not null default 'landlord' check (role in ('landlord', 'contractor')),
+  role text check (role in ('landlord', 'contractor')),  -- NULL until user selects a role
   full_name text,
+  phone text,
+  company_name text,
+  trade text,
+  notes text,
   onboarded boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -36,7 +40,7 @@ security definer set search_path = public
 as $$
 begin
   insert into public.profiles (id, email, role, onboarded)
-  values (new.id, new.email, 'landlord', false)
+  values (new.id, new.email, null, false)
   on conflict (id) do nothing;
   return new;
 end;
@@ -65,5 +69,9 @@ create trigger set_profiles_updated_at
 -- Migration for existing DBs (safe to run)
 alter table public.profiles add column if not exists email text;
 alter table public.profiles add column if not exists full_name text;
+alter table public.profiles add column if not exists phone text;
+alter table public.profiles add column if not exists company_name text;
+alter table public.profiles add column if not exists trade text;
+alter table public.profiles add column if not exists notes text;
 alter table public.profiles add column if not exists updated_at timestamptz not null default now();
 alter table public.profiles add column if not exists onboarded boolean not null default false;

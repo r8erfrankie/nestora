@@ -44,12 +44,13 @@ export async function createClient() {
 }
 
 /**
- * Returns the effective role for the current user.
- * In development, this respects the 'dev_role' cookie override (for easy testing
- * of landlord vs contractor views without logging in as different users).
- * Falls back to the role stored in the user's profile (default 'landlord').
+ * Returns the effective role for the current user, or null if no role has been
+ * chosen yet (new accounts land on /select-role).
+ *
+ * In development the 'dev_role' cookie overrides the DB value so you can test
+ * both views without switching accounts.
  */
-export async function getCurrentUserRole(): Promise<UserRole> {
+export async function getCurrentUserRole(): Promise<UserRole | null> {
   const supabase = await createClient();
 
   const {
@@ -57,7 +58,7 @@ export async function getCurrentUserRole(): Promise<UserRole> {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return 'landlord';
+    return null;
   }
 
   // Development-only role override via cookie (set by the dev switcher)
@@ -68,7 +69,6 @@ export async function getCurrentUserRole(): Promise<UserRole> {
       console.log(`[DevRole] Using cookie override: ${devRole}`);
       return devRole;
     }
-    console.log('[DevRole] No valid dev_role cookie found, falling back to profile/default');
   }
 
   // Fetch from profile
@@ -78,8 +78,9 @@ export async function getCurrentUserRole(): Promise<UserRole> {
     .eq('id', user.id)
     .single();
 
-  const role = profile?.role as UserRole | undefined;
-  return role === 'contractor' ? 'contractor' : 'landlord';
+  const role = profile?.role;
+  if (role === 'landlord' || role === 'contractor') return role;
+  return null;
 }
 
 /**

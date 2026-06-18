@@ -1,5 +1,6 @@
 'use server';
 
+import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 
@@ -83,4 +84,30 @@ export async function markUserOnboarded() {
 
   await supabase.from('profiles').update({ onboarded: true }).eq('id', user.id);
   revalidatePath('/');
+}
+
+export async function saveContractorOnboarding(data: {
+  full_name: string;
+  trade?: string | null;
+  phone?: string | null;
+  notes?: string | null;
+}) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      full_name: data.full_name.trim(),
+      trade: data.trade?.trim() || null,
+      phone: data.phone?.trim() || null,
+      notes: data.notes?.trim() || null,
+      onboarded: true,
+    })
+    .eq('id', user.id);
+
+  if (error) throw error;
+
+  redirect('/contractor');
 }
