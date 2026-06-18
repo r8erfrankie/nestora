@@ -2,6 +2,8 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { validateEnv } from '@/lib/env';
+import type { UserRole } from '@/lib/roles';
+export type { UserRole };
 
 // Validate required env vars on server startup (this runs in Node, not the browser)
 validateEnv();
@@ -40,8 +42,6 @@ export async function createClient() {
     }
   );
 }
-
-export type UserRole = 'landlord' | 'contractor';
 
 /**
  * Returns the effective role for the current user.

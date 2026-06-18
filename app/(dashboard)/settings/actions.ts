@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 
-export async function updateProfile(data: { full_name: string; role: 'landlord' | 'contractor' }) {
+export async function updateProfile(data: { full_name: string }) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -13,11 +13,10 @@ export async function updateProfile(data: { full_name: string; role: 'landlord' 
 
   const { error } = await supabase
     .from('profiles')
-    .update({ full_name: data.full_name.trim() || null, role: data.role })
+    .update({ full_name: data.full_name.trim() || null })
     .eq('id', user.id);
 
   if (error) throw error;
 
   revalidatePath('/settings');
-  revalidatePath('/');
 }
