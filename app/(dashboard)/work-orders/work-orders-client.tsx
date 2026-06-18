@@ -956,8 +956,14 @@ export function WorkOrdersClient({
               />
             </div>
 
+            {/* Contractor + photos — grouped so the form feels shorter */}
+            <div className="border-border/60 space-y-3 border-t pt-3 sm:space-y-4 sm:pt-4">
+              <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                Contractor &amp; Photos — optional
+              </p>
+
             <div className="space-y-2">
-              <label className="text-sm font-medium">Assign to Contractor (name)</label>
+              <label className="text-sm font-medium">Contractor name</label>
               <Input
                 value={form.assigned_contractor}
                 onChange={(e) => updateForm('assigned_contractor', e.target.value)}
@@ -967,7 +973,7 @@ export function WorkOrdersClient({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Contractor Email (for notification)</label>
+              <label className="text-sm font-medium">Contractor email</label>
               <Input
                 type="email"
                 value={form.assigned_contractor_email}
@@ -979,7 +985,7 @@ export function WorkOrdersClient({
 
             {/* Photos upload at creation time */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Photos (optional)</label>
+              <label className="text-sm font-medium">Photos</label>
               <Input
                 type="file"
                 multiple
@@ -1006,6 +1012,7 @@ export function WorkOrdersClient({
                 </div>
               )}
             </div>
+            </div> {/* end contractor & photos section */}
 
             {formError && <p className="text-destructive text-sm">{formError}</p>}
 

@@ -269,25 +269,25 @@ export function PropertiesClient({
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 sm:gap-4">
           {properties.map((property) => (
-            <Card key={property.id} className="flex flex-col">
-              <CardHeader className="pb-3">
+            <Card key={property.id} className="flex flex-col [--card-spacing:0.75rem] sm:[--card-spacing:1rem]">
+              <CardHeader className="pb-2 sm:pb-3">
                 <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="line-clamp-1 text-lg">{property.name}</CardTitle>
+                  <CardTitle className="line-clamp-1 text-base sm:text-lg">{property.name}</CardTitle>
                   {property.type && (
-                    <Badge variant="secondary" className="shrink-0">
+                    <Badge variant="secondary" className="shrink-0 text-xs">
                       {property.type}
                     </Badge>
                   )}
                 </div>
-                <CardDescription className="line-clamp-1">
+                <CardDescription className="line-clamp-1 text-xs sm:text-sm">
                   {property.address || 'No address provided'}
                 </CardDescription>
               </CardHeader>
 
               <CardContent className="flex-1">
-                <p className="text-muted-foreground line-clamp-3 text-sm">
+                <p className="text-muted-foreground line-clamp-2 text-sm">
                   {property.notes || 'No notes added yet.'}
                 </p>
               </CardContent>
@@ -296,12 +296,12 @@ export function PropertiesClient({
                 <span className="text-muted-foreground text-xs">
                   {formatDate(property.updated_at)}
                 </span>
-                <div className="flex gap-1.5">
+                <div className="flex gap-1">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => openView(property)}
-                    className="h-8 px-2"
+                    className="h-10 px-2.5 sm:h-8 sm:px-2"
                   >
                     <Eye className="h-3.5 w-3.5" />
                     <span className="sr-only">View</span>
@@ -310,7 +310,7 @@ export function PropertiesClient({
                     variant="ghost"
                     size="sm"
                     onClick={() => openEdit(property)}
-                    className="h-8 px-2"
+                    className="h-10 px-2.5 sm:h-8 sm:px-2"
                   >
                     <Edit2 className="h-3.5 w-3.5" />
                     <span className="sr-only">Edit</span>
@@ -319,7 +319,7 @@ export function PropertiesClient({
                     variant="ghost"
                     size="sm"
                     onClick={() => requestDelete(property)}
-                    className="text-destructive hover:text-destructive h-8 px-2"
+                    className="text-destructive hover:text-destructive h-10 px-2.5 sm:h-8 sm:px-2"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                     <span className="sr-only">Delete</span>
@@ -333,7 +333,7 @@ export function PropertiesClient({
 
       {/* Create / Edit / View Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={(open) => !open && closeDialog()}>
-        <DialogContent className="sm:max-w-[480px]">
+        <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle>
               {dialogMode === 'create' && 'Add New Property'}
@@ -418,8 +418,8 @@ export function PropertiesClient({
               </DialogFooter>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
+            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+              <div className="space-y-1.5 sm:space-y-2">
                 <label className="text-sm font-medium">
                   Name <span className="text-destructive">*</span>
                 </label>
@@ -428,28 +428,30 @@ export function PropertiesClient({
                   value={form.name}
                   onChange={(e) => handleFormChange('name', e.target.value)}
                   disabled={saving}
+                  className="!h-11 sm:!h-8"
                   required
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <label className="text-sm font-medium">Address</label>
                 <Input
                   placeholder="123 Main Street, City, State"
                   value={form.address}
                   onChange={(e) => handleFormChange('address', e.target.value)}
                   disabled={saving}
+                  className="!h-11 sm:!h-8"
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <label className="text-sm font-medium">Property Type</label>
                 <Select
                   value={form.type}
                   onValueChange={(value) => handleFormChange('type', value || '')}
                   disabled={saving}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="!h-11 sm:!h-8">
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -462,15 +464,15 @@ export function PropertiesClient({
                 </Select>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <label className="text-sm font-medium">Notes</label>
                 <Textarea
                   placeholder="Any additional details, tenant info, etc."
                   value={form.notes}
                   onChange={(e) => handleFormChange('notes', e.target.value)}
                   disabled={saving}
-                  rows={4}
-                  className="resize-y"
+                  rows={3}
+                  className="min-h-[80px] resize-y"
                 />
               </div>
 

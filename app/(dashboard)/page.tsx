@@ -156,79 +156,79 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8 p-6">
+    <div className="space-y-5 p-4 sm:space-y-8 sm:p-6">
       {/* Page header */}
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-[-0.02em]">
+          <h1 className="text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
             {greeting}, {greetingName}
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-0.5 text-sm">
             Here&apos;s a clear overview of your properties and maintenance tasks.
           </p>
         </div>
         <a
           href="/work-orders"
-          className="border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-8 items-center justify-center gap-2 rounded-md border px-3 py-1 text-xs font-medium shadow-sm transition-colors"
+          className="border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-8 items-center justify-center gap-2 self-start rounded-md border px-3 py-1 text-xs font-medium shadow-sm transition-colors sm:self-auto"
         >
           View work orders
           <ArrowUpRight className="h-3.5 w-3.5" />
         </a>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2 text-xs">
-              <Clock className="h-3.5 w-3.5" /> Open work orders
+      {/* Stats — 2-col on mobile so all 4 fit above the fold */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Card className="[--card-spacing:0.75rem] sm:[--card-spacing:1rem]">
+          <CardHeader className="pb-1 sm:pb-2">
+            <CardDescription className="flex items-center gap-1.5 text-[10px] sm:text-xs">
+              <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> Open work orders
             </CardDescription>
-            <CardTitle className="text-3xl tracking-tighter tabular-nums">
+            <CardTitle className="text-2xl tracking-tighter tabular-nums sm:text-3xl">
               {openWorkOrders || 0}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground text-xs">{dueSoon || 0} due within 7 days</p>
+            <p className="text-muted-foreground text-[10px] sm:text-xs">{dueSoon || 0} due within 7 days</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2 text-xs">
-              <AlertTriangle className="h-3.5 w-3.5" /> Due soon
+        <Card className="[--card-spacing:0.75rem] sm:[--card-spacing:1rem]">
+          <CardHeader className="pb-1 sm:pb-2">
+            <CardDescription className="flex items-center gap-1.5 text-[10px] sm:text-xs">
+              <AlertTriangle className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> Due soon
             </CardDescription>
-            <CardTitle className="text-3xl tracking-tighter tabular-nums">{dueSoon || 0}</CardTitle>
+            <CardTitle className="text-2xl tracking-tighter tabular-nums sm:text-3xl">{dueSoon || 0}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground text-xs">Work orders with upcoming deadlines</p>
+            <p className="text-muted-foreground text-[10px] sm:text-xs">Upcoming deadlines</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2 text-xs">
-              <CheckCircle className="h-3.5 w-3.5" /> Completed this month
+        <Card className="[--card-spacing:0.75rem] sm:[--card-spacing:1rem]">
+          <CardHeader className="pb-1 sm:pb-2">
+            <CardDescription className="flex items-center gap-1.5 text-[10px] sm:text-xs">
+              <CheckCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> Completed
             </CardDescription>
-            <CardTitle className="text-3xl tracking-tighter tabular-nums">
+            <CardTitle className="text-2xl tracking-tighter tabular-nums sm:text-3xl">
               {completedThisMonth || 0}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground text-xs">Work orders marked complete</p>
+            <p className="text-muted-foreground text-[10px] sm:text-xs">This month</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2 text-xs">
-              <Building2 className="h-3.5 w-3.5" /> Total properties
+        <Card className="[--card-spacing:0.75rem] sm:[--card-spacing:1rem]">
+          <CardHeader className="pb-1 sm:pb-2">
+            <CardDescription className="flex items-center gap-1.5 text-[10px] sm:text-xs">
+              <Building2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> Properties
             </CardDescription>
-            <CardTitle className="text-3xl tracking-tighter tabular-nums">
+            <CardTitle className="text-2xl tracking-tighter tabular-nums sm:text-3xl">
               {totalProperties || 0}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground text-xs">Properties under management</p>
+            <p className="text-muted-foreground text-[10px] sm:text-xs">Under management</p>
           </CardContent>
         </Card>
       </div>
@@ -241,8 +241,8 @@ export default async function DashboardPage() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Activity className="h-5 w-5" /> Recent Activity
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Activity className="h-4 w-4 sm:h-5 sm:w-5" /> Recent Activity
               </CardTitle>
               <CardDescription>Latest updates across your properties</CardDescription>
             </div>
@@ -257,7 +257,7 @@ export default async function DashboardPage() {
         <Separator />
         <CardContent className="pt-4">
           {recentActivities && recentActivities.length > 0 ? (
-            <div className="space-y-4 text-sm">
+            <div className="space-y-3 text-sm sm:space-y-4">
               {recentActivities.map((activity: any) => {
                 const propName = activity.properties?.name ? ` at ${activity.properties.name}` : '';
                 const message = `Work order "${activity.title}"${propName} was marked as ${activity.status}`;
