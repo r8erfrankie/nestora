@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -42,7 +42,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Eye, Upload, Loader2, ClipboardList, Archive, Trash2, X } from 'lucide-react';
+import { Plus, Eye, Upload, Loader2, ClipboardList, Archive, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface WorkOrder {
   id: string;
@@ -99,8 +99,25 @@ export function WorkOrdersClient({
   // Multi-select for photos in detail view
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<string>>(new Set());
 
-  // Full screen viewer
-  const [fullScreenPhoto, setFullScreenPhoto] = useState<Photo | null>(null);
+  // Full-screen lightbox — tracks index into photos[], null = closed
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
+  // Derived: current photo in lightbox
+  const lightboxPhoto = lightboxIndex !== null ? (photos[lightboxIndex] ?? null) : null;
+
+  // Keyboard navigation for lightbox
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') setLightboxIndex(i => (i !== null && i > 0 ? i - 1 : i));
+      else if (e.key === 'ArrowRight') setLightboxIndex(i => (i !== null && i < photos.length - 1 ? i + 1 : i));
+      else if (e.key === 'Escape') setLightboxIndex(null);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [lightboxIndex, photos.length]);
 
   // Pending photos for upload in the detail view (to allow naming before upload)
   const [pendingDetailPhotos, setPendingDetailPhotos] = useState<
@@ -478,8 +495,9 @@ export function WorkOrdersClient({
         next.delete(photo.id);
         return next;
       });
-      if (fullScreenPhoto?.id === photo.id) {
-        setFullScreenPhoto(null);
+      if (lightboxIndex !== null && photos[lightboxIndex]?.id === photo.id) {
+        const nextLength = photos.length - 1;
+        setLightboxIndex(nextLength === 0 ? null : Math.min(lightboxIndex, nextLength - 1));
       }
     } catch (err) {
       alert('Failed to delete photo.');
@@ -499,21 +517,41 @@ export function WorkOrdersClient({
       if (error) throw error;
 
       setPhotos((prev) => prev.map((p) => (p.id === photoId ? { ...p, name: trimmed } : p)));
-
-      if (fullScreenPhoto?.id === photoId) {
-        setFullScreenPhoto({ ...fullScreenPhoto, name: trimmed });
-      }
     } catch (err) {
       alert('Failed to rename photo.');
     }
   };
 
   const openFullScreen = (photo: Photo) => {
-    setFullScreenPhoto(photo);
+    const idx = photos.findIndex((p) => p.id === photo.id);
+    setLightboxIndex(idx >= 0 ? idx : 0);
   };
 
-  const closeFullScreen = () => {
-    setFullScreenPhoto(null);
+  const closeFullScreen = () => setLightboxIndex(null);
+
+  const prevPhoto = () => setLightboxIndex((i) => (i !== null && i > 0 ? i - 1 : i));
+  const nextPhoto = () =>
+    setLightboxIndex((i) => (i !== null && i < photos.length - 1 ? i + 1 : i));
+
+  const handleLightboxTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleLightboxTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+    if (absDx > absDy && absDx > 40) {
+      if (dx < 0) nextPhoto();
+      else prevPhoto();
+    } else if (dy > 80 && absDx < 60) {
+      closeFullScreen();
+    }
+    touchStartX.current = null;
+    touchStartY.current = null;
   };
 
   // Handle form field changes
@@ -1322,55 +1360,90 @@ export function WorkOrdersClient({
                   )}
                 </div>
 
-                {/* Full screen photo viewer */}
-                {fullScreenPhoto && (
+                {/* Full-screen photo lightbox with swipe navigation */}
+                {lightboxPhoto && (
                   <div
-                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4"
+                    className="fixed inset-0 z-[200] flex items-center justify-center bg-black"
                     onClick={closeFullScreen}
+                    onTouchStart={handleLightboxTouchStart}
+                    onTouchEnd={handleLightboxTouchEnd}
                   >
+                    {/* Counter */}
+                    {photos.length > 1 && (
+                      <div className="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 select-none rounded-full bg-black/50 px-3 py-1 text-sm font-medium text-white backdrop-blur-sm">
+                        {(lightboxIndex ?? 0) + 1} / {photos.length}
+                      </div>
+                    )}
+
+                    {/* Close */}
+                    <button
+                      onClick={closeFullScreen}
+                      className="absolute top-4 right-4 z-10 rounded-full bg-white/10 p-2.5 text-white backdrop-blur-sm transition-colors hover:bg-white/25"
+                      aria-label="Close"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+
+                    {/* Prev arrow — desktop + visible on mobile for discoverability */}
+                    {lightboxIndex !== null && lightboxIndex > 0 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); prevPhoto(); }}
+                        className="absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white backdrop-blur-sm transition-colors hover:bg-white/25"
+                        aria-label="Previous photo"
+                      >
+                        <ChevronLeft className="h-6 w-6" />
+                      </button>
+                    )}
+
+                    {/* Image */}
                     <div
-                      className="relative max-h-[92vh] max-w-[95vw]"
+                      className="flex h-full w-full items-center justify-center px-16 py-14"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {/* Close X */}
-                      <button
-                        onClick={closeFullScreen}
-                        className="absolute -top-3 -right-3 z-10 rounded-full bg-black/70 p-2 text-white hover:bg-black"
-                        aria-label="Close full screen"
-                      >
-                        <X className="h-5 w-5" />
-                      </button>
-
                       <img
-                        src={fullScreenPhoto.url}
-                        alt={fullScreenPhoto.name || 'Work order photo'}
-                        className="max-h-[85vh] max-w-full rounded object-contain shadow-2xl"
+                        src={lightboxPhoto.url}
+                        alt={lightboxPhoto.name || 'Work order photo'}
+                        className="max-h-[80vh] max-w-full select-none object-contain"
+                        draggable={false}
                       />
+                    </div>
 
-                      <div className="mt-3 flex items-center justify-between text-sm text-white/90">
-                        <input
-                          value={fullScreenPhoto.name || ''}
-                          onChange={(e) => {
-                            const newName = e.target.value;
-                            setPhotos((prev) =>
-                              prev.map((p) =>
-                                p.id === fullScreenPhoto.id ? { ...p, name: newName } : p
-                              )
-                            );
-                            setFullScreenPhoto({ ...fullScreenPhoto, name: newName });
-                          }}
-                          onBlur={(e) => updatePhotoName(fullScreenPhoto.id, e.target.value)}
-                          className="rounded bg-black/40 px-2 py-1 text-white placeholder-white/60 focus:bg-black/60"
-                          placeholder="Photo name"
-                        />
+                    {/* Next arrow */}
+                    {lightboxIndex !== null && lightboxIndex < photos.length - 1 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); nextPhoto(); }}
+                        className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white backdrop-blur-sm transition-colors hover:bg-white/25"
+                        aria-label="Next photo"
+                      >
+                        <ChevronRight className="h-6 w-6" />
+                      </button>
+                    )}
 
-                        <button
-                          onClick={() => deleteSinglePhoto(fullScreenPhoto)}
-                          className="flex items-center gap-1 rounded bg-red-600/80 px-3 py-1 text-sm hover:bg-red-600"
-                        >
-                          <Trash2 className="h-4 w-4" /> Delete
-                        </button>
-                      </div>
+                    {/* Bottom bar: name editor + delete */}
+                    <div
+                      className="absolute inset-x-0 bottom-0 flex items-center gap-3 bg-gradient-to-t from-black/80 to-transparent p-4 pt-10"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        value={lightboxPhoto.name || ''}
+                        onChange={(e) => {
+                          const newName = e.target.value;
+                          setPhotos((prev) =>
+                            prev.map((p) =>
+                              p.id === lightboxPhoto.id ? { ...p, name: newName } : p
+                            )
+                          );
+                        }}
+                        onBlur={(e) => updatePhotoName(lightboxPhoto.id, e.target.value)}
+                        className="min-w-0 flex-1 rounded bg-white/10 px-2 py-1.5 text-sm text-white placeholder-white/50 focus:bg-white/20 focus:outline-none"
+                        placeholder="Photo name"
+                      />
+                      <button
+                        onClick={() => deleteSinglePhoto(lightboxPhoto)}
+                        className="flex shrink-0 items-center gap-1.5 rounded bg-red-600/80 px-3 py-1.5 text-sm text-white transition-colors hover:bg-red-600"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Delete
+                      </button>
                     </div>
                   </div>
                 )}
