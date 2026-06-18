@@ -18,6 +18,8 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Building2, CheckCircle, ArrowRight, User } from 'lucide-react';
+import { toast } from 'sonner';
+import confetti from 'canvas-confetti';
 
 const PROPERTY_TYPES = [
   'Apartment',
@@ -86,6 +88,13 @@ export function Onboarding({ greetingName }: OnboardingProps) {
       await markUserOnboarded();
       // Clear dev override so the dashboard does not re-show onboarding
       document.cookie = 'dev_force_onboarding=; path=/; max-age=0; samesite=lax';
+      toast.success("You're all set! Welcome to Nestora.", { duration: 4500 });
+      confetti({
+        particleCount: 110,
+        spread: 70,
+        origin: { y: 0.55 },
+        colors: ['#10b981', '#6366f1', '#f59e0b', '#3b82f6'],
+      });
       setStep('complete');
     } catch (err: any) {
       setError(err?.message || 'Failed to add property. Please try again.');
