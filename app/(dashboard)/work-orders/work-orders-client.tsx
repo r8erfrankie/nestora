@@ -80,13 +80,15 @@ export function WorkOrdersClient({
   initialWorkOrders,
   properties,
   loadError,
+  autoOpenCreate = false,
 }: {
   initialWorkOrders: WorkOrder[];
   properties: Property[];
   loadError?: { message?: string; details?: string; hint?: string; code?: string } | null;
+  autoOpenCreate?: boolean;
 }) {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>(initialWorkOrders);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(autoOpenCreate);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);

@@ -1,8 +1,14 @@
 import { createClient } from '@/lib/supabase/server';
 import { WorkOrdersClient } from './work-orders-client';
 
-export default async function WorkOrdersPage() {
+export default async function WorkOrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const supabase = await createClient();
+  const params = await searchParams;
+  const autoOpenCreate = params.create === '1';
 
   const [{ data: workOrders, error: workOrdersError }, { data: properties }] = await Promise.all([
     supabase
@@ -27,6 +33,7 @@ export default async function WorkOrdersPage() {
         initialWorkOrders={workOrders || []}
         properties={properties || []}
         loadError={workOrdersError}
+        autoOpenCreate={autoOpenCreate}
       />
     </div>
   );

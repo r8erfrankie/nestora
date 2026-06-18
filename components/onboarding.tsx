@@ -4,12 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   createOnboardingProperty,
-  createOnboardingWorkOrder,
+  saveOnboardingProfile,
   markUserOnboarded,
 } from '@/app/actions/onboarding-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -18,7 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, ClipboardList, CheckCircle, ArrowRight, SkipForward } from 'lucide-react';
+import { Building2, CheckCircle, ArrowRight, User } from 'lucide-react';
 
 const PROPERTY_TYPES = [
   'Apartment',
@@ -30,129 +29,113 @@ const PROPERTY_TYPES = [
   'Other',
 ] as const;
 
-const PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'] as const;
+type Step = 'welcome' | 'profile' | 'property' | 'complete';
 
 interface OnboardingProps {
   greetingName: string;
 }
 
 export function Onboarding({ greetingName }: OnboardingProps) {
-  const [step, setStep] = useState<'welcome' | 'property' | 'workorder' | 'complete'>('welcome');
+  const [step, setStep] = useState<Step>('welcome');
+
+  // Profile step
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [company, setCompany] = useState('');
+
+  // Property step
   const [propertyName, setPropertyName] = useState('');
   const [propertyAddress, setPropertyAddress] = useState('');
   const [propertyType, setPropertyType] = useState('');
-  const [propertyNotes, setPropertyNotes] = useState('');
 
-  const [workOrderTitle, setWorkOrderTitle] = useState('');
-  const [workOrderDescription, setWorkOrderDescription] = useState('');
-  const [workOrderPriority, setWorkOrderPriority] = useState('Medium');
-  const [workOrderDueDate, setWorkOrderDueDate] = useState('');
-  const [workOrderContractorEmail, setWorkOrderContractorEmail] = useState('');
-
-  const [isLoading, setIsLoading] = useState(false);
-  const [createdPropertyId, setCreatedPropertyId] = useState<string | null>(null);
-  const [createdPropertyName, setCreatedPropertyName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const router = useRouter();
 
-  const markOnboarded = async () => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fullName.trim()) return;
+    setLoading(true);
+    setError('');
     try {
-      await markUserOnboarded();
-      document.cookie = 'dev_force_onboarding=; path=/; max-age=0; samesite=lax';
-    } catch {
-      // ignore, proceed with refresh
+      await saveOnboardingProfile({
+        full_name: fullName.trim(),
+        phone: phone.trim() || null,
+        company_name: company.trim() || null,
+      });
+      setStep('property');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to save profile. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    router.refresh();
-  };
-
-  const handleSkip = async () => {
-    await markOnboarded();
   };
 
   const handleAddProperty = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!propertyName.trim()) return;
-
-    setIsLoading(true);
+    if (!propertyName.trim() || !propertyAddress.trim()) return;
+    setLoading(true);
+    setError('');
     try {
-      const newProperty = await createOnboardingProperty({
+      await createOnboardingProperty({
         name: propertyName.trim(),
-        address: propertyAddress.trim() || null,
+        address: propertyAddress.trim(),
         type: propertyType || null,
-        notes: propertyNotes.trim() || null,
       });
-      setCreatedPropertyId(newProperty.id);
-      setCreatedPropertyName(newProperty.name);
-      setStep('workorder');
-      setWorkOrderTitle('Initial inspection or repair needed');
-    } catch (err: any) {
-      alert(err?.message || err?.details || 'Failed to add property. Please try again or go to the Properties page.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleAddWorkOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!workOrderTitle.trim() || !createdPropertyId) return;
-
-    setIsLoading(true);
-    try {
-      await createOnboardingWorkOrder({
-        title: workOrderTitle.trim(),
-        description: workOrderDescription.trim() || null,
-        priority: workOrderPriority,
-        due_date: workOrderDueDate || null,
-        property_id: createdPropertyId,
-        assigned_contractor_email: workOrderContractorEmail.trim() || null,
-      });
-      await markOnboarded();
+      await markUserOnboarded();
+      // Clear dev override so the dashboard does not re-show onboarding
+      document.cookie = 'dev_force_onboarding=; path=/; max-age=0; samesite=lax';
       setStep('complete');
     } catch (err: any) {
-      alert(err?.message || err?.details || 'Failed to create work order. You can create one from the Work Orders page.');
-      await markOnboarded();
+      setError(err?.message || 'Failed to add property. Please try again.');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
+
+  if (step === 'welcome') {
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center p-6">
+        <div className="w-full max-w-md space-y-6 text-center">
+          <div className="space-y-3">
+            <h1 className="text-3xl font-semibold tracking-tight">
+              Welcome to Nestora, {greetingName}!
+            </h1>
+            <p className="text-muted-foreground">
+              Let&apos;s get you set up in two quick steps so you can start tracking maintenance
+              across your properties.
+            </p>
+          </div>
+          <Button size="lg" onClick={() => setStep('profile')} className="w-full sm:w-auto">
+            Get Started <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (step === 'complete') {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center p-6">
-        <Card className="w-full max-w-lg text-center">
+      <div className="flex min-h-[70vh] items-center justify-center p-6">
+        <Card className="w-full max-w-md text-center">
           <CardHeader>
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
               <CheckCircle className="h-8 w-8" />
             </div>
-            <CardTitle className="text-2xl">You're all set, {greetingName}!</CardTitle>
+            <CardTitle className="text-2xl">You&apos;re all set, {greetingName}!</CardTitle>
             <CardDescription>
-              Your first property and work order are ready. Nestora will help you stay on top of
-              maintenance from now on.
+              Your property is ready. Create your first work order to start tracking maintenance
+              tasks.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Button onClick={() => router.push('/')} className="flex-1">
-                Go to Dashboard
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => router.push('/properties')}
-                className="flex-1"
-              >
-                View Properties
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => router.push('/work-orders')}
-                className="flex-1"
-              >
-                View Work Orders
-              </Button>
-            </div>
-            <p className="text-muted-foreground text-xs">
-              You can always add more properties and work orders from the sidebar.
-            </p>
+          <CardContent className="space-y-3">
+            <Button onClick={() => router.push('/work-orders?create=1')} className="w-full">
+              Create first work order
+            </Button>
+            <Button variant="outline" onClick={() => router.push('/')} className="w-full">
+              Go to Dashboard
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -160,51 +143,93 @@ export function Onboarding({ greetingName }: OnboardingProps) {
   }
 
   return (
-    <div className="space-y-8 p-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-[-0.02em]">
-            Welcome to Nestora, {greetingName}!
-          </h1>
-          <p className="text-muted-foreground mt-1 max-w-prose">
-            We're glad you're here. Let's get you set up with your first property and work order in
-            just two quick steps. You'll be managing maintenance in no time.
-          </p>
-        </div>
-        <Button variant="ghost" size="sm" onClick={handleSkip} className="text-muted-foreground">
-          <SkipForward className="mr-1 h-4 w-4" />
-          Skip for now
-        </Button>
-      </div>
-
-      {/* Progress */}
-      <div className="flex items-center gap-4 text-sm">
+    <div className="mx-auto max-w-lg space-y-8 p-6">
+      {/* Step progress */}
+      <div className="flex items-center gap-3 text-sm">
         <div
-          className={`flex items-center gap-2 ${step === 'welcome' || step === 'property' ? 'text-foreground' : 'text-muted-foreground'}`}
+          className={`flex items-center gap-2 ${step === 'profile' || step === 'property' ? 'text-foreground' : 'text-muted-foreground'}`}
         >
           <div
-            className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${step === 'welcome' || step === 'property' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}
+            className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium ${step === 'profile' || step === 'property' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}
           >
             1
           </div>
-          <span>Add Property</span>
+          <span>Profile</span>
         </div>
         <div className="bg-border h-px flex-1" />
         <div
-          className={`flex items-center gap-2 ${(['workorder', 'complete'] as const).includes(step as any) ? 'text-foreground' : 'text-muted-foreground'}`}
+          className={`flex items-center gap-2 ${step === 'property' ? 'text-foreground' : 'text-muted-foreground'}`}
         >
           <div
-            className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${(['workorder', 'complete'] as const).includes(step as any) ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}
+            className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium ${step === 'property' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}
           >
             2
           </div>
-          <span>Create Work Order</span>
+          <span>Property</span>
         </div>
       </div>
 
-      {/* Step 1: Add Property */}
-      {step === 'welcome' || step === 'property' ? (
+      {/* Step 1: Profile */}
+      {step === 'profile' && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="bg-primary/10 text-primary flex h-10 w-10 items-center justify-center rounded-full">
+                <User className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle>Step 1: Your profile</CardTitle>
+                <CardDescription>Tell us a bit about yourself.</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSaveProfile} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Full name *</label>
+                <Input
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Jane Smith"
+                  required
+                  disabled={loading}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Phone (optional)</label>
+                <Input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+1 555 000 0000"
+                  disabled={loading}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Company name (optional)</label>
+                <Input
+                  value={company}
+                  onChange={(e) => setCompany(e.target.value)}
+                  placeholder="Smith Properties LLC"
+                  disabled={loading}
+                />
+              </div>
+              {error && <p className="text-destructive text-sm">{error}</p>}
+              <Button
+                type="submit"
+                disabled={loading || !fullName.trim()}
+                className="w-full sm:w-auto"
+              >
+                {loading ? 'Saving…' : 'Continue'}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 2: Property */}
+      {step === 'property' && (
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
@@ -212,170 +237,70 @@ export function Onboarding({ greetingName }: OnboardingProps) {
                 <Building2 className="h-5 w-5" />
               </div>
               <div>
-                <CardTitle>Step 1: Add your first property</CardTitle>
+                <CardTitle>Step 2: Add your first property</CardTitle>
                 <CardDescription>
-                  Properties are the foundation of Nestora. Add one now to start tracking
-                  maintenance.
+                  Properties are the foundation of Nestora. Add one to start tracking maintenance.
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleAddProperty} className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-2 sm:col-span-2">
-                  <label className="text-sm font-medium">Property Name *</label>
-                  <Input
-                    value={propertyName}
-                    onChange={(e) => setPropertyName(e.target.value)}
-                    placeholder="e.g. Oak Street Apartments"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Address</label>
-                  <Input
-                    value={propertyAddress}
-                    onChange={(e) => setPropertyAddress(e.target.value)}
-                    placeholder="123 Oak St, City"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Type</label>
-                  <Select value={propertyType} onValueChange={(val) => val && setPropertyType(val)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PROPERTY_TYPES.map((t) => (
-                        <SelectItem key={t} value={t}>
-                          {t}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
               <div className="space-y-2">
-                <label className="text-sm font-medium">Notes (optional)</label>
-                <Textarea
-                  value={propertyNotes}
-                  onChange={(e) => setPropertyNotes(e.target.value)}
-                  placeholder="Any special details about this property..."
-                  rows={2}
+                <label className="text-sm font-medium">Property name / nickname *</label>
+                <Input
+                  value={propertyName}
+                  onChange={(e) => setPropertyName(e.target.value)}
+                  placeholder="e.g. Oak Street Apartments"
+                  required
+                  disabled={loading}
                 />
               </div>
-
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Address *</label>
+                <Input
+                  value={propertyAddress}
+                  onChange={(e) => setPropertyAddress(e.target.value)}
+                  placeholder="123 Oak St, City, State"
+                  required
+                  disabled={loading}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Property type (optional)</label>
+                <Select
+                  value={propertyType}
+                  onValueChange={(val) => val && setPropertyType(val)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROPERTY_TYPES.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {error && <p className="text-destructive text-sm">{error}</p>}
               <Button
                 type="submit"
-                disabled={isLoading || !propertyName.trim()}
+                disabled={loading || !propertyName.trim() || !propertyAddress.trim()}
                 className="w-full sm:w-auto"
               >
-                {isLoading ? 'Adding property...' : 'Add Property & Continue'}
+                {loading ? 'Adding property…' : 'Add Property & Finish'}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </form>
           </CardContent>
         </Card>
-      ) : null}
-
-      {/* Step 2: Create Work Order */}
-      {step === 'workorder' && createdPropertyId && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="bg-primary/10 text-primary flex h-10 w-10 items-center justify-center rounded-full">
-                <ClipboardList className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle>Step 2: Create your first work order</CardTitle>
-                <CardDescription>
-                  Great! "{createdPropertyName}" has been added. Now create a work order to track a
-                  task for it.
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleAddWorkOrder} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Work Order Title *</label>
-                <Input
-                  value={workOrderTitle}
-                  onChange={(e) => setWorkOrderTitle(e.target.value)}
-                  placeholder="e.g. Fix leaking roof in unit 2B"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Description (optional)</label>
-                <Textarea
-                  value={workOrderDescription}
-                  onChange={(e) => setWorkOrderDescription(e.target.value)}
-                  placeholder="Details about what needs to be done..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Priority</label>
-                  <Select value={workOrderPriority} onValueChange={(val) => val && setWorkOrderPriority(val)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PRIORITIES.map((p) => (
-                        <SelectItem key={p} value={p}>
-                          {p}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Due Date (optional)</label>
-                  <Input
-                    type="date"
-                    value={workOrderDueDate}
-                    onChange={(e) => setWorkOrderDueDate(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Assign to contractor email (optional)</label>
-                <Input
-                  type="email"
-                  value={workOrderContractorEmail}
-                  onChange={(e) => setWorkOrderContractorEmail(e.target.value)}
-                  placeholder="contractor@example.com"
-                />
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Button
-                  type="submit"
-                  disabled={isLoading || !workOrderTitle.trim()}
-                  className="flex-1 sm:flex-none"
-                >
-                  {isLoading ? 'Creating work order...' : 'Create Work Order & Finish'}
-                </Button>
-                <Button type="button" variant="outline" onClick={handleSkip} disabled={isLoading}>
-                  Skip this step
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
       )}
 
-      {/* Tips */}
-      <div className="text-muted-foreground text-center text-xs">
-        You can always add more properties and work orders later using the sidebar.
-      </div>
+      <p className="text-muted-foreground text-center text-xs">
+        You can update all of this later in Settings.
+      </p>
     </div>
   );
 }
