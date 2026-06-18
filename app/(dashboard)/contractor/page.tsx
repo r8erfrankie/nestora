@@ -44,7 +44,7 @@ export default async function ContractorDashboardPage() {
       properties (id, name, address)
     `
     )
-    .eq('assigned_contractor_email', user?.email ?? '')
+    .eq('assigned_contractor_email', (user?.email ?? '').toLowerCase())
     .order('created_at', { ascending: false });
 
   return (

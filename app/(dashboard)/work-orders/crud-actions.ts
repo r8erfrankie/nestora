@@ -139,7 +139,7 @@ export async function updateContractorAssignment(
     .from('work_orders')
     .update({
       assigned_contractor: data.assigned_contractor,
-      assigned_contractor_email: data.assigned_contractor_email,
+      assigned_contractor_email: data.assigned_contractor_email?.trim().toLowerCase() ?? null,
       assigned_contractor_phone: data.assigned_contractor_phone,
       trade: data.trade,
     })
@@ -193,7 +193,7 @@ export async function createWorkOrder(data: {
       due_date: data.due_date || null,
       property_id: data.property_id,
       assigned_contractor: data.assigned_contractor || null,
-      assigned_contractor_email: data.assigned_contractor_email || null,
+      assigned_contractor_email: data.assigned_contractor_email?.trim().toLowerCase() || null,
       assigned_contractor_phone: data.assigned_contractor_phone || null,
       trade: data.trade || null,
       cost: data.cost || 0,
