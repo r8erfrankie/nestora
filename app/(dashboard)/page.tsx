@@ -26,9 +26,11 @@ export default async function DashboardPage() {
   const greetingName = fullName ? fullName.trim().split(/\s+/)[0] : null;
   const greeting = getGreeting();
 
-  const isLandlord = role === 'landlord';
+  if (role === null) {
+    redirect('/select-role');
+  }
 
-  if (!isLandlord) {
+  if (role !== 'landlord') {
     redirect('/contractor');
   }
 

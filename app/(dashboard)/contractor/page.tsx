@@ -7,7 +7,10 @@ export default async function ContractorDashboardPage() {
   const supabase = await createClient();
   const role = await getCurrentUserRole();
 
-  // Landlords have no business here
+  if (role === null) {
+    redirect('/select-role');
+  }
+
   if (role !== 'contractor') {
     redirect('/');
   }

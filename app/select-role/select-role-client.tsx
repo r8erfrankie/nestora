@@ -1,48 +1,58 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { Building2, HardHat } from 'lucide-react';
-import { setUserRole } from '@/app/actions/role-actions';
+import { setUserRoleAction, type RoleActionState } from '@/app/actions/role-actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import type { UserRole } from '@/lib/roles';
+
+function SubmitCard({
+  icon,
+  title,
+  description,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="group w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl disabled:opacity-60 disabled:cursor-not-allowed"
+    >
+      <Card className="h-full cursor-pointer transition-all duration-150 group-hover:border-primary group-hover:shadow-md group-focus-visible:border-primary group-focus-visible:shadow-md">
+        <CardHeader className="pb-3">
+          <div className="text-primary mb-2">
+            {pending ? (
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            ) : (
+              icon
+            )}
+          </div>
+          <CardTitle className="text-xl">{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CardDescription className="text-sm leading-relaxed">{description}</CardDescription>
+        </CardContent>
+      </Card>
+    </button>
+  );
+}
 
 export function SelectRoleClient() {
-  const [loading, setLoading] = useState<UserRole | null>(null);
-  const [error, setError] = useState('');
-  const router = useRouter();
+  const [landlordState, landlordAction] = useActionState<RoleActionState, FormData>(
+    setUserRoleAction,
+    null,
+  );
+  const [contractorState, contractorAction] = useActionState<RoleActionState, FormData>(
+    setUserRoleAction,
+    null,
+  );
 
-  const handleSelect = async (role: UserRole) => {
-    setLoading(role);
-    setError('');
-    const result = await setUserRole(role);
-    if (result?.error) {
-      setError(result.error);
-      setLoading(null);
-      return;
-    }
-    router.push(role === 'contractor' ? '/contractor-onboarding' : '/landlord-onboarding');
-  };
-
-  const options: Array<{
-    role: UserRole;
-    icon: React.ReactNode;
-    title: string;
-    description: string;
-  }> = [
-    {
-      role: 'landlord',
-      icon: <Building2 className="h-8 w-8" />,
-      title: 'Landlord',
-      description: 'I own or manage rental properties and want to track maintenance.',
-    },
-    {
-      role: 'contractor',
-      icon: <HardHat className="h-8 w-8" />,
-      title: 'Contractor',
-      description: 'I do repairs and maintenance work assigned by property managers.',
-    },
-  ];
+  const error = landlordState?.error ?? contractorState?.error;
 
   return (
     <div className="flex min-h-screen items-center justify-center p-6">
@@ -53,30 +63,23 @@ export function SelectRoleClient() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          {options.map(({ role, icon, title, description }) => (
-            <button
-              key={role}
-              onClick={() => handleSelect(role)}
-              disabled={!!loading}
-              className="group text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <Card className="h-full cursor-pointer transition-all duration-150 group-hover:border-primary group-hover:shadow-md group-focus-visible:border-primary group-focus-visible:shadow-md">
-                <CardHeader className="pb-3">
-                  <div className="text-primary mb-2">
-                    {loading === role ? (
-                      <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                    ) : (
-                      icon
-                    )}
-                  </div>
-                  <CardTitle className="text-xl">{title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-sm leading-relaxed">{description}</CardDescription>
-                </CardContent>
-              </Card>
-            </button>
-          ))}
+          <form action={landlordAction}>
+            <input type="hidden" name="role" value="landlord" />
+            <SubmitCard
+              icon={<Building2 className="h-8 w-8" />}
+              title="Landlord"
+              description="I own or manage rental properties and want to track maintenance."
+            />
+          </form>
+
+          <form action={contractorAction}>
+            <input type="hidden" name="role" value="contractor" />
+            <SubmitCard
+              icon={<HardHat className="h-8 w-8" />}
+              title="Contractor"
+              description="I do repairs and maintenance work assigned by property managers."
+            />
+          </form>
         </div>
 
         {error && (
