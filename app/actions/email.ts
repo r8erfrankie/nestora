@@ -30,7 +30,7 @@ export async function sendMagicLinkEmail(params: {
 
   // Resend v6 returns { data, error } — it does NOT throw on API errors.
   const { error } = await resend.emails.send({
-    from: 'Nestora <onboarding@resend.dev>',
+    from: 'Nestora <noreply@gonestora.app>',
     to: params.to,
     subject: 'Your Nestora sign-in link',
     html: `
@@ -64,7 +64,7 @@ export async function notifyContractorNewWorkOrder(data: {
   if (!data.assigned_contractor_email) return;
 
   const { error } = await resend.emails.send({
-    from: 'Nestora <onboarding@resend.dev>',
+    from: 'Nestora <noreply@gonestora.app>',
     to: data.assigned_contractor_email,
     subject: `New Work Order Assigned: ${data.title}`,
     text: `Hello,
@@ -98,7 +98,7 @@ export async function notifyLandlordStatusChange(data: {
   if (!data.landlordEmail) return;
 
   const { error } = await resend.emails.send({
-    from: 'Nestora <onboarding@resend.dev>',
+    from: 'Nestora <noreply@gonestora.app>',
     to: data.landlordEmail,
     subject: `Work Order Status Updated: ${data.title}`,
     text: `Hello,
