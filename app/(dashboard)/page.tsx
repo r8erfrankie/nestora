@@ -16,15 +16,14 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Fetch onboarding status from profile
+  // Fetch onboarding status + name from profile
   const { data: profile } = await supabase
     .from('profiles')
-    .select('onboarded')
+    .select('onboarded, full_name')
     .eq('id', user?.id || '')
     .single();
-  const greetingName = user?.email
-    ? user.email.split('@')[0].charAt(0).toUpperCase() + user.email.split('@')[0].slice(1)
-    : 'there';
+  const fullName = (profile as any)?.full_name as string | null | undefined;
+  const greetingName = fullName ? fullName.trim().split(/\s+/)[0] : null;
   const greeting = getGreeting();
 
   const isLandlord = role === 'landlord';
@@ -58,7 +57,7 @@ export default async function DashboardPage() {
       <div className="space-y-8 p-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-[-0.02em]">
-            {greeting}, {greetingName}
+            {greeting}{greetingName ? `, ${greetingName}` : ''}
           </h1>
           <p className="text-muted-foreground mt-1">Here are the work orders assigned to you.</p>
         </div>
@@ -152,7 +151,7 @@ export default async function DashboardPage() {
   }
 
   if (showOnboarding) {
-    return <Onboarding greetingName={greetingName} />;
+    return <Onboarding greetingName={greetingName ?? 'there'} />;
   }
 
   return (
@@ -161,7 +160,7 @@ export default async function DashboardPage() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
-            {greeting}, {greetingName}
+            {greeting}{greetingName ? `, ${greetingName}` : ''}
           </h1>
           <p className="text-muted-foreground mt-0.5 text-sm">
             Here&apos;s a clear overview of your properties and maintenance tasks.

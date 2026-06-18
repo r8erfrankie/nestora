@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -35,7 +36,9 @@ export async function Navbar({
     <header className="border-border bg-background/95 supports-[backdrop-filter]:bg-background/60 z-40 flex h-14 items-center justify-between border-b px-6 backdrop-blur">
       {/* Left section */}
       <div className="flex items-center gap-4">
-        <div className="text-foreground/90 text-sm font-medium">Overview</div>
+        {/* "Nestora" on mobile (no sidebar branding); "Overview" on desktop */}
+        <span className="text-foreground/90 text-sm font-semibold tracking-tight lg:hidden">Nestora</span>
+        <span className="text-foreground/90 hidden text-sm font-medium lg:block">Overview</span>
         {/* Temporary dev-only role switcher for easy landlord/contractor testing */}
         <DevRoleSwitcher isDevelopment={isDevelopment} currentRole={role} />
         {/* Dev-only button to force the onboarding flow again (useful for testing) */}
@@ -79,8 +82,11 @@ export async function Navbar({
 
         <Separator orientation="vertical" className="mx-1 h-6" />
 
-        {/* User profile (display only) */}
-        <div className="flex items-center gap-2 rounded-md py-1 pr-2 pl-1">
+        {/* User profile — links to settings */}
+        <Link
+          href="/settings"
+          className="hover:bg-accent flex items-center gap-2 rounded-md py-1 pr-2 pl-1 transition-colors"
+        >
           <div className="bg-primary text-primary-foreground flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold">
             {initials}
           </div>
@@ -89,7 +95,7 @@ export async function Navbar({
             <div className="text-muted-foreground -mt-0.5 text-[10px]">Member</div>
           </div>
           <ChevronDown className="text-muted-foreground ml-0.5 hidden h-3.5 w-3.5 md:block" />
-        </div>
+        </Link>
 
         {/* Logout button using server action */}
         <form action={handleSignOut}>
