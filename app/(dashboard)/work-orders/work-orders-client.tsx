@@ -1194,7 +1194,7 @@ export function WorkOrdersClient({
                               value={p.name}
                               onChange={(e) => updatePendingDetailName(idx, e.target.value)}
                               placeholder="Photo name"
-                              className="h-7 text-xs"
+                              className="h-7 text-base md:text-xs"
                             />
                           </div>
                         ))}
@@ -1306,7 +1306,7 @@ export function WorkOrdersClient({
                                   }
                                 }}
                                 placeholder="Photo name"
-                                className="focus:bg-background w-full rounded bg-transparent text-xs font-medium outline-none focus:px-1"
+                                className="focus:bg-background w-full rounded bg-transparent text-base font-medium outline-none focus:px-1 md:text-xs"
                               />
                             </div>
                           </div>
