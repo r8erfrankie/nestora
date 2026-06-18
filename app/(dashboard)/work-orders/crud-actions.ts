@@ -110,15 +110,29 @@ export async function updateContractorAssignment(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
+  // Fetch current row for ownership check + fields needed for notification
   const { data: wo, error: fetchErr } = await supabase
     .from('work_orders')
-    .select('user_id')
+    .select('user_id, title, description, priority, due_date, assigned_contractor_email, properties(name)')
     .eq('id', id)
-    .single();
+    .single() as {
+      data: {
+        user_id: string;
+        title: string;
+        description: string | null;
+        priority: string;
+        due_date: string | null;
+        assigned_contractor_email: string | null;
+        properties: { name: string } | null;
+      } | null;
+      error: any;
+    };
 
   if (fetchErr || !wo || wo.user_id !== user.id) {
     throw new Error('Not authorized to update this work order');
   }
+
+  const previousEmail = wo.assigned_contractor_email;
 
   const { error } = await supabase
     .from('work_orders')
@@ -130,6 +144,24 @@ export async function updateContractorAssignment(
     .eq('id', id);
 
   if (error) throw error;
+
+  // Notify contractor when email is added for the first time or changed to a new address.
+  // Skip when email is unchanged (name/trade-only edit) to avoid duplicate notifications.
+  if (data.assigned_contractor_email && data.assigned_contractor_email !== previousEmail) {
+    try {
+      const { notifyContractorNewWorkOrder } = await import('@/app/actions/email');
+      await notifyContractorNewWorkOrder({
+        title: wo.title,
+        description: wo.description,
+        priority: wo.priority,
+        due_date: wo.due_date,
+        propertyName: wo.properties?.name || null,
+        assigned_contractor_email: data.assigned_contractor_email,
+      });
+    } catch {
+      // non-fatal — update already committed
+    }
+  }
 }
 
 export async function createWorkOrder(data: {
