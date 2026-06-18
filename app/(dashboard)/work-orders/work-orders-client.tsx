@@ -863,7 +863,7 @@ export function WorkOrdersClient({
 
       {/* Create Work Order Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-[520px]">
+        <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-[520px]">
           <DialogHeader>
             <DialogTitle>Create New Work Order</DialogTitle>
             <DialogDescription>
@@ -871,13 +871,14 @@ export function WorkOrdersClient({
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleCreate} className="space-y-4">
+          <form onSubmit={handleCreate} className="space-y-3 sm:space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Title *</label>
               <Input
                 value={form.title}
                 onChange={(e) => updateForm('title', e.target.value)}
                 placeholder="e.g. Fix leaking faucet in kitchen"
+                className="!h-11 sm:!h-8"
                 required
               />
             </div>
@@ -889,6 +890,7 @@ export function WorkOrdersClient({
                 onChange={(e) => updateForm('description', e.target.value)}
                 placeholder="Additional details about the issue..."
                 rows={3}
+                className="min-h-[80px] resize-y"
               />
             </div>
 
@@ -898,7 +900,7 @@ export function WorkOrdersClient({
                 value={form.property_id}
                 onValueChange={(val) => updateForm('property_id', val || '')}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="!h-11 w-full sm:!h-8">
                   <SelectValue placeholder="Select property">
                     {properties.find((p) => p.id === form.property_id)?.name || 'Select property'}
                   </SelectValue>
@@ -913,11 +915,11 @@ export function WorkOrdersClient({
               </Select>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Priority</label>
                 <Select value={form.priority} onValueChange={(val) => updateForm('priority', val || '')}>
-                  <SelectTrigger>
+                  <SelectTrigger className="!h-11 sm:!h-8">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -936,6 +938,7 @@ export function WorkOrdersClient({
                   type="date"
                   value={form.due_date}
                   onChange={(e) => updateForm('due_date', e.target.value)}
+                  className="!h-11 sm:!h-8"
                 />
               </div>
             </div>
@@ -949,6 +952,7 @@ export function WorkOrdersClient({
                 value={form.cost}
                 onChange={(e) => updateForm('cost', e.target.value)}
                 placeholder="0.00"
+                className="!h-11 sm:!h-8"
               />
             </div>
 
@@ -958,6 +962,7 @@ export function WorkOrdersClient({
                 value={form.assigned_contractor}
                 onChange={(e) => updateForm('assigned_contractor', e.target.value)}
                 placeholder="e.g. ACME Plumbing"
+                className="!h-11 sm:!h-8"
               />
             </div>
 
@@ -968,6 +973,7 @@ export function WorkOrdersClient({
                 value={form.assigned_contractor_email}
                 onChange={(e) => updateForm('assigned_contractor_email', e.target.value)}
                 placeholder="contractor@example.com"
+                className="!h-11 sm:!h-8"
               />
             </div>
 
@@ -980,6 +986,7 @@ export function WorkOrdersClient({
                 accept="image/*"
                 onChange={handlePhotoFiles}
                 disabled={creating}
+                className="!h-11 sm:!h-8"
               />
               {pendingPhotoPreviews.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
