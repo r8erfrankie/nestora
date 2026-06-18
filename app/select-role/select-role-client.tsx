@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Building2, HardHat } from 'lucide-react';
 import { setUserRole } from '@/app/actions/role-actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,16 +10,18 @@ import type { UserRole } from '@/lib/roles';
 export function SelectRoleClient() {
   const [loading, setLoading] = useState<UserRole | null>(null);
   const [error, setError] = useState('');
+  const router = useRouter();
 
   const handleSelect = async (role: UserRole) => {
     setLoading(role);
     setError('');
-    try {
-      await setUserRole(role);
-    } catch (err: any) {
-      setError(err?.message || 'Something went wrong. Please try again.');
+    const result = await setUserRole(role);
+    if (result?.error) {
+      setError(result.error);
       setLoading(null);
+      return;
     }
+    router.push(role === 'contractor' ? '/contractor-onboarding' : '/landlord-onboarding');
   };
 
   const options: Array<{
