@@ -178,8 +178,11 @@ export function ContractorClient({
   firstName: string | null;
 }) {
   const [isPending, startTransition] = useTransition();
+  // Canonical state — updated with real server results so that when
+  // useOptimistic reverts at transition end, it reverts to the new value.
+  const [orders, setOrders] = useState(initialOrders);
   const [optimisticOrders, applyOptimistic] = useOptimistic(
-    initialOrders,
+    orders,
     (
       state: ContractorWorkOrder[],
       update: { id: string; changes: Partial<ContractorWorkOrder> }
@@ -211,20 +214,27 @@ export function ContractorClient({
     setActionError(null);
 
     startTransition(async () => {
-      // Optimistic update
       applyOptimistic({ id: wo.id, changes: { status: nextStatus } });
       try {
-        await acceptOrCompleteWorkOrder(wo.id);
+        const result = await acceptOrCompleteWorkOrder(wo.id);
+        // Commit to canonical state so the new status survives transition end.
+        setOrders((prev) =>
+          prev.map((w) => (w.id === wo.id ? { ...w, status: result.newStatus } : w))
+        );
       } catch (err: any) {
         setActionError(err?.message ?? 'Action failed');
-        // Revert
-        applyOptimistic({ id: wo.id, changes: { status: wo.status } });
+        // No explicit revert: transition end automatically reverts optimisticOrders
+        // back to `orders`, which still holds the old status.
       }
     });
   }
 
   function handleQuoteSaved(woId: string, quote: number) {
-    applyOptimistic({ id: woId, changes: { contractor_quote: quote } });
+    // Commit directly to canonical state (not via applyOptimistic) so the
+    // quote persists after any future transitions.
+    setOrders((prev) =>
+      prev.map((w) => (w.id === woId ? { ...w, contractor_quote: quote } : w))
+    );
   }
 
   const canAct = (status: string) => status === 'Open' || status === 'In Progress';
