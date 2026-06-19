@@ -214,7 +214,7 @@ export function ContractorClient({
       // Optimistic update
       applyOptimistic({ id: wo.id, changes: { status: nextStatus } });
       try {
-        await acceptOrCompleteWorkOrder(wo.id, wo.status);
+        await acceptOrCompleteWorkOrder(wo.id);
       } catch (err: any) {
         setActionError(err?.message ?? 'Action failed');
         // Revert
