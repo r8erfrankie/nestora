@@ -28,7 +28,7 @@ export async function acceptOrCompleteWorkOrder(workOrderId: string, currentStat
     .single();
 
   if (fetchErr || !wo) throw new Error('Work order not found');
-  if (wo.assigned_contractor_email !== user.email) throw new Error('Not authorized');
+  if (wo.assigned_contractor_email?.toLowerCase() !== user.email.toLowerCase()) throw new Error('Not authorized');
   if (wo.status !== currentStatus) throw new Error('Status has changed — please refresh');
 
   const { error } = await supabase
@@ -61,7 +61,7 @@ export async function saveContractorQuote(workOrderId: string, quoteRaw: string)
     .single();
 
   if (fetchErr || !wo) throw new Error('Work order not found');
-  if (wo.assigned_contractor_email !== user.email) throw new Error('Not authorized');
+  if (wo.assigned_contractor_email?.toLowerCase() !== user.email.toLowerCase()) throw new Error('Not authorized');
 
   const { error } = await supabase
     .from('work_orders')
