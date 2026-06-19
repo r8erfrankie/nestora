@@ -1,14 +1,15 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
-import { getGreeting } from '@/lib/utils';
+import { getGreeting, timeAgo } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { Building2, Clock, Home, Plus } from 'lucide-react';
 
 export const metadata = { title: 'My Properties' };
 
-type Link_ = {
+type PropertyLink = {
   id: string;
   property_id: string;
   status: string;
@@ -20,6 +21,29 @@ type PropertyInfo = {
   id: string;
   name: string;
   address: string | null;
+};
+
+type MaintenanceRequest = {
+  id: string;
+  property_id: string;
+  title: string;
+  priority: string;
+  status: string;
+  created_at: string;
+};
+
+const STATUS_STYLES: Record<string, string> = {
+  Submitted:     'bg-secondary text-secondary-foreground',
+  'In Progress': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  Resolved:      'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+  Declined:      'bg-destructive/10 text-destructive',
+};
+
+const PRIORITY_STYLES: Record<string, string> = {
+  Low:    'text-muted-foreground',
+  Medium: 'text-yellow-600',
+  High:   'text-orange-600',
+  Urgent: 'text-destructive font-medium',
 };
 
 export default async function TenantDashboardPage() {
@@ -36,35 +60,47 @@ export default async function TenantDashboardPage() {
     .eq('id', user.id)
     .single();
 
-  // Defense-in-depth (proxy already enforces this).
   if (profile?.role !== 'tenant') redirect('/');
 
   const fullName = profile?.full_name as string | null;
   const firstName = fullName ? fullName.trim().split(/\s+/)[0] : null;
   const greeting = getGreeting();
 
-  // RLS "Tenant reads own links" policy filters to the current user's email.
-  const { data: rawLinks } = await supabase
-    .from('tenant_property_links')
-    .select('id, property_id, status, unit, created_at')
-    .neq('status', 'removed')
-    .order('created_at', { ascending: false });
+  // Parallel fetch — links and maintenance requests (both scoped by RLS to this tenant).
+  const [{ data: rawLinks }, { data: rawRequests }] = await Promise.all([
+    supabase
+      .from('tenant_property_links')
+      .select('id, property_id, status, unit, created_at')
+      .neq('status', 'removed')
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('maintenance_requests')
+      .select('id, property_id, title, priority, status, created_at')
+      .order('created_at', { ascending: false })
+      .limit(20),
+  ]);
 
-  const allLinks = (rawLinks ?? []) as Link_[];
+  const allLinks = (rawLinks ?? []) as PropertyLink[];
   const approvedLinks = allLinks.filter((l) => l.status === 'approved');
   const pendingLinks = allLinks.filter((l) => l.status === 'pending');
+  const requests = (rawRequests ?? []) as MaintenanceRequest[];
 
-  // Tenant RLS blocks reading other users' properties — use admin client.
+  // Build a single property ID set covering both links and requests.
+  const allPropertyIds = [
+    ...new Set([
+      ...allLinks.map((l) => l.property_id),
+      ...requests.map((r) => r.property_id),
+    ]),
+  ];
+
+  // Tenant RLS blocks reading other users' properties — one admin call covers both sections.
   let propertyMap: Record<string, PropertyInfo> = {};
-  if (allLinks.length > 0) {
+  if (allPropertyIds.length > 0) {
     const admin = createAdminClient();
     const { data: props } = await admin
       .from('properties')
       .select('id, name, address')
-      .in(
-        'id',
-        allLinks.map((l) => l.property_id),
-      );
+      .in('id', allPropertyIds);
     propertyMap = Object.fromEntries((props ?? []).map((p) => [p.id, p as PropertyInfo]));
   }
 
@@ -74,7 +110,7 @@ export default async function TenantDashboardPage() {
       <div>
         <p className="text-muted-foreground text-sm">{greeting}</p>
         <h1 className="mt-0.5 text-2xl font-semibold tracking-tight">
-          {firstName ? `${firstName}'s Properties` : 'My Properties'}
+          {firstName ? `${firstName}'s Dashboard` : 'My Dashboard'}
         </h1>
       </div>
 
@@ -104,9 +140,7 @@ export default async function TenantDashboardPage() {
                           </CardDescription>
                         )}
                         {link.unit && (
-                          <p className="text-muted-foreground mt-0.5 text-xs">
-                            Unit {link.unit}
-                          </p>
+                          <p className="text-muted-foreground mt-0.5 text-xs">Unit {link.unit}</p>
                         )}
                       </div>
                     </div>
@@ -125,7 +159,7 @@ export default async function TenantDashboardPage() {
           </div>
         </section>
       ) : (
-        /* ── Empty state (no approved properties) ─────────────────────────── */
+        /* ── Empty state (no approved properties) ───────────────────────────── */
         <section className="rounded-xl border border-dashed p-8 text-center">
           <div className="space-y-3">
             <div className="flex justify-center">
@@ -150,7 +184,7 @@ export default async function TenantDashboardPage() {
         </section>
       )}
 
-      {/* ── Pending requests ─────────────────────────────────────────────────── */}
+      {/* ── Pending property access requests ─────────────────────────────────── */}
       {pendingLinks.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
@@ -170,8 +204,7 @@ export default async function TenantDashboardPage() {
                       {prop?.name ?? 'Property'}
                       {link.unit && (
                         <span className="text-muted-foreground font-normal">
-                          {' '}
-                          · Unit {link.unit}
+                          {' '}· Unit {link.unit}
                         </span>
                       )}
                     </p>
@@ -191,6 +224,61 @@ export default async function TenantDashboardPage() {
               <Link href="/tenant-onboarding">+ Add another property</Link>
             </Button>
           </div>
+        </section>
+      )}
+
+      {/* ── My Requests ──────────────────────────────────────────────────────── */}
+      {(requests.length > 0 || approvedLinks.length > 0) && (
+        <section className="space-y-3">
+          <h2 className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+            My Requests
+          </h2>
+          <Separator />
+          {requests.length === 0 ? (
+            <p className="text-muted-foreground py-6 text-center text-sm">
+              No requests yet.{' '}
+              {approvedLinks[0] && (
+                <Link
+                  href={`/tenant/new-request?property=${approvedLinks[0].property_id}`}
+                  className="text-primary underline-offset-4 hover:underline"
+                >
+                  Submit your first one.
+                </Link>
+              )}
+            </p>
+          ) : (
+            <div className="divide-y rounded-lg border">
+              {requests.map((req) => {
+                const prop = propertyMap[req.property_id];
+                const statusStyle = STATUS_STYLES[req.status] ?? STATUS_STYLES['Submitted'];
+                const priorityStyle = PRIORITY_STYLES[req.priority] ?? '';
+                return (
+                  <Link
+                    key={req.id}
+                    href={`/tenant/requests/${req.id}`}
+                    className="hover:bg-muted/40 flex items-start gap-4 px-4 py-3 transition-colors"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{req.title}</p>
+                      <div className="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-1.5 text-xs">
+                        {prop && <span>{prop.name}</span>}
+                        <span>·</span>
+                        <span>{timeAgo(req.created_at)}</span>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1.5">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyle}`}
+                      >
+                        {req.status}
+                      </span>
+                      <span className={`text-xs ${priorityStyle}`}>{req.priority}</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </section>
       )}
     </div>
