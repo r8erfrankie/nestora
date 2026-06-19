@@ -47,6 +47,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Plus, Eye, Upload, Loader2, ClipboardList, Archive, ArchiveRestore, Trash2, X, Pencil, Phone } from 'lucide-react';
 import { archiveWorkOrderForUser, unarchiveWorkOrderForUser } from '@/app/actions/archive-actions';
+import { WorkOrderNotes } from '@/app/components/work-order-notes';
 
 interface WorkOrder {
   id: string;
@@ -175,6 +176,9 @@ export function WorkOrdersClient({
     contractorKey: '',
     cost: '',
   });
+
+  // Notes refresh counter — bump after any mutation that logs a system note
+  const [notesRefreshKey, setNotesRefreshKey] = useState(0);
 
   // Budget inline-edit state (detail view)
   const [editingBudget, setEditingBudget] = useState(false);
@@ -315,6 +319,7 @@ export function WorkOrdersClient({
     setEditingContractor(false);
     setEditContractorKey('');
     setEditingBudget(false);
+    setNotesRefreshKey(0);
   };
 
   const handleSaveContractor = async () => {
@@ -341,6 +346,7 @@ export function WorkOrdersClient({
       setSelectedWorkOrder(updated);
       setWorkOrders((prev) => prev.map((w) => (w.id === updated.id ? updated : w)));
       setEditingContractor(false);
+      setNotesRefreshKey((k) => k + 1);
     } catch {
       alert('Failed to update contractor assignment.');
     } finally {
@@ -358,6 +364,7 @@ export function WorkOrdersClient({
       setSelectedWorkOrder(updated);
       setWorkOrders((prev) => prev.map((w) => (w.id === updated.id ? updated : w)));
       setEditingBudget(false);
+      setNotesRefreshKey((k) => k + 1);
     } catch {
       alert('Failed to update budget.');
     } finally {
@@ -801,6 +808,7 @@ export function WorkOrdersClient({
       alert('Failed to update status. Please try again.');
     } finally {
       setIsUpdatingStatus(false);
+      setNotesRefreshKey((k) => k + 1);
     }
   };
 
@@ -2012,6 +2020,12 @@ export function WorkOrdersClient({
                   index={lightboxIndex}
                   slides={photos.map((p) => ({ src: p.url, alt: p.name || '' }))}
                   plugins={[Counter]}
+                />
+
+                {/* Activity log + manual notes */}
+                <WorkOrderNotes
+                  workOrderId={selectedWorkOrder.id}
+                  refreshKey={notesRefreshKey}
                 />
               </div>
 

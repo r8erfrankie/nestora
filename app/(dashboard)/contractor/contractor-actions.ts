@@ -37,6 +37,16 @@ export async function acceptOrCompleteWorkOrder(workOrderId: string) {
 
   if (error) throw error;
 
+  try {
+    await supabase.from('work_order_notes').insert({
+      work_order_id: workOrderId,
+      author_email: user.email.toLowerCase(),
+      author_role: 'contractor',
+      note_type: 'system',
+      content: `Status changed from ${wo.status} to ${nextStatus}`,
+    });
+  } catch { /* non-fatal */ }
+
   return { newStatus: nextStatus };
 }
 
@@ -67,6 +77,16 @@ export async function saveContractorQuote(workOrderId: string, quoteRaw: string)
     .eq('id', workOrderId); // RLS enforces contractor ownership
 
   if (error) throw error;
+
+  try {
+    await supabase.from('work_order_notes').insert({
+      work_order_id: workOrderId,
+      author_email: user.email.toLowerCase(),
+      author_role: 'contractor',
+      note_type: 'system',
+      content: `Quote of $${quote.toFixed(2)} submitted`,
+    });
+  } catch { /* non-fatal */ }
 
   return { quote };
 }

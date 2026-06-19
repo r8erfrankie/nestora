@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { acceptOrCompleteWorkOrder, saveContractorQuote } from './contractor-actions';
 import { archiveWorkOrderForUser, unarchiveWorkOrderForUser } from '@/app/actions/archive-actions';
+import { WorkOrderNotes } from '@/app/components/work-order-notes';
 
 export interface ContractorWorkOrder {
   id: string;
@@ -223,6 +224,9 @@ export function ContractorClient({
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set(archivedWorkOrderIds));
   const [showArchived, setShowArchived] = useState(false);
 
+  // Notes refresh counter — bump after mutations that log system notes
+  const [notesRefreshKey, setNotesRefreshKey] = useState(0);
+
   // Store only the selected ID; derive the full object from optimisticOrders
   // so status/quote updates flow into the open dialog automatically.
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -260,6 +264,7 @@ export function ContractorClient({
         setOrders((prev) =>
           prev.map((w) => (w.id === wo.id ? { ...w, status: result.newStatus } : w))
         );
+        setNotesRefreshKey((k) => k + 1);
       } catch (err: any) {
         setActionError(err?.message ?? 'Action failed');
         // No explicit revert: transition end automatically reverts optimisticOrders
@@ -274,6 +279,7 @@ export function ContractorClient({
     setOrders((prev) =>
       prev.map((w) => (w.id === woId ? { ...w, contractor_quote: quote } : w))
     );
+    setNotesRefreshKey((k) => k + 1);
   }
 
   // Load photos whenever the detail dialog opens a different work order
@@ -285,6 +291,7 @@ export function ContractorClient({
         return [];
       });
       setLightboxOpen(false);
+      setNotesRefreshKey(0);
       return;
     }
     let cancelled = false;
@@ -906,6 +913,12 @@ export function ContractorClient({
                 index={lightboxIndex}
                 slides={photos.map((p) => ({ src: p.url, alt: p.name || '' }))}
                 plugins={[Counter]}
+              />
+
+              {/* Activity log + manual notes */}
+              <WorkOrderNotes
+                workOrderId={selected.id}
+                refreshKey={notesRefreshKey}
               />
 
               {/* Footer meta */}

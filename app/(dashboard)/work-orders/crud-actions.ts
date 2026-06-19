@@ -56,6 +56,18 @@ export async function updateWorkOrderBudget(id: string, cost: number | null) {
     .eq('user_id', user.id);
 
   if (error) throw error;
+
+  if (user.email) {
+    try {
+      await supabase.from('work_order_notes').insert({
+        work_order_id: id,
+        author_email: user.email.toLowerCase(),
+        author_role: 'landlord',
+        note_type: 'system',
+        content: cost != null ? `Budget updated to $${cost.toFixed(2)}` : 'Budget cleared',
+      });
+    } catch { /* non-fatal */ }
+  }
 }
 
 export async function updateWorkOrderStatus(id: string, newStatus: string) {
@@ -94,6 +106,18 @@ export async function updateWorkOrderStatus(id: string, newStatus: string) {
     .eq('id', id);
 
   if (updateErr) throw updateErr;
+
+  if (user.email) {
+    try {
+      await supabase.from('work_order_notes').insert({
+        work_order_id: id,
+        author_email: user.email.toLowerCase(),
+        author_role: 'landlord',
+        note_type: 'system',
+        content: `Status changed from ${previousStatus} to ${newStatus}`,
+      });
+    } catch { /* non-fatal */ }
+  }
 
   // Send notification via Resend (Server Action only, dynamic import for isolation)
   if (user.email) {
@@ -161,6 +185,23 @@ export async function updateContractorAssignment(
 
   if (error) throw error;
 
+  if (user.email) {
+    try {
+      const label = data.assigned_contractor
+        ? `${data.assigned_contractor}${data.assigned_contractor_email ? ` (${data.assigned_contractor_email})` : ''}`
+        : 'unassigned';
+      await supabase.from('work_order_notes').insert({
+        work_order_id: id,
+        author_email: user.email.toLowerCase(),
+        author_role: 'landlord',
+        note_type: 'system',
+        content: data.assigned_contractor
+          ? `Contractor assigned: ${label}`
+          : 'Contractor removed',
+      });
+    } catch { /* non-fatal */ }
+  }
+
   // Notify contractor when email is added for the first time or changed to a new address.
   // Skip when email is unchanged (name/trade-only edit) to avoid duplicate notifications.
   if (data.assigned_contractor_email && data.assigned_contractor_email !== previousEmail) {
@@ -218,6 +259,18 @@ export async function createWorkOrder(data: {
     .single();
 
   if (error) throw error;
+
+  if (user.email) {
+    try {
+      await supabase.from('work_order_notes').insert({
+        work_order_id: inserted.id,
+        author_email: user.email.toLowerCase(),
+        author_role: 'landlord',
+        note_type: 'system',
+        content: 'Work order created',
+      });
+    } catch { /* non-fatal */ }
+  }
 
   // Send notification to contractor via Resend if email provided (Server Action only, dynamic import for isolation)
   if (data.assigned_contractor_email) {
