@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   FolderOpen,
   Users,
+  UserCheck,
   BarChart3,
   FileBarChart,
   Settings,
@@ -25,6 +26,7 @@ interface NavItem {
 const landlordNavItems: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/properties', label: 'Properties', icon: Building2 },
+  { href: '/tenants', label: 'Tenants', icon: UserCheck },
   { href: '/work-orders', label: 'Work Orders', icon: ClipboardList },
   { href: '/reports', label: 'Reports', icon: FileBarChart },
   { href: '/projects', label: 'Projects', icon: FolderOpen },
