@@ -38,9 +38,17 @@ const contractorNavItems: NavItem[] = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
+const tenantNavItems: NavItem[] = [
+  { href: '/tenant', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/settings', label: 'Settings', icon: Settings },
+];
+
 export function Sidebar({ role = 'landlord' }: { role?: UserRole }) {
   const pathname = usePathname();
-  const navItems = role === 'contractor' ? contractorNavItems : landlordNavItems;
+  const navItems =
+    role === 'contractor' ? contractorNavItems :
+    role === 'tenant'     ? tenantNavItems     :
+    landlordNavItems;
 
   return (
     <aside className="border-sidebar-border bg-sidebar text-sidebar-foreground flex h-full w-64 flex-shrink-0 flex-col border-r">

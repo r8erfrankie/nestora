@@ -53,13 +53,25 @@ const contractorDrawerItems = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ] as const;
 
+const tenantBottomItems = [
+  { href: '/tenant', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/settings', label: 'Settings', icon: Settings },
+] as const;
+
+const tenantDrawerItems = tenantBottomItems;
+
 export function BottomNav({ role = 'landlord' }: { role?: UserRole }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const isLandlord = role === 'landlord';
-  const bottomItems = isLandlord ? landlordBottomItems : contractorBottomItems;
-  const drawerItems = isLandlord ? landlordDrawerItems : contractorDrawerItems;
+  const bottomItems =
+    role === 'contractor' ? contractorBottomItems :
+    role === 'tenant'     ? tenantBottomItems     :
+    landlordBottomItems;
+  const drawerItems =
+    role === 'contractor' ? contractorDrawerItems :
+    role === 'tenant'     ? tenantDrawerItems     :
+    landlordDrawerItems;
 
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href);
