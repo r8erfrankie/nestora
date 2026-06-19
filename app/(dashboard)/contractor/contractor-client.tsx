@@ -442,6 +442,21 @@ export function ContractorClient({
                     </Button>
                   </div>
                 )}
+
+                {/* Archive strip — only for completed jobs; not for active work */}
+                {wo.status === 'Completed' && (
+                  <div className="border-t px-4 pb-3 pt-2.5">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleArchive(wo)}
+                      className="h-8 gap-1.5 text-xs text-muted-foreground"
+                    >
+                      <Archive className="h-3.5 w-3.5" />
+                      Hide from my list
+                    </Button>
+                  </div>
+                )}
               </div>
             );
           })}
