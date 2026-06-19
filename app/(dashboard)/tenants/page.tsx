@@ -27,7 +27,7 @@ export default async function TenantsPage() {
     supabase
       .from('tenant_property_links')
       .select(
-        'id, tenant_email, status, unit, initiated_by, created_at, property_id, property:property_id(id, name, address)'
+        'id, tenant_id, tenant_email, status, unit, initiated_by, created_at, property_id, property:property_id(id, name, address)'
       )
       .neq('status', 'removed')
       .order('created_at', { ascending: false }),
@@ -46,7 +46,7 @@ export default async function TenantsPage() {
 
   const links = (rawLinks ?? []) as unknown as TenantLink[];
   const pendingLinks = links.filter((l) => l.status === 'pending');
-  const approvedLinks = links.filter((l) => l.status === 'approved');
+  const rawApproved = links.filter((l) => l.status === 'approved');
 
   // Unit lookup built from the already-fetched links — no extra query needed.
   // Key: "propertyId::lowercaseEmail"
@@ -63,19 +63,31 @@ export default async function TenantsPage() {
   };
   const rawRequests = (rawRequestsData ?? []) as unknown as RawRequest[];
 
-  // profiles RLS is own-row-only — must use admin client for tenant name lookups.
-  const tenantIds = [...new Set(rawRequests.map((r) => r.tenant_id).filter(Boolean))];
+  // Collect all unique tenant IDs across both approved links and maintenance requests.
+  // profiles RLS is own-row-only — admin client required; one batch covers both lists.
+  const allTenantIds = [
+    ...new Set([
+      ...rawApproved.map((l) => l.tenant_id).filter((id): id is string => !!id),
+      ...rawRequests.map((r) => r.tenant_id).filter(Boolean),
+    ]),
+  ];
   const nameMap = new Map<string, string | null>();
-  if (tenantIds.length > 0) {
+  if (allTenantIds.length > 0) {
     const admin = createAdminClient();
     const { data: tenantProfiles } = await admin
       .from('profiles')
       .select('id, full_name')
-      .in('id', tenantIds);
+      .in('id', allTenantIds);
     for (const p of tenantProfiles ?? []) {
       nameMap.set(p.id as string, (p.full_name as string | null) ?? null);
     }
   }
+
+  // Enrich approved links with resolved tenant names.
+  const approvedLinks: TenantLink[] = rawApproved.map((l) => ({
+    ...l,
+    tenant_name: nameMap.get(l.tenant_id ?? '') ?? null,
+  }));
 
   const maintenanceRequests: MaintenanceRequest[] = rawRequests.map((r) => ({
     id: r.id,

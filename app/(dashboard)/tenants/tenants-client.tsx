@@ -44,7 +44,9 @@ export type PropertySummary = {
 
 export type TenantLink = {
   id: string;
+  tenant_id: string | null;
   tenant_email: string;
+  tenant_name: string | null;
   status: string;
   unit: string | null;
   initiated_by: string;
@@ -101,11 +103,11 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
 
   // Group approved links by property for the summary section.
   const approvedByProperty = approvedLinks.reduce<
-    Record<string, { property: PropertySummary | null; tenants: { email: string; unit: string | null }[] }>
+    Record<string, { property: PropertySummary | null; tenants: { email: string; name: string | null; unit: string | null }[] }>
   >((acc, link) => {
     const key = link.property_id;
     if (!acc[key]) acc[key] = { property: link.property, tenants: [] };
-    acc[key].tenants.push({ email: link.tenant_email, unit: link.unit });
+    acc[key].tenants.push({ email: link.tenant_email, name: link.tenant_name, unit: link.unit });
     return acc;
   }, {});
 
@@ -174,14 +176,19 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
                 </div>
                 {/* Tenant rows */}
                 <div className="divide-y">
-                  {tenants.map(({ email, unit }) => (
+                  {tenants.map(({ email, name, unit }) => (
                     <div key={email} className="flex items-center gap-3 px-4 py-2.5 text-sm">
                       {unit && (
                         <span className="text-muted-foreground w-16 shrink-0 text-xs">
                           Unit {unit}
                         </span>
                       )}
-                      <span className="min-w-0 truncate">{email}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate">{name ?? email}</p>
+                        {name && (
+                          <p className="text-muted-foreground truncate text-xs">{email}</p>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
