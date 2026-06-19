@@ -1,6 +1,5 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 
 // Contractors may only move status forward along this chain.
@@ -40,7 +39,6 @@ export async function acceptOrCompleteWorkOrder(workOrderId: string, currentStat
 
   if (error) throw error;
 
-  revalidatePath('/contractor');
   return { newStatus: nextStatus };
 }
 
@@ -73,6 +71,5 @@ export async function saveContractorQuote(workOrderId: string, quoteRaw: string)
 
   if (error) throw error;
 
-  revalidatePath('/contractor');
   return { quote };
 }
