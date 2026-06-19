@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useEffect, useTransition } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -24,6 +25,7 @@ import {
   Building2,
   Check,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Copy,
   Loader2,
@@ -72,6 +74,7 @@ export type MaintenanceRequest = {
   status: string;
   tenant_email: string;
   tenant_name: string | null;
+  phone: string | null;
   unit: string | null;
   created_at: string;
   property: PropertySummary | null;
@@ -100,6 +103,7 @@ interface TenantsClientProps {
 
 export function TenantsClient({ pendingLinks, approvedLinks, properties, maintenanceRequests }: TenantsClientProps) {
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Group approved links by property for the summary section.
   const approvedByProperty = approvedLinks.reduce<
@@ -217,9 +221,14 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
             </p>
           </div>
         ) : (
-          <div className="divide-y rounded-lg border">
+          <div className="divide-y rounded-lg border overflow-hidden">
             {maintenanceRequests.map((req) => (
-              <RequestRow key={req.id} request={req} />
+              <RequestRow
+                key={req.id}
+                request={req}
+                isExpanded={expandedId === req.id}
+                onToggle={() => setExpandedId(expandedId === req.id ? null : req.id)}
+              />
             ))}
           </div>
         )}
@@ -252,49 +261,178 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
 
 // ── Maintenance request row ───────────────────────────────────────────────────
 
-function RequestRow({ request }: { request: MaintenanceRequest }) {
+type Photo = { id: string; url: string; name: string | null };
+
+function RequestRow({
+  request,
+  isExpanded,
+  onToggle,
+}: {
+  request: MaintenanceRequest;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  const [photos, setPhotos] = useState<Photo[] | null>(null);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
+
+  // Lazy-load photos the first time the row is expanded.
+  useEffect(() => {
+    if (!isExpanded || photos !== null) return;
+    setLoadingPhotos(true);
+    createClient()
+      .from('maintenance_request_photos')
+      .select('id, url, name')
+      .eq('request_id', request.id)
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        setPhotos(data ?? []);
+        setLoadingPhotos(false);
+      });
+  }, [isExpanded, request.id, photos]);
+
   const priorityStyle = PRIORITY_STYLES[request.priority] ?? PRIORITY_STYLES['Medium'];
   const statusStyle   = STATUS_STYLES[request.status]    ?? STATUS_STYLES['Submitted'];
   const ago = request.created_at ? timeAgo(request.created_at) : null;
   const tenantLabel = request.tenant_name ?? request.tenant_email;
+  const formattedDate = new Date(request.created_at).toLocaleString('en-US', {
+    month: 'long', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit',
+  });
 
   return (
-    <div className="px-4 py-3">
-      <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:gap-4">
-        {/* Left: title + meta */}
-        <div className="min-w-0 flex-1 space-y-1">
-          <p className="truncate text-sm font-medium">{request.title}</p>
-          <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-xs">
-            <span className="flex items-center gap-1">
-              <Building2 className="h-3 w-3" />
-              {request.property?.name ?? 'Property'}
+    <div>
+      {/* ── Collapsed header (always visible) ─────────────────────────────── */}
+      <button
+        onClick={onToggle}
+        className={`w-full px-4 py-3 text-left transition-colors ${
+          isExpanded ? 'bg-muted/40' : 'hover:bg-muted/30 active:bg-muted/40'
+        }`}
+      >
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:gap-4">
+          {/* Left: title + meta */}
+          <div className="min-w-0 flex-1 space-y-1">
+            <p className="truncate text-sm font-medium">{request.title}</p>
+            <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-xs">
+              <span className="flex items-center gap-1">
+                <Building2 className="h-3 w-3" />
+                {request.property?.name ?? 'Property'}
+              </span>
+              {request.unit && (
+                <>
+                  <span>·</span>
+                  <span>Unit {request.unit}</span>
+                </>
+              )}
+              <span>·</span>
+              <span title={request.tenant_name ? request.tenant_email : undefined}>
+                {tenantLabel}
+              </span>
+              {ago && (
+                <>
+                  <span>·</span>
+                  <span>{ago}</span>
+                </>
+              )}
+            </div>
+          </div>
+          {/* Right: badges + chevron */}
+          <div className="flex shrink-0 items-center flex-wrap gap-1.5">
+            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${priorityStyle}`}>
+              {request.priority}
             </span>
-            {request.unit && (
-              <>
-                <span>·</span>
-                <span>Unit {request.unit}</span>
-              </>
-            )}
-            <span>·</span>
-            <span title={request.tenant_name ? request.tenant_email : undefined}>
-              {tenantLabel}
+            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyle}`}>
+              {request.status}
             </span>
-            {ago && (
-              <>
-                <span>·</span>
-                <span>{ago}</span>
-              </>
-            )}
+            <ChevronDown
+              className={`text-muted-foreground h-4 w-4 shrink-0 transition-transform duration-200 ${
+                isExpanded ? 'rotate-180' : ''
+              }`}
+            />
           </div>
         </div>
-        {/* Right: badges */}
-        <div className="flex shrink-0 flex-wrap gap-1.5">
-          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${priorityStyle}`}>
-            {request.priority}
-          </span>
-          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyle}`}>
-            {request.status}
-          </span>
+      </button>
+
+      {/* ── Expanded detail area ───────────────────────────────────────────── */}
+      <div
+        className={`grid transition-all duration-200 ease-in-out ${
+          isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="border-t bg-muted/30 px-4 py-4 space-y-4">
+            {/* Description */}
+            {request.description ? (
+              <div className="space-y-1">
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                  Description
+                </p>
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                  {request.description}
+                </p>
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm italic">No description provided.</p>
+            )}
+
+            {/* Metadata grid */}
+            <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+              {request.phone && (
+                <div>
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                    Phone
+                  </p>
+                  <p className="mt-0.5">{request.phone}</p>
+                </div>
+              )}
+              {request.category && (
+                <div>
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                    Category
+                  </p>
+                  <p className="mt-0.5">{request.category}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                  Submitted
+                </p>
+                <p className="mt-0.5">{formattedDate}</p>
+              </div>
+            </div>
+
+            {/* Photos */}
+            {loadingPhotos && (
+              <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Loading photos…
+              </div>
+            )}
+            {photos && photos.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                  Photos
+                </p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                  {photos.map((photo) => (
+                    <a
+                      key={photo.id}
+                      href={photo.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group relative aspect-square overflow-hidden rounded-lg border"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={photo.url}
+                        alt={photo.name ?? 'Photo'}
+                        className="h-full w-full object-cover transition-opacity group-hover:opacity-80"
+                      />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

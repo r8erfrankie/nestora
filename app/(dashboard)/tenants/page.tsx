@@ -75,14 +75,16 @@ export default async function TenantsPage() {
     ]),
   ];
   const nameByEmail = new Map<string, string | null>();
+  const phoneByEmail = new Map<string, string | null>();
   if (allEmails.length > 0) {
     const admin = createAdminClient();
     const { data: tenantProfiles } = await admin
       .from('profiles')
-      .select('email, full_name')
+      .select('email, full_name, phone')
       .in('email', allEmails);
     for (const p of tenantProfiles ?? []) {
       nameByEmail.set((p.email as string).toLowerCase(), (p.full_name as string | null) ?? null);
+      phoneByEmail.set((p.email as string).toLowerCase(), (p.phone as string | null) ?? null);
     }
   }
 
@@ -101,6 +103,7 @@ export default async function TenantsPage() {
     status: r.status,
     tenant_email: r.tenant_email,
     tenant_name: nameByEmail.get(r.tenant_email.toLowerCase()) ?? null,
+    phone: phoneByEmail.get(r.tenant_email.toLowerCase()) ?? null,
     unit: unitMap.get(`${r.property_id}::${r.tenant_email.toLowerCase()}`) ?? null,
     created_at: r.created_at,
     property: r.property,
