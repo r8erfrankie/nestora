@@ -28,6 +28,7 @@ import {
   Copy,
   Loader2,
   QrCode,
+  Wrench,
   UserCheck,
   UserPlus,
   X,
@@ -59,13 +60,40 @@ export type PropertyWithCode = {
   join_code: string | null;
 };
 
+export type MaintenanceRequest = {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  priority: string;
+  status: string;
+  tenant_email: string;
+  created_at: string;
+  property: PropertySummary | null;
+};
+
+const PRIORITY_STYLES: Record<string, string> = {
+  Low:    'bg-secondary text-secondary-foreground',
+  Medium: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
+  High:   'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+  Urgent: 'bg-destructive/10 text-destructive',
+};
+
+const STATUS_STYLES: Record<string, string> = {
+  Submitted:    'bg-secondary text-secondary-foreground',
+  'In Progress': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  Resolved:     'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+  Declined:     'bg-destructive/10 text-destructive',
+};
+
 interface TenantsClientProps {
   pendingLinks: TenantLink[];
   approvedLinks: TenantLink[];
   properties: PropertyWithCode[];
+  maintenanceRequests: MaintenanceRequest[];
 }
 
-export function TenantsClient({ pendingLinks, approvedLinks, properties }: TenantsClientProps) {
+export function TenantsClient({ pendingLinks, approvedLinks, properties, maintenanceRequests }: TenantsClientProps) {
   const [inviteOpen, setInviteOpen] = useState(false);
 
   // Group approved links by property for the summary section.
@@ -160,6 +188,33 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties }: Tenan
         </section>
       )}
 
+      {/* ── Maintenance requests ─────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-medium">Maintenance Requests</h2>
+          {maintenanceRequests.length > 0 && (
+            <Badge variant="secondary">{maintenanceRequests.length}</Badge>
+          )}
+        </div>
+        <Separator />
+
+        {maintenanceRequests.length === 0 ? (
+          <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-lg border border-dashed py-10 text-center">
+            <Wrench className="h-8 w-8 opacity-40" />
+            <p className="text-sm">No maintenance requests yet.</p>
+            <p className="text-xs opacity-70">
+              Tenants can submit requests from their dashboard.
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y rounded-lg border">
+            {maintenanceRequests.map((req) => (
+              <RequestRow key={req.id} request={req} />
+            ))}
+          </div>
+        )}
+      </section>
+
       {/* ── Property join codes ───────────────────────────────────────────────── */}
       {propertiesWithCode.length > 0 && (
         <section className="space-y-3">
@@ -181,6 +236,48 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties }: Tenan
       )}
 
       <InviteModal open={inviteOpen} onOpenChange={setInviteOpen} properties={properties} />
+    </div>
+  );
+}
+
+// ── Maintenance request row ───────────────────────────────────────────────────
+
+function RequestRow({ request }: { request: MaintenanceRequest }) {
+  const priorityStyle = PRIORITY_STYLES[request.priority] ?? PRIORITY_STYLES['Medium'];
+  const statusStyle   = STATUS_STYLES[request.status]    ?? STATUS_STYLES['Submitted'];
+  const ago = request.created_at ? timeAgo(request.created_at) : null;
+
+  return (
+    <div className="px-4 py-3">
+      <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:gap-4">
+        {/* Left: title + meta */}
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="truncate text-sm font-medium">{request.title}</p>
+          <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="flex items-center gap-1">
+              <Building2 className="h-3 w-3" />
+              {request.property?.name ?? 'Property'}
+            </span>
+            <span>·</span>
+            <span>{request.tenant_email}</span>
+            {ago && (
+              <>
+                <span>·</span>
+                <span>{ago}</span>
+              </>
+            )}
+          </div>
+        </div>
+        {/* Right: badges */}
+        <div className="flex shrink-0 flex-wrap gap-1.5">
+          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${priorityStyle}`}>
+            {request.priority}
+          </span>
+          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyle}`}>
+            {request.status}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
