@@ -131,18 +131,21 @@ export async function proxy(request: NextRequest) {
 
   // ── 10. Cross-role access control ────────────────────────────────────────────
 
+  // isTenantRoute matches /tenant and /tenant/* but NOT /tenants or /tenants/*.
+  // Must use exact-match + trailing-slash-prefix to avoid /tenants being caught.
+  const isTenantRoute = pathname === '/tenant' || pathname.startsWith('/tenant/')
+
   // Tenant: locked to /tenant/*, /settings, and /join/* (handled earlier).
   // Any other path redirects to their dashboard.
   if (role === 'tenant') {
-    const allowed =
-      pathname.startsWith('/tenant') || pathname.startsWith('/settings')
+    const allowed = isTenantRoute || pathname.startsWith('/settings')
     if (!allowed) {
       return stamp(NextResponse.redirect(new URL('/tenant', request.url)))
     }
   }
 
   // Block non-tenants from /tenant/* routes.
-  if (role !== 'tenant' && pathname.startsWith('/tenant')) {
+  if (role !== 'tenant' && isTenantRoute) {
     const home = role === 'contractor' ? '/contractor' : '/'
     return stamp(NextResponse.redirect(new URL(home, request.url)))
   }

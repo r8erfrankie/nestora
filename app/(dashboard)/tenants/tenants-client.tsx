@@ -20,7 +20,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Building2, Check, CheckCircle2, Clock, Loader2, UserCheck, UserPlus, X } from 'lucide-react';
+import {
+  Building2,
+  Check,
+  CheckCircle2,
+  Clock,
+  Copy,
+  Loader2,
+  QrCode,
+  UserCheck,
+  UserPlus,
+  X,
+} from 'lucide-react';
 import { timeAgo } from '@/lib/utils';
 import { approveTenantRequest, inviteTenantByEmail, rejectTenantRequest } from './actions';
 
@@ -41,10 +52,16 @@ export type TenantLink = {
   property: PropertySummary | null;
 };
 
+export type PropertyWithCode = {
+  id: string;
+  name: string;
+  join_code: string | null;
+};
+
 interface TenantsClientProps {
   pendingLinks: TenantLink[];
   approvedLinks: TenantLink[];
-  properties: { id: string; name: string }[];
+  properties: PropertyWithCode[];
 }
 
 export function TenantsClient({ pendingLinks, approvedLinks, properties }: TenantsClientProps) {
@@ -59,6 +76,8 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties }: Tenan
     acc[key].emails.push(link.tenant_email);
     return acc;
   }, {});
+
+  const propertiesWithCode = properties.filter((p) => p.join_code);
 
   return (
     <div className="space-y-8">
@@ -138,11 +157,76 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties }: Tenan
         </section>
       )}
 
-      <InviteModal
-        open={inviteOpen}
-        onOpenChange={setInviteOpen}
-        properties={properties}
-      />
+      {/* ── Property join codes ───────────────────────────────────────────────── */}
+      {propertiesWithCode.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-medium">Join Codes</h2>
+            <QrCode className="text-muted-foreground h-3.5 w-3.5" />
+          </div>
+          <Separator />
+          <p className="text-muted-foreground text-xs">
+            Share a code or link with your tenant. They enter it at{' '}
+            <span className="font-mono">gonestora.app/join/&lt;CODE&gt;</span> or scan a QR code.
+          </p>
+          <div className="space-y-2">
+            {propertiesWithCode.map((p) => (
+              <JoinCodeRow key={p.id} property={p} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      <InviteModal open={inviteOpen} onOpenChange={setInviteOpen} properties={properties} />
+    </div>
+  );
+}
+
+// ── Join code row ─────────────────────────────────────────────────────────────
+
+function JoinCodeRow({ property }: { property: PropertyWithCode }) {
+  const [copied, setCopied] = useState<'code' | 'link' | null>(null);
+  const joinUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/join/${property.join_code}`
+      : `https://gonestora.app/join/${property.join_code}`;
+
+  const copy = async (text: string, type: 'code' | 'link') => {
+    await navigator.clipboard.writeText(text);
+    setCopied(type);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  return (
+    <div className="rounded-lg border px-4 py-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">{property.name}</p>
+          <p className="text-muted-foreground font-mono text-xs tracking-widest">
+            {property.join_code}
+          </p>
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 text-xs"
+            onClick={() => copy(property.join_code!, 'code')}
+          >
+            {copied === 'code' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+            {copied === 'code' ? 'Copied' : 'Copy code'}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 text-xs"
+            onClick={() => copy(joinUrl, 'link')}
+          >
+            {copied === 'link' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+            {copied === 'link' ? 'Copied' : 'Copy link'}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -230,7 +314,7 @@ function InviteModal({
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  properties: { id: string; name: string }[];
+  properties: PropertyWithCode[];
 }) {
   const [email, setEmail] = useState('');
   const [propertyId, setPropertyId] = useState('');
