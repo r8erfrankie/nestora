@@ -179,6 +179,7 @@ export function WorkOrdersClient({
     customTrade: '',
   });
   const [savingContractor, setSavingContractor] = useState(false);
+  const [editContractorKey, setEditContractorKey] = useState('');
   const [formError, setFormError] = useState('');
   const [creating, setCreating] = useState(false);
 
@@ -288,6 +289,7 @@ export function WorkOrdersClient({
     setPhotos([]);
     setLightboxOpen(false);
     setEditingContractor(false);
+    setEditContractorKey('');
   };
 
   const handleSaveContractor = async () => {
@@ -1164,7 +1166,12 @@ export function WorkOrdersClient({
                 }}
               >
                 <SelectTrigger className="!h-11 sm:!h-8">
-                  <SelectValue placeholder={localContractors.length > 0 ? 'Choose a contractor' : 'No contractors saved yet'} />
+                  <SelectValue placeholder={localContractors.length > 0 ? 'Choose a contractor' : 'No contractors saved yet'}>
+                    {(() => {
+                      const c = localContractors.find((k) => k.id === form.contractorKey);
+                      return c ? `${c.name}${c.trade ? ` · ${c.trade}` : ''}` : undefined;
+                    })()}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {localContractors.map((c) => (
@@ -1417,6 +1424,45 @@ export function WorkOrdersClient({
 
                     {editingContractor ? (
                       <div className="space-y-3">
+                        {localContractors.length > 0 && (
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-medium">Pick from team</label>
+                            <Select
+                              value={editContractorKey}
+                              onValueChange={(val) => {
+                                setEditContractorKey(val ?? '');
+                                const c = localContractors.find((k) => k.id === val);
+                                if (c) {
+                                  setContractorEdit({
+                                    name: c.name,
+                                    email: c.email ?? '',
+                                    phone: c.phone ?? '',
+                                    trade: c.trade
+                                      ? TRADES_SET.has(c.trade) ? c.trade : 'Other'
+                                      : '',
+                                    customTrade: c.trade && !TRADES_SET.has(c.trade) ? c.trade : '',
+                                  });
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="!h-11 sm:!h-8">
+                                <SelectValue placeholder="Choose from your team…">
+                                  {(() => {
+                                    const c = localContractors.find((k) => k.id === editContractorKey);
+                                    return c ? `${c.name}${c.trade ? ` · ${c.trade}` : ''}` : undefined;
+                                  })()}
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {localContractors.map((c) => (
+                                  <SelectItem key={c.id} value={c.id}>
+                                    {c.name}{c.trade ? ` · ${c.trade}` : ''}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           <div className="space-y-1.5">
                             <label className="text-xs font-medium">Name</label>
@@ -1541,6 +1587,12 @@ export function WorkOrdersClient({
                                 : '',
                               customTrade: isPreset ? '' : currentTrade,
                             });
+                            const matched = localContractors.find(
+                              (lc) =>
+                                lc.email?.toLowerCase() ===
+                                (selectedWorkOrder.assigned_contractor_email ?? '').toLowerCase()
+                            );
+                            setEditContractorKey(matched?.id ?? '');
                             setEditingContractor(true);
                           }}
                           className="text-muted-foreground hover:text-foreground -ml-0.5 rounded p-1 transition-colors"
