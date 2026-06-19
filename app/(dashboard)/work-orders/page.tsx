@@ -14,6 +14,7 @@ export default async function WorkOrdersPage({
     { data: workOrders, error: workOrdersError },
     { data: properties },
     { data: contractors },
+    { data: archivedEntries },
   ] = await Promise.all([
     supabase
       .from('work_orders')
@@ -26,7 +27,10 @@ export default async function WorkOrdersPage({
       .order('created_at', { ascending: false }),
     supabase.from('properties').select('id, name').order('name'),
     supabase.from('contractors').select('id, name, email, phone, trade').order('name'),
+    supabase.from('work_order_user_archives').select('work_order_id'),
   ]);
+
+  const archivedWorkOrderIds = (archivedEntries ?? []).map((e) => e.work_order_id as string);
 
   if (workOrdersError) {
     // error will be passed to client for display
@@ -38,6 +42,7 @@ export default async function WorkOrdersPage({
         initialWorkOrders={workOrders || []}
         properties={properties || []}
         contractors={contractors || []}
+        archivedWorkOrderIds={archivedWorkOrderIds}
         loadError={workOrdersError}
         autoOpenCreate={autoOpenCreate}
       />

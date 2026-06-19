@@ -45,7 +45,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Eye, Upload, Loader2, ClipboardList, Archive, Trash2, X, Pencil, Phone } from 'lucide-react';
+import { Plus, Eye, Upload, Loader2, ClipboardList, Archive, ArchiveRestore, Trash2, X, Pencil, Phone } from 'lucide-react';
+import { archiveWorkOrderForUser, unarchiveWorkOrderForUser } from '@/app/actions/archive-actions';
 
 interface WorkOrder {
   id: string;
@@ -110,16 +111,20 @@ export function WorkOrdersClient({
   initialWorkOrders,
   properties,
   contractors,
+  archivedWorkOrderIds,
   loadError,
   autoOpenCreate = false,
 }: {
   initialWorkOrders: WorkOrder[];
   properties: Property[];
   contractors: Contractor[];
+  archivedWorkOrderIds: string[];
   loadError?: { message?: string; details?: string; hint?: string; code?: string } | null;
   autoOpenCreate?: boolean;
 }) {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>(initialWorkOrders);
+  const [view, setView] = useState<'active' | 'archived'>('active');
+  const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set(archivedWorkOrderIds));
   const [isCreateOpen, setIsCreateOpen] = useState(autoOpenCreate);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(null);
@@ -209,11 +214,22 @@ export function WorkOrdersClient({
     : null;
 
 
-  // Computed sorted list (client-side for simplicity)
-  const sortedWorkOrders = useMemo(() => {
-    if (!sortColumn) return workOrders;
+  const activeWorkOrders = useMemo(
+    () => workOrders.filter((wo) => !archivedIds.has(wo.id)),
+    [workOrders, archivedIds]
+  );
 
-    return [...workOrders].sort((a, b) => {
+  const archivedWorkOrders = useMemo(
+    () => workOrders.filter((wo) => archivedIds.has(wo.id)),
+    [workOrders, archivedIds]
+  );
+
+  // Computed sorted list for the current view (client-side for simplicity)
+  const sortedWorkOrders = useMemo(() => {
+    const list = view === 'active' ? activeWorkOrders : archivedWorkOrders;
+    if (!sortColumn) return list;
+
+    return [...list].sort((a, b) => {
       const aName =
         a.properties?.name || properties.find((p) => p.id === a.property_id)?.name || '';
       const bName =
@@ -221,7 +237,7 @@ export function WorkOrdersClient({
       const comparison = aName.localeCompare(bName);
       return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }, [workOrders, sortColumn, sortDirection, properties]);
+  }, [view, activeWorkOrders, archivedWorkOrders, sortColumn, sortDirection, properties]);
 
   const toggleSort = (column: 'property') => {
     if (sortColumn === column) {
@@ -238,6 +254,7 @@ export function WorkOrdersClient({
 
   // Open create dialog
   const openCreate = () => {
+    setView('active');
     setForm({
       title: '',
       description: '',
@@ -388,27 +405,38 @@ export function WorkOrdersClient({
     }
   };
 
-  const archiveWorkOrder = async (id: string) => {
+  const handleArchive = async (wo: WorkOrder) => {
+    if (!confirm(`Hide "${wo.title}" from your active list?`)) return;
+    // Optimistic: move to archived view immediately
+    setArchivedIds((prev) => new Set([...prev, wo.id]));
+    closeDetail();
     try {
-      const { error } = await supabase
-        .from('work_orders')
-        .update({ status: 'Archived' })
-        .eq('id', id);
-      if (error) throw error;
-      setWorkOrders((prev) =>
-        prev.map((wo) => (wo.id === id ? { ...wo, status: 'Archived' } : wo))
-      );
-      if (selectedWorkOrder?.id === id) {
-        setSelectedWorkOrder({ ...selectedWorkOrder, status: 'Archived' });
-      }
-    } catch (err: unknown) {
-      const e = err as { message?: string; details?: string; hint?: string; code?: string };
-      const message =
-        e?.message ||
-        e?.details ||
-        (e?.code ? `Database error (code: ${e.code})` : null) ||
-        'Failed to archive work order. You may need to add "Archived" to your DB status constraint (see supabase/work-orders.sql).';
-      alert(message);
+      await archiveWorkOrderForUser(wo.id);
+    } catch {
+      // Revert on failure
+      setArchivedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(wo.id);
+        return next;
+      });
+      alert('Failed to archive work order.');
+    }
+  };
+
+  const handleUnarchive = async (wo: WorkOrder) => {
+    // Optimistic: move back to active view immediately
+    setArchivedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(wo.id);
+      return next;
+    });
+    closeDetail();
+    try {
+      await unarchiveWorkOrderForUser(wo.id);
+    } catch {
+      // Revert on failure
+      setArchivedIds((prev) => new Set([...prev, wo.id]));
+      alert('Failed to unarchive work order.');
     }
   };
 
@@ -858,10 +886,38 @@ export function WorkOrdersClient({
             Track maintenance and repair tasks across properties
           </p>
         </div>
-        <Button onClick={openCreate} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          New Work Order
-        </Button>
+        {view === 'active' && (
+          <Button onClick={openCreate} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            New Work Order
+          </Button>
+        )}
+      </div>
+
+      {/* View tabs */}
+      <div className="flex gap-1 border-b">
+        <button
+          onClick={() => setView('active')}
+          className={cn(
+            'border-b-2 px-4 py-2 text-sm font-medium transition-colors',
+            view === 'active'
+              ? 'border-primary text-foreground'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          )}
+        >
+          Active{activeWorkOrders.length > 0 ? ` (${activeWorkOrders.length})` : ''}
+        </button>
+        <button
+          onClick={() => setView('archived')}
+          className={cn(
+            'border-b-2 px-4 py-2 text-sm font-medium transition-colors',
+            view === 'archived'
+              ? 'border-primary text-foreground'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          )}
+        >
+          Archived{archivedWorkOrders.length > 0 ? ` (${archivedWorkOrders.length})` : ''}
+        </button>
       </div>
 
       {/* Load error banner */}
@@ -876,21 +932,39 @@ export function WorkOrdersClient({
       )}
 
       {/* List */}
-      {workOrders.length === 0 ? (
+      {sortedWorkOrders.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <div className="bg-muted text-muted-foreground mb-4 rounded-full p-4">
-              <ClipboardList className="h-8 w-8" />
+              {view === 'archived' ? (
+                <Archive className="h-8 w-8" />
+              ) : (
+                <ClipboardList className="h-8 w-8" />
+              )}
             </div>
-            <h3 className="mb-2 text-lg font-semibold">No work orders yet</h3>
-            <p className="text-muted-foreground mb-6 max-w-sm text-sm">
-              No work orders yet. Create one to start tracking maintenance and repairs across your
-              properties.
-            </p>
-            <Button onClick={openCreate}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create work order
-            </Button>
+            {view === 'archived' ? (
+              <>
+                <h3 className="mb-2 text-lg font-semibold">No archived work orders</h3>
+                <p className="text-muted-foreground mb-6 max-w-sm text-sm">
+                  Work orders you archive will appear here. They remain visible only in this view.
+                </p>
+                <Button variant="outline" onClick={() => setView('active')}>
+                  Back to Active
+                </Button>
+              </>
+            ) : (
+              <>
+                <h3 className="mb-2 text-lg font-semibold">No work orders yet</h3>
+                <p className="text-muted-foreground mb-6 max-w-sm text-sm">
+                  No work orders yet. Create one to start tracking maintenance and repairs across your
+                  properties.
+                </p>
+                <Button onClick={openCreate}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create work order
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -986,17 +1060,31 @@ export function WorkOrdersClient({
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          archiveWorkOrder(wo.id);
-                        }}
-                        title="Archive"
-                      >
-                        <Archive className="h-4 w-4" />
-                      </Button>
+                      {view === 'archived' ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUnarchive(wo);
+                          }}
+                          title="Unarchive"
+                        >
+                          <ArchiveRestore className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleArchive(wo);
+                          }}
+                          title="Archive"
+                        >
+                          <Archive className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -1848,10 +1936,17 @@ export function WorkOrdersClient({
                 <Button variant="outline" onClick={closeDetail}>
                   Close
                 </Button>
-                <Button variant="outline" onClick={() => archiveWorkOrder(selectedWorkOrder.id)}>
-                  <Archive className="mr-2 h-4 w-4" />
-                  Archive
-                </Button>
+                {archivedIds.has(selectedWorkOrder.id) ? (
+                  <Button variant="outline" onClick={() => handleUnarchive(selectedWorkOrder)}>
+                    <ArchiveRestore className="mr-2 h-4 w-4" />
+                    Unarchive
+                  </Button>
+                ) : (
+                  <Button variant="outline" onClick={() => handleArchive(selectedWorkOrder)}>
+                    <Archive className="mr-2 h-4 w-4" />
+                    Archive
+                  </Button>
+                )}
                 <Button
                   variant="destructive"
                   onClick={() => {

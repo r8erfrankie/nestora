@@ -37,6 +37,16 @@ export default async function DashboardPage() {
     .split('T')[0];
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
+  // Fetch personally archived IDs first so we can exclude them from counts.
+  const { data: archivedEntries } = await supabase
+    .from('work_order_user_archives')
+    .select('work_order_id');
+  const archivedIds = (archivedEntries ?? []).map((e) => e.work_order_id as string);
+
+  // Apply personal-archive exclusion to any work_orders count query.
+  const noArchived = (q: any) =>
+    archivedIds.length > 0 ? q.not('id', 'in', `(${archivedIds.join(',')})`) : q;
+
   const [
     { count: openWorkOrders },
     { count: dueSoon },
@@ -44,18 +54,24 @@ export default async function DashboardPage() {
     { count: totalProperties },
     { data: recentActivities },
   ] = await Promise.all([
-    supabase.from('work_orders').select('*', { count: 'exact', head: true }).eq('status', 'Open'),
-    supabase
-      .from('work_orders')
-      .select('*', { count: 'exact', head: true })
-      .neq('status', 'Completed')
-      .gte('due_date', today)
-      .lte('due_date', sevenDaysLater),
-    supabase
-      .from('work_orders')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'Completed')
-      .gte('updated_at', startOfMonth),
+    noArchived(
+      supabase.from('work_orders').select('*', { count: 'exact', head: true }).eq('status', 'Open')
+    ),
+    noArchived(
+      supabase
+        .from('work_orders')
+        .select('*', { count: 'exact', head: true })
+        .neq('status', 'Completed')
+        .gte('due_date', today)
+        .lte('due_date', sevenDaysLater)
+    ),
+    noArchived(
+      supabase
+        .from('work_orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'Completed')
+        .gte('updated_at', startOfMonth)
+    ),
     supabase.from('properties').select('*', { count: 'exact', head: true }),
     supabase
       .from('work_orders')
