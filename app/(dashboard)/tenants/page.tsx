@@ -63,30 +63,32 @@ export default async function TenantsPage() {
   };
   const rawRequests = (rawRequestsData ?? []) as unknown as RawRequest[];
 
-  // Collect all unique tenant IDs across both approved links and maintenance requests.
-  // profiles RLS is own-row-only — admin client required; one batch covers both lists.
-  const allTenantIds = [
+  // Look up names by email, not by tenant_id.
+  // tenant_property_links.tenant_id is null for landlord-invited tenants (inserted with
+  // tenant_id = null). profiles.email is always populated by the handle_new_user() trigger,
+  // and tenant_email is always present on both tables — so email is a reliable key.
+  // profiles RLS is own-row-only; admin client required.
+  const allEmails = [
     ...new Set([
-      ...rawApproved.map((l) => l.tenant_id).filter((id): id is string => !!id),
-      ...rawRequests.map((r) => r.tenant_id).filter(Boolean),
+      ...rawApproved.map((l) => l.tenant_email.toLowerCase()),
+      ...rawRequests.map((r) => r.tenant_email.toLowerCase()),
     ]),
   ];
-  const nameMap = new Map<string, string | null>();
-  if (allTenantIds.length > 0) {
+  const nameByEmail = new Map<string, string | null>();
+  if (allEmails.length > 0) {
     const admin = createAdminClient();
     const { data: tenantProfiles } = await admin
       .from('profiles')
-      .select('id, full_name')
-      .in('id', allTenantIds);
+      .select('email, full_name')
+      .in('email', allEmails);
     for (const p of tenantProfiles ?? []) {
-      nameMap.set(p.id as string, (p.full_name as string | null) ?? null);
+      nameByEmail.set((p.email as string).toLowerCase(), (p.full_name as string | null) ?? null);
     }
   }
 
-  // Enrich approved links with resolved tenant names.
   const approvedLinks: TenantLink[] = rawApproved.map((l) => ({
     ...l,
-    tenant_name: nameMap.get(l.tenant_id ?? '') ?? null,
+    tenant_name: nameByEmail.get(l.tenant_email.toLowerCase()) ?? null,
   }));
 
   const maintenanceRequests: MaintenanceRequest[] = rawRequests.map((r) => ({
@@ -98,7 +100,7 @@ export default async function TenantsPage() {
     priority: r.priority,
     status: r.status,
     tenant_email: r.tenant_email,
-    tenant_name: nameMap.get(r.tenant_id) ?? null,
+    tenant_name: nameByEmail.get(r.tenant_email.toLowerCase()) ?? null,
     unit: unitMap.get(`${r.property_id}::${r.tenant_email.toLowerCase()}`) ?? null,
     created_at: r.created_at,
     property: r.property,
