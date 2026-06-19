@@ -353,70 +353,83 @@ export function ContractorClient({
                 key={wo.id}
                 className="rounded-xl border bg-card transition-shadow hover:shadow-sm"
               >
-                {/* Tappable main area */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(wo.id)}
-                  className="w-full p-4 text-left"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      {wo.properties && (
-                        <div className="text-muted-foreground mb-1 flex items-center gap-1 text-xs">
-                          <Building2 className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{wo.properties.name}</span>
-                          {wo.properties.address && (
-                            <span className="truncate text-muted-foreground/70">
-                              {' · '}
-                              {wo.properties.address}
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="truncate font-semibold leading-snug">{wo.title}</div>
-
-                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        <span
-                          className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${STATUS_BADGE[wo.status] ?? 'bg-muted text-muted-foreground'}`}
-                        >
-                          {wo.status}
-                        </span>
-                        <span
-                          className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${PRIORITY_BADGE[wo.priority] ?? 'bg-muted text-muted-foreground'}`}
-                        >
-                          {wo.priority}
-                        </span>
-                        {wo.trade && (
-                          <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[11px] font-medium">
-                            {wo.trade}
-                          </span>
-                        )}
-                        {wo.contractor_quote != null && (
-                          <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[11px] font-medium text-violet-700">
-                            {formatCurrency(wo.contractor_quote)}
-                          </span>
-                        )}
-                        {wo.due_date && (
-                          <span
-                            className={`flex items-center gap-0.5 text-[11px] ${
-                              overdue
-                                ? 'font-semibold text-red-600'
-                                : dueSoon
-                                  ? 'font-semibold text-amber-600'
-                                  : 'text-muted-foreground'
-                            }`}
-                          >
-                            <Calendar className="h-3 w-3 shrink-0" />
-                            {overdue ? 'Overdue · ' : dueSoon ? 'Due soon · ' : ''}
-                            {formatDate(wo.due_date)}
+                {/* Card header row: tappable content + right-side actions */}
+                <div className="flex items-start gap-3 p-4">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedId(wo.id)}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    {wo.properties && (
+                      <div className="text-muted-foreground mb-1 flex items-center gap-1 text-xs">
+                        <Building2 className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{wo.properties.name}</span>
+                        {wo.properties.address && (
+                          <span className="truncate text-muted-foreground/70">
+                            {' · '}
+                            {wo.properties.address}
                           </span>
                         )}
                       </div>
+                    )}
+
+                    <div className="truncate font-semibold leading-snug">{wo.title}</div>
+
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${STATUS_BADGE[wo.status] ?? 'bg-muted text-muted-foreground'}`}
+                      >
+                        {wo.status}
+                      </span>
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${PRIORITY_BADGE[wo.priority] ?? 'bg-muted text-muted-foreground'}`}
+                      >
+                        {wo.priority}
+                      </span>
+                      {wo.trade && (
+                        <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[11px] font-medium">
+                          {wo.trade}
+                        </span>
+                      )}
+                      {wo.contractor_quote != null && (
+                        <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[11px] font-medium text-violet-700">
+                          {formatCurrency(wo.contractor_quote)}
+                        </span>
+                      )}
+                      {wo.due_date && (
+                        <span
+                          className={`flex items-center gap-0.5 text-[11px] ${
+                            overdue
+                              ? 'font-semibold text-red-600'
+                              : dueSoon
+                                ? 'font-semibold text-amber-600'
+                                : 'text-muted-foreground'
+                          }`}
+                        >
+                          <Calendar className="h-3 w-3 shrink-0" />
+                          {overdue ? 'Overdue · ' : dueSoon ? 'Due soon · ' : ''}
+                          {formatDate(wo.due_date)}
+                        </span>
+                      )}
                     </div>
-                    <ChevronRight className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0" />
+                  </button>
+
+                  {/* Right-side actions: archive icon (completed only) + chevron */}
+                  <div className="flex shrink-0 items-center gap-1.5 pt-0.5">
+                    {wo.status === 'Completed' && (
+                      <button
+                        type="button"
+                        onClick={() => handleArchive(wo)}
+                        className="flex items-center gap-1 rounded px-1.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        title="Archive"
+                      >
+                        <Archive className="h-3.5 w-3.5" />
+                        Archive
+                      </button>
+                    )}
+                    <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0" />
                   </div>
-                </button>
+                </div>
 
                 {/* Quick-action strip — visible only for actionable statuses */}
                 {canAct(wo.status) && (
@@ -439,21 +452,6 @@ export function ContractorClient({
                           Mark Complete
                         </>
                       )}
-                    </Button>
-                  </div>
-                )}
-
-                {/* Archive strip — only for completed jobs; not for active work */}
-                {wo.status === 'Completed' && (
-                  <div className="border-t px-4 pb-3 pt-2.5">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleArchive(wo)}
-                      className="h-8 gap-1.5 text-xs text-muted-foreground"
-                    >
-                      <Archive className="h-3.5 w-3.5" />
-                      Hide from my list
                     </Button>
                   </div>
                 )}
