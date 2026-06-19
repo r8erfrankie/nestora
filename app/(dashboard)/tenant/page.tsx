@@ -118,7 +118,7 @@ export default async function TenantDashboardPage() {
       {approvedLinks.length > 0 ? (
         <section className="space-y-3">
           <h2 className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-            My Properties
+            Home
           </h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {approvedLinks.map((link) => {
@@ -149,7 +149,7 @@ export default async function TenantDashboardPage() {
                     <Button asChild size="sm" className="w-full">
                       <Link href={`/tenant/new-request?property=${link.property_id}`}>
                         <Plus className="mr-1.5 h-3.5 w-3.5" />
-                        Submit Request
+                        Maintenance Request
                       </Link>
                     </Button>
                   </CardContent>
@@ -236,15 +236,7 @@ export default async function TenantDashboardPage() {
           <Separator />
           {requests.length === 0 ? (
             <p className="text-muted-foreground py-6 text-center text-sm">
-              No requests yet.{' '}
-              {approvedLinks[0] && (
-                <Link
-                  href={`/tenant/new-request?property=${approvedLinks[0].property_id}`}
-                  className="text-primary underline-offset-4 hover:underline"
-                >
-                  Submit your first one.
-                </Link>
-              )}
+              No requests yet.
             </p>
           ) : (
             <div className="divide-y rounded-lg border">

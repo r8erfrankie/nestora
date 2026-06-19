@@ -55,6 +55,7 @@ export type TenantLink = {
 export type PropertyWithCode = {
   id: string;
   name: string;
+  address: string | null;
   join_code: string | null;
 };
 
@@ -69,11 +70,11 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties }: Tenan
 
   // Group approved links by property for the summary section.
   const approvedByProperty = approvedLinks.reduce<
-    Record<string, { property: PropertySummary | null; emails: string[] }>
+    Record<string, { property: PropertySummary | null; tenants: { email: string; unit: string | null }[] }>
   >((acc, link) => {
     const key = link.property_id;
-    if (!acc[key]) acc[key] = { property: link.property, emails: [] };
-    acc[key].emails.push(link.tenant_email);
+    if (!acc[key]) acc[key] = { property: link.property, tenants: [] };
+    acc[key].tenants.push({ email: link.tenant_email, unit: link.unit });
     return acc;
   }, {});
 
@@ -128,28 +129,30 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties }: Tenan
           <h2 className="text-sm font-medium">Approved Tenants</h2>
           <Separator />
           <div className="space-y-3">
-            {Object.entries(approvedByProperty).map(([propertyId, { property, emails }]) => (
-              <div key={propertyId} className="rounded-lg border px-4 py-3">
-                <div className="flex items-start gap-3">
-                  <div className="bg-primary/10 mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md">
-                    <Building2 className="text-primary h-3.5 w-3.5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">{property?.name ?? 'Property'}</p>
+            {Object.entries(approvedByProperty).map(([propertyId, { property, tenants }]) => (
+              <div key={propertyId} className="rounded-lg border">
+                {/* Property header */}
+                <div className="flex items-center gap-3 border-b px-4 py-2.5">
+                  <Building2 className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium">{property?.name ?? 'Property'}</span>
                     {property?.address && (
-                      <p className="text-muted-foreground truncate text-xs">{property.address}</p>
+                      <span className="text-muted-foreground ml-2 text-xs">{property.address}</span>
                     )}
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {emails.map((email) => (
-                        <span
-                          key={email}
-                          className="bg-secondary text-secondary-foreground rounded-full px-2.5 py-0.5 text-xs"
-                        >
-                          {email}
-                        </span>
-                      ))}
-                    </div>
                   </div>
+                </div>
+                {/* Tenant rows */}
+                <div className="divide-y">
+                  {tenants.map(({ email, unit }) => (
+                    <div key={email} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                      {unit && (
+                        <span className="text-muted-foreground w-16 shrink-0 text-xs">
+                          Unit {unit}
+                        </span>
+                      )}
+                      <span className="min-w-0 truncate">{email}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
@@ -414,7 +417,12 @@ function InviteModal({
                   <SelectContent>
                     {properties.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
-                        {p.name}
+                        <span className="flex flex-col">
+                          <span>{p.name}</span>
+                          {p.address && (
+                            <span className="text-muted-foreground text-xs">{p.address}</span>
+                          )}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>

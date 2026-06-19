@@ -31,7 +31,7 @@ export default async function TenantsPage() {
       .order('created_at', { ascending: false }),
     supabase
       .from('properties')
-      .select('id, name, join_code')
+      .select('id, name, address, join_code')
       .order('name', { ascending: true }),
   ]);
 
