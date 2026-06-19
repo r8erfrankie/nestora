@@ -3,10 +3,26 @@
 import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { Building2, Check, Clock, Loader2, UserCheck, X } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Building2, Check, CheckCircle2, Clock, Loader2, UserCheck, UserPlus, X } from 'lucide-react';
 import { timeAgo } from '@/lib/utils';
-import { approveTenantRequest, rejectTenantRequest } from './actions';
+import { approveTenantRequest, inviteTenantByEmail, rejectTenantRequest } from './actions';
 
 export type PropertySummary = {
   id: string;
@@ -28,31 +44,36 @@ export type TenantLink = {
 interface TenantsClientProps {
   pendingLinks: TenantLink[];
   approvedLinks: TenantLink[];
+  properties: { id: string; name: string }[];
 }
 
-export function TenantsClient({ pendingLinks, approvedLinks }: TenantsClientProps) {
+export function TenantsClient({ pendingLinks, approvedLinks, properties }: TenantsClientProps) {
+  const [inviteOpen, setInviteOpen] = useState(false);
+
   // Group approved links by property for the summary section.
-  const approvedByProperty = approvedLinks.reduce<Record<string, { property: PropertySummary | null; emails: string[] }>>(
-    (acc, link) => {
-      const key = link.property_id;
-      if (!acc[key]) acc[key] = { property: link.property, emails: [] };
-      acc[key].emails.push(link.tenant_email);
-      return acc;
-    },
-    {}
-  );
+  const approvedByProperty = approvedLinks.reduce<
+    Record<string, { property: PropertySummary | null; emails: string[] }>
+  >((acc, link) => {
+    const key = link.property_id;
+    if (!acc[key]) acc[key] = { property: link.property, emails: [] };
+    acc[key].emails.push(link.tenant_email);
+    return acc;
+  }, {});
 
   return (
     <div className="space-y-8">
       {/* Page header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Tenants</h1>
           <p className="text-muted-foreground mt-1 text-sm">
             Manage tenant access requests for your properties.
           </p>
         </div>
-        {/* Placeholder for future "Invite tenant" button */}
+        <Button size="sm" onClick={() => setInviteOpen(true)} className="shrink-0 gap-1.5">
+          <UserPlus className="h-4 w-4" />
+          Invite Tenant
+        </Button>
       </div>
 
       {/* ── Pending requests ─────────────────────────────────────────────────── */}
@@ -116,9 +137,17 @@ export function TenantsClient({ pendingLinks, approvedLinks }: TenantsClientProp
           </div>
         </section>
       )}
+
+      <InviteModal
+        open={inviteOpen}
+        onOpenChange={setInviteOpen}
+        properties={properties}
+      />
     </div>
   );
 }
+
+// ── Pending row ────────────────────────────────────────────────────────────────
 
 function PendingRow({ link }: { link: TenantLink }) {
   const [isPending, startTransition] = useTransition();
@@ -138,7 +167,9 @@ function PendingRow({ link }: { link: TenantLink }) {
   const ago = link.created_at ? timeAgo(link.created_at) : null;
 
   return (
-    <div className={`px-4 py-3 transition-opacity ${isPending ? 'opacity-50 pointer-events-none' : ''}`}>
+    <div
+      className={`px-4 py-3 transition-opacity ${isPending ? 'pointer-events-none opacity-50' : ''}`}
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
         {/* Tenant + property info */}
         <div className="flex min-w-0 flex-1 items-start gap-3">
@@ -187,5 +218,153 @@ function PendingRow({ link }: { link: TenantLink }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ── Invite modal ───────────────────────────────────────────────────────────────
+
+function InviteModal({
+  open,
+  onOpenChange,
+  properties,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  properties: { id: string; name: string }[];
+}) {
+  const [email, setEmail] = useState('');
+  const [propertyId, setPropertyId] = useState('');
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  const reset = () => {
+    setEmail('');
+    setPropertyId('');
+    setError('');
+    setSuccess(false);
+  };
+
+  const handleOpenChange = (v: boolean) => {
+    if (!v) reset();
+    onOpenChange(v);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !propertyId) {
+      setError('Please fill in all fields.');
+      return;
+    }
+    setError('');
+    startTransition(async () => {
+      try {
+        await inviteTenantByEmail(email.trim(), propertyId);
+        setSuccess(true);
+        setTimeout(() => handleOpenChange(false), 1600);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to send invite.');
+      }
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Invite Tenant</DialogTitle>
+          <DialogDescription>
+            Grant a tenant immediate access to one of your properties. They&apos;ll receive an
+            email with a link to log in.
+          </DialogDescription>
+        </DialogHeader>
+
+        {success ? (
+          <div className="flex flex-col items-center gap-3 py-6 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50">
+              <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+            </div>
+            <div>
+              <p className="font-medium">Invite sent</p>
+              <p className="text-muted-foreground mt-0.5 text-sm">
+                {email} now has access and has been notified by email.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Tenant email</label>
+              <Input
+                type="email"
+                placeholder="tenant@example.com"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError('');
+                }}
+                disabled={isPending}
+                autoFocus
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Property</label>
+              {properties.length === 0 ? (
+                <p className="text-muted-foreground text-sm">
+                  You don&apos;t have any properties yet.
+                </p>
+              ) : (
+                <Select
+                  value={propertyId}
+                  onValueChange={(v) => {
+                    setPropertyId(v || '');
+                    setError('');
+                  }}
+                  disabled={isPending}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a property" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {properties.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            {error && <p className="text-destructive text-sm">{error}</p>}
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => handleOpenChange(false)}
+                disabled={isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isPending || properties.length === 0}
+                className="gap-1.5"
+              >
+                {isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <UserPlus className="h-4 w-4" />
+                )}
+                {isPending ? 'Sending…' : 'Send Invite'}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

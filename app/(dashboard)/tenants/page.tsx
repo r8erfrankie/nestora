@@ -20,16 +20,20 @@ export default async function TenantsPage() {
 
   if (profile?.role !== 'landlord') redirect('/');
 
-  // Single query — property name/address joined in one round-trip.
-  // RLS "Landlord manages own tenant links" filters to landlord_id = auth.uid().
-  // Properties are also landlord-readable via normal RLS, so no admin client needed.
-  const { data: rawLinks } = await supabase
-    .from('tenant_property_links')
-    .select(
-      'id, tenant_email, status, unit, initiated_by, created_at, property_id, property:property_id(id, name, address)'
-    )
-    .neq('status', 'removed')
-    .order('created_at', { ascending: false });
+  // Parallel fetch — links (with property join) and the landlord's property list.
+  const [{ data: rawLinks }, { data: properties }] = await Promise.all([
+    supabase
+      .from('tenant_property_links')
+      .select(
+        'id, tenant_email, status, unit, initiated_by, created_at, property_id, property:property_id(id, name, address)'
+      )
+      .neq('status', 'removed')
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('properties')
+      .select('id, name')
+      .order('name', { ascending: true }),
+  ]);
 
   const links = (rawLinks ?? []) as unknown as TenantLink[];
   const pendingLinks = links.filter((l) => l.status === 'pending');
@@ -37,7 +41,11 @@ export default async function TenantsPage() {
 
   return (
     <div className="max-w-3xl p-6">
-      <TenantsClient pendingLinks={pendingLinks} approvedLinks={approvedLinks} />
+      <TenantsClient
+        pendingLinks={pendingLinks}
+        approvedLinks={approvedLinks}
+        properties={properties ?? []}
+      />
     </div>
   );
 }
