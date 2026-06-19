@@ -38,7 +38,7 @@ export default async function TenantsPage() {
     supabase
       .from('maintenance_requests')
       .select(
-        'id, tenant_id, property_id, title, description, category, priority, status, tenant_email, created_at, property:property_id(id, name, address)'
+        'id, tenant_id, property_id, title, description, category, priority, status, tenant_email, converted_to_work_order_id, created_at, property:property_id(id, name, address)'
       )
       .order('created_at', { ascending: false })
       .limit(100),
@@ -58,7 +58,8 @@ export default async function TenantsPage() {
   type RawRequest = {
     id: string; tenant_id: string; property_id: string;
     title: string; description: string | null; category: string | null;
-    priority: string; status: string; tenant_email: string; created_at: string;
+    priority: string; status: string; tenant_email: string;
+    converted_to_work_order_id: string | null; created_at: string;
     property: { id: string; name: string; address: string | null } | null;
   };
   const rawRequests = (rawRequestsData ?? []) as unknown as RawRequest[];
@@ -105,6 +106,7 @@ export default async function TenantsPage() {
     tenant_name: nameByEmail.get(r.tenant_email.toLowerCase()) ?? null,
     phone: phoneByEmail.get(r.tenant_email.toLowerCase()) ?? null,
     unit: unitMap.get(`${r.property_id}::${r.tenant_email.toLowerCase()}`) ?? null,
+    converted_to_work_order_id: r.converted_to_work_order_id,
     created_at: r.created_at,
     property: r.property,
   }));

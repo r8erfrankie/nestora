@@ -22,12 +22,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  ArrowRight,
   Building2,
   Check,
   CheckCircle2,
   ChevronDown,
   Clock,
   Copy,
+  ExternalLink,
   Loader2,
   QrCode,
   Wrench,
@@ -35,9 +37,10 @@ import {
   UserPlus,
   X,
 } from 'lucide-react';
+import Link from 'next/link';
 import { timeAgo } from '@/lib/utils';
 import { PhotoLightbox } from '@/components/PhotoLightbox';
-import { approveTenantRequest, inviteTenantByEmail, rejectTenantRequest } from './actions';
+import { approveTenantRequest, convertToWorkOrder, inviteTenantByEmail, rejectTenantRequest } from './actions';
 
 export type PropertySummary = {
   id: string;
@@ -77,6 +80,7 @@ export type MaintenanceRequest = {
   tenant_name: string | null;
   phone: string | null;
   unit: string | null;
+  converted_to_work_order_id: string | null;
   created_at: string;
   property: PropertySummary | null;
 };
@@ -278,6 +282,13 @@ function RequestRow({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
+  // Conversion state — initialized from the prop so already-converted rows show correctly.
+  const [convertedWoId, setConvertedWoId] = useState<string | null>(
+    request.converted_to_work_order_id
+  );
+  const [converting, startConverting] = useTransition();
+  const [convertError, setConvertError] = useState('');
+
   // Lazy-load photos the first time the row is expanded.
   useEffect(() => {
     if (!isExpanded || photos !== null) return;
@@ -443,6 +454,55 @@ function RequestRow({
                 />
               </div>
             )}
+
+            {/* ── Convert to Work Order ─────────────────────────────────────── */}
+            <div className="border-t pt-4">
+              {convertedWoId ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    <span>Converted to a work order</span>
+                  </div>
+                  <Button asChild size="sm" variant="outline" className="gap-1.5 text-xs">
+                    <Link href="/work-orders">
+                      View Work Orders
+                      <ExternalLink className="h-3 w-3" />
+                    </Link>
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    size="sm"
+                    disabled={converting}
+                    onClick={() => {
+                      setConvertError('');
+                      startConverting(async () => {
+                        try {
+                          const { workOrderId } = await convertToWorkOrder(request.id);
+                          setConvertedWoId(workOrderId);
+                        } catch (err: unknown) {
+                          setConvertError(
+                            err instanceof Error ? err.message : 'Conversion failed.'
+                          );
+                        }
+                      });
+                    }}
+                    className="gap-1.5"
+                  >
+                    {converting ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    )}
+                    {converting ? 'Converting…' : 'Convert to Work Order'}
+                  </Button>
+                  {convertError && (
+                    <p className="text-destructive text-xs">{convertError}</p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
