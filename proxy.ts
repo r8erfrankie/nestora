@@ -9,8 +9,8 @@ const ROLE_COOKIE_OPTIONS = {
   maxAge: 60 * 60 * 24 * 365,
 } as const
 
-function validRole(value: string | undefined): 'landlord' | 'contractor' | null {
-  if (value === 'landlord' || value === 'contractor') return value
+function validRole(value: string | undefined): 'landlord' | 'contractor' | 'tenant' | null {
+  if (value === 'landlord' || value === 'contractor' || value === 'tenant') return value
   return null
 }
 
@@ -43,8 +43,14 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // ── 1. Auth routes: never block ─────────────────────────────────────────────
-  if (pathname.startsWith('/login') || pathname.startsWith('/auth')) {
+  // ── 1. Auth routes and public landing pages: never block ─────────────────────
+  // /join/[code] is public so unauthenticated users can land there from a QR
+  // code; the page itself handles auth checking and redirects to /login if needed.
+  if (
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/join')
+  ) {
     return response
   }
 
@@ -67,7 +73,8 @@ export async function proxy(request: NextRequest) {
   const isRoleFlow =
     pathname === '/select-role' ||
     pathname.startsWith('/landlord-onboarding') ||
-    pathname.startsWith('/contractor-onboarding')
+    pathname.startsWith('/contractor-onboarding') ||
+    pathname.startsWith('/tenant-onboarding')
 
   // ── 6. Determine role — fast path from cookie; DB fallback if cookie absent ──
   // The cookie is set by the auth callback on login and by the role-selection
@@ -107,9 +114,9 @@ export async function proxy(request: NextRequest) {
 
   // ── 7. Visiting /select-role with a role already set: send to their home ─────
   if (pathname === '/select-role' && role) {
-    return stamp(
-      NextResponse.redirect(new URL(role === 'contractor' ? '/contractor' : '/', request.url))
-    )
+    const home =
+      role === 'contractor' ? '/contractor' : role === 'tenant' ? '/tenant' : '/'
+    return stamp(NextResponse.redirect(new URL(home, request.url)))
   }
 
   // ── 8. Role-flow pages: allow through ───────────────────────────────────────
@@ -123,6 +130,24 @@ export async function proxy(request: NextRequest) {
   }
 
   // ── 10. Cross-role access control ────────────────────────────────────────────
+
+  // Tenant: locked to /tenant/*, /settings, and /join/* (handled earlier).
+  // Any other path redirects to their dashboard.
+  if (role === 'tenant') {
+    const allowed =
+      pathname.startsWith('/tenant') || pathname.startsWith('/settings')
+    if (!allowed) {
+      return stamp(NextResponse.redirect(new URL('/tenant', request.url)))
+    }
+  }
+
+  // Block non-tenants from /tenant/* routes.
+  if (role !== 'tenant' && pathname.startsWith('/tenant')) {
+    const home = role === 'contractor' ? '/contractor' : '/'
+    return stamp(NextResponse.redirect(new URL(home, request.url)))
+  }
+
+  // Contractor: locked to /contractor/* and /settings.
   if (role === 'contractor') {
     const allowed =
       pathname.startsWith('/contractor') || pathname.startsWith('/settings')
@@ -131,6 +156,7 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // Block landlords from the contractor view.
   if (role === 'landlord' && pathname.startsWith('/contractor')) {
     return stamp(NextResponse.redirect(new URL('/', request.url)))
   }

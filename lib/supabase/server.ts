@@ -65,9 +65,9 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
   if (process.env.NODE_ENV === 'development') {
     const cookieStore = await cookies();
     const devRole = cookieStore.get('dev_role')?.value;
-    if (devRole === 'landlord' || devRole === 'contractor') {
+    if (devRole === 'landlord' || devRole === 'contractor' || devRole === 'tenant') {
       console.log(`[DevRole] Using cookie override: ${devRole}`);
-      return devRole;
+      return devRole as UserRole;
     }
   }
 
@@ -79,7 +79,7 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
     .single();
 
   const role = profile?.role;
-  if (role === 'landlord' || role === 'contractor') return role;
+  if (role === 'landlord' || role === 'contractor' || role === 'tenant') return role;
   return null;
 }
 

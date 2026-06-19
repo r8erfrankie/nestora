@@ -55,7 +55,9 @@ export async function GET(request: Request) {
         }
 
         const destination =
-          role === 'contractor' ? `${origin}/contractor` : `${origin}${next}`
+          role === 'contractor' ? `${origin}/contractor` :
+          role === 'tenant'     ? `${origin}/tenant`     :
+          `${origin}${next}`
         const res = NextResponse.redirect(destination)
         res.cookies.set('nestora_role', role, roleCookieOptions)
         return res

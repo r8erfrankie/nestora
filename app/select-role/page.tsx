@@ -4,7 +4,11 @@ import { SelectRoleClient } from './select-role-client';
 
 export const metadata = { title: 'Choose Your Role' };
 
-export default async function SelectRolePage() {
+export default async function SelectRolePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ hint?: string; join?: string }>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -18,8 +22,10 @@ export default async function SelectRolePage() {
 
   // Already chose a role — send to the right home
   if (role !== null) {
-    redirect(role === 'contractor' ? '/contractor' : '/');
+    redirect(role === 'contractor' ? '/contractor' : role === 'tenant' ? '/tenant' : '/');
   }
 
-  return <SelectRoleClient />;
+  const { hint, join } = await searchParams;
+
+  return <SelectRoleClient hint={hint} join={join} />;
 }

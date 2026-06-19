@@ -18,8 +18,11 @@ const ROLE_COOKIE_OPTIONS = {
 // never receives an unhandled error.
 export async function setUserRoleAction(formData: FormData) {
   const role = formData.get('role');
+  // Optional join code passed through from /join/[code] → /select-role.
+  // Forwarded to /tenant-onboarding so the property can be pre-filled.
+  const join = formData.get('join');
 
-  if (role !== 'landlord' && role !== 'contractor') {
+  if (role !== 'landlord' && role !== 'contractor' && role !== 'tenant') {
     redirect('/select-role');
   }
 
@@ -44,6 +47,11 @@ export async function setUserRoleAction(formData: FormData) {
   // Persist role in cookie so proxy can route without a DB query on every request.
   const cookieStore = await cookies();
   cookieStore.set('nestora_role', role, ROLE_COOKIE_OPTIONS);
+
+  if (role === 'tenant') {
+    const dest = join ? `/tenant-onboarding?join=${join}` : '/tenant-onboarding';
+    redirect(dest);
+  }
 
   redirect(role === 'contractor' ? '/contractor-onboarding' : '/landlord-onboarding');
 }
