@@ -62,6 +62,7 @@ interface WorkOrder {
   properties: { id: string; name: string } | null;
   notes?: string | null;
   cost?: number | null;
+  contractor_quote?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -939,6 +940,11 @@ export function WorkOrdersClient({
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm">
                     {wo.cost ? `$${Number(wo.cost).toFixed(2)}` : '—'}
+                    {wo.contractor_quote != null && (
+                      <div className="text-muted-foreground mt-0.5 font-sans text-[11px]">
+                        Quote: ${Number(wo.contractor_quote).toFixed(2)}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     {wo.assigned_contractor || '—'}
@@ -1417,6 +1423,14 @@ export function WorkOrdersClient({
                       {selectedWorkOrder.cost
                         ? `$${Number(selectedWorkOrder.cost).toFixed(2)}`
                         : 'Not set'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground mb-1 text-xs">CONTRACTOR QUOTE</div>
+                    <div className="font-mono">
+                      {selectedWorkOrder.contractor_quote != null
+                        ? `$${Number(selectedWorkOrder.contractor_quote).toFixed(2)}`
+                        : <span className="text-muted-foreground font-sans text-sm">No quote submitted yet</span>}
                     </div>
                   </div>
                   <div className="sm:col-span-2">
