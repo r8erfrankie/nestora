@@ -25,7 +25,7 @@ export default async function ContractorDashboardPage() {
   const firstName = fullName ? fullName.trim().split(/\s+/)[0] : null;
   const greeting = getGreeting();
 
-  const { data: workOrders } = await supabase
+  const { data: workOrders, error: workOrdersError } = await supabase
     .from('work_orders')
     .select(
       `
@@ -46,6 +46,10 @@ export default async function ContractorDashboardPage() {
     )
     .eq('assigned_contractor_email', (user?.email ?? '').toLowerCase())
     .order('created_at', { ascending: false });
+
+  if (workOrdersError) {
+    console.error('[ContractorDashboard] work_orders query failed:', workOrdersError.message);
+  }
 
   return (
     <ContractorClient
