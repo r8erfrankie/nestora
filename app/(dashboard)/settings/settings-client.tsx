@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, User, Mail } from 'lucide-react';
 import { updateProfile } from './actions';
+import { DeleteAccountButton } from './delete-account-button';
 
 interface SettingsClientProps {
   email: string;
@@ -90,6 +91,27 @@ export function SettingsClient({ email, fullName }: SettingsClientProps) {
         </Button>
         {saved && <span className="text-sm text-emerald-600">Saved successfully.</span>}
         {error && <span className="text-destructive text-sm">{error}</span>}
+      </div>
+
+      {/* Danger zone */}
+      <div className="space-y-3 pt-2">
+        <div>
+          <h2 className="text-base font-semibold text-destructive">Danger zone</h2>
+          <p className="text-muted-foreground mt-0.5 text-sm">
+            Permanent actions that cannot be undone.
+          </p>
+        </div>
+        <Separator />
+        <div className="space-y-3">
+          <div>
+            <p className="text-sm font-medium">Delete account</p>
+            <p className="text-muted-foreground text-sm">
+              Remove your account permanently. Useful for testing — you can re-register with the
+              same email immediately.
+            </p>
+          </div>
+          <DeleteAccountButton />
+        </div>
       </div>
     </div>
   );
