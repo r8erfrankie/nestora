@@ -386,6 +386,21 @@ export function ContractorClient({
     }
   };
 
+  const updatePhotoName = async (photoId: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    try {
+      const { error } = await supabase
+        .from('work_order_photos')
+        .update({ name: trimmed })
+        .eq('id', photoId);
+      if (error) throw error;
+      setPhotos((prev) => prev.map((p) => (p.id === photoId ? { ...p, name: trimmed } : p)));
+    } catch {
+      alert('Failed to rename photo.');
+    }
+  };
+
   async function handleArchive(wo: ContractorWorkOrder) {
     setArchivedIds((prev) => new Set([...prev, wo.id]));
     setSelectedId(null);
@@ -867,33 +882,59 @@ export function ContractorClient({
                     {photos.map((photo, idx) => (
                       <div
                         key={photo.id}
-                        className="group relative aspect-square cursor-zoom-in overflow-hidden rounded-md bg-muted"
-                        onClick={() => {
-                          setLightboxIndex(idx);
-                          setLightboxOpen(true);
-                        }}
+                        className="group relative overflow-hidden rounded-md border bg-muted"
                       >
-                        <img
-                          src={photo.url}
-                          alt={photo.name || ''}
-                          className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                        />
-                        {photo.uploaded_by_role === 'landlord' && (
-                          <div className="absolute bottom-1 left-1 rounded bg-black/50 px-1 py-0.5 text-[10px] leading-none text-white">
-                            Owner
-                          </div>
-                        )}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteSinglePhoto(photo);
+                        {/* Image — click opens lightbox */}
+                        <div
+                          className="relative aspect-square cursor-zoom-in overflow-hidden"
+                          onClick={() => {
+                            setLightboxIndex(idx);
+                            setLightboxOpen(true);
                           }}
-                          className="absolute top-1 right-1 rounded-full bg-black/70 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-600"
-                          aria-label="Delete photo"
                         >
-                          <X className="h-3 w-3" />
-                        </button>
+                          <img
+                            src={photo.url}
+                            alt={photo.name || ''}
+                            className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                          />
+                          {photo.uploaded_by_role === 'landlord' && (
+                            <div className="absolute bottom-1 left-1 rounded bg-black/50 px-1 py-0.5 text-[10px] leading-none text-white">
+                              Owner
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteSinglePhoto(photo);
+                            }}
+                            className="absolute top-1 right-1 rounded-full bg-black/70 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-600"
+                            aria-label="Delete photo"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+
+                        {/* Name — editable inline */}
+                        <div className="px-2 py-1.5 text-xs">
+                          <input
+                            value={photo.name || ''}
+                            onChange={(e) => {
+                              const newName = e.target.value;
+                              setPhotos((prev) =>
+                                prev.map((p) =>
+                                  p.id === photo.id ? { ...p, name: newName } : p
+                                )
+                              );
+                            }}
+                            onBlur={(e) => updatePhotoName(photo.id, e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                            }}
+                            placeholder="Photo name"
+                            className="focus:bg-background w-full rounded bg-transparent text-base font-medium outline-none focus:px-1 md:text-xs"
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>

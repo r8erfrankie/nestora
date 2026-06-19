@@ -1964,7 +1964,7 @@ export function WorkOrdersClient({
 
                             {/* Image - click for full screen */}
                             <div
-                              className="aspect-video cursor-zoom-in overflow-hidden"
+                              className="relative aspect-video cursor-zoom-in overflow-hidden"
                               onClick={() => openFullScreen(photo)}
                             >
                               <img
