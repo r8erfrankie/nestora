@@ -21,8 +21,11 @@ import {
   DollarSign,
   CheckCircle2,
   PlayCircle,
+  Archive,
+  ArchiveRestore,
 } from 'lucide-react';
 import { acceptOrCompleteWorkOrder, saveContractorQuote } from './contractor-actions';
+import { archiveWorkOrderForUser, unarchiveWorkOrderForUser } from '@/app/actions/archive-actions';
 
 export interface ContractorWorkOrder {
   id: string;
@@ -172,10 +175,12 @@ export function ContractorClient({
   workOrders: initialOrders,
   greeting,
   firstName,
+  archivedWorkOrderIds,
 }: {
   workOrders: ContractorWorkOrder[];
   greeting: string;
   firstName: string | null;
+  archivedWorkOrderIds: string[];
 }) {
   const [isPending, startTransition] = useTransition();
   // Canonical state — updated with real server results so that when
@@ -189,6 +194,10 @@ export function ContractorClient({
     ) => state.map((w) => (w.id === update.id ? { ...w, ...update.changes } : w))
   );
 
+  // Personal archive state (separate from work order status)
+  const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set(archivedWorkOrderIds));
+  const [showArchived, setShowArchived] = useState(false);
+
   // Store only the selected ID; derive the full object from optimisticOrders
   // so status/quote updates flow into the open dialog automatically.
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -196,7 +205,12 @@ export function ContractorClient({
 
   const selected = selectedId ? (optimisticOrders.find((w) => w.id === selectedId) ?? null) : null;
 
-  const sorted = [...optimisticOrders].sort((a, b) => {
+  // Active orders exclude any the contractor has personally archived.
+  const activeOrders = optimisticOrders.filter((w) => !archivedIds.has(w.id));
+  // Archived list derived from canonical orders (no optimistic mutations needed for hidden items).
+  const archivedList = orders.filter((w) => archivedIds.has(w.id));
+
+  const sorted = [...activeOrders].sort((a, b) => {
     const sd = (STATUS_ORDER[a.status] ?? 4) - (STATUS_ORDER[b.status] ?? 4);
     if (sd !== 0) return sd;
     if (!a.due_date && !b.due_date) return 0;
@@ -205,9 +219,9 @@ export function ContractorClient({
     return a.due_date.localeCompare(b.due_date);
   });
 
-  const openCount = optimisticOrders.filter((w) => w.status === 'Open').length;
-  const inProgressCount = optimisticOrders.filter((w) => w.status === 'In Progress').length;
-  const completedCount = optimisticOrders.filter((w) => w.status === 'Completed').length;
+  const openCount = activeOrders.filter((w) => w.status === 'Open').length;
+  const inProgressCount = activeOrders.filter((w) => w.status === 'In Progress').length;
+  const completedCount = activeOrders.filter((w) => w.status === 'Completed').length;
 
   function handleStatusAction(wo: ContractorWorkOrder) {
     const nextStatus = wo.status === 'Open' ? 'In Progress' : 'Completed';
@@ -237,6 +251,36 @@ export function ContractorClient({
     );
   }
 
+  async function handleArchive(wo: ContractorWorkOrder) {
+    setArchivedIds((prev) => new Set([...prev, wo.id]));
+    setSelectedId(null);
+    try {
+      await archiveWorkOrderForUser(wo.id);
+    } catch {
+      setArchivedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(wo.id);
+        return next;
+      });
+      setActionError('Failed to archive work order.');
+    }
+  }
+
+  async function handleUnarchive(wo: ContractorWorkOrder) {
+    setArchivedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(wo.id);
+      return next;
+    });
+    setSelectedId(null);
+    try {
+      await unarchiveWorkOrderForUser(wo.id);
+    } catch {
+      setArchivedIds((prev) => new Set([...prev, wo.id]));
+      setActionError('Failed to unarchive work order.');
+    }
+  }
+
   const canAct = (status: string) => status === 'Open' || status === 'In Progress';
 
   return (
@@ -248,14 +292,16 @@ export function ContractorClient({
           {firstName ? `, ${firstName}` : ''}
         </h1>
         <p className="text-muted-foreground mt-0.5 text-sm">
-          {optimisticOrders.length === 0
+          {activeOrders.length === 0 && archivedList.length === 0
             ? 'No work orders assigned to you yet.'
-            : `You have ${optimisticOrders.length} assigned work order${optimisticOrders.length !== 1 ? 's' : ''}.`}
+            : activeOrders.length === 0
+              ? 'All your work orders are archived.'
+              : `You have ${activeOrders.length} active work order${activeOrders.length !== 1 ? 's' : ''}.`}
         </p>
       </div>
 
       {/* Stats */}
-      {optimisticOrders.length > 0 && (
+      {activeOrders.length > 0 && (
         <div className="flex gap-3">
           {openCount > 0 && (
             <div className="flex-1 rounded-lg bg-amber-50 px-3 py-2 text-center">
@@ -284,7 +330,7 @@ export function ContractorClient({
       )}
 
       {/* Work order list */}
-      {optimisticOrders.length === 0 ? (
+      {activeOrders.length === 0 && archivedList.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <div className="bg-muted text-muted-foreground mb-4 rounded-full p-4">
@@ -399,6 +445,75 @@ export function ContractorClient({
               </div>
             );
           })}
+          {/* Archived section toggle */}
+          {archivedList.length > 0 && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowArchived((v) => !v)}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed py-2.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <Archive className="h-3.5 w-3.5" />
+                {showArchived ? 'Hide archived' : `Show archived (${archivedList.length})`}
+              </button>
+
+              {showArchived && (
+                <div className="mt-2.5 space-y-2.5">
+                  {archivedList.map((wo) => {
+                    const overdue = isOverdue(wo.due_date, wo.status);
+                    const dueSoon = isDueSoon(wo.due_date);
+                    return (
+                      <div
+                        key={wo.id}
+                        className="rounded-xl border bg-card opacity-60 transition-shadow hover:opacity-80"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setSelectedId(wo.id)}
+                          className="w-full p-4 text-left"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              {wo.properties && (
+                                <div className="text-muted-foreground mb-1 flex items-center gap-1 text-xs">
+                                  <Building2 className="h-3 w-3 shrink-0" />
+                                  <span className="truncate">{wo.properties.name}</span>
+                                </div>
+                              )}
+                              <div className="truncate font-semibold leading-snug">{wo.title}</div>
+                              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${STATUS_BADGE[wo.status] ?? 'bg-muted text-muted-foreground'}`}>
+                                  {wo.status}
+                                </span>
+                                {wo.due_date && (
+                                  <span className={`flex items-center gap-0.5 text-[11px] ${overdue ? 'text-red-600' : dueSoon ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                                    <Calendar className="h-3 w-3 shrink-0" />
+                                    {formatDate(wo.due_date)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <ChevronRight className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0" />
+                          </div>
+                        </button>
+                        <div className="border-t px-4 pb-3 pt-2.5">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleUnarchive(wo)}
+                            className="h-8 gap-1.5 text-xs text-muted-foreground"
+                          >
+                            <ArchiveRestore className="h-3.5 w-3.5" />
+                            Unarchive
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -540,6 +655,26 @@ export function ContractorClient({
               <Button variant="outline" className="w-full" onClick={() => setSelectedId(null)}>
                 Close
               </Button>
+
+              {archivedIds.has(selected.id) ? (
+                <Button
+                  variant="ghost"
+                  className="w-full gap-2 text-muted-foreground"
+                  onClick={() => handleUnarchive(selected)}
+                >
+                  <ArchiveRestore className="h-4 w-4" />
+                  Unarchive
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  className="w-full gap-2 text-muted-foreground"
+                  onClick={() => handleArchive(selected)}
+                >
+                  <Archive className="h-4 w-4" />
+                  Hide from my list
+                </Button>
+              )}
             </div>
           </DialogContent>
         )}

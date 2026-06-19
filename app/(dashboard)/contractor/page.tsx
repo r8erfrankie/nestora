@@ -25,37 +25,51 @@ export default async function ContractorDashboardPage() {
   const firstName = fullName ? fullName.trim().split(/\s+/)[0] : null;
   const greeting = getGreeting();
 
-  const { data: workOrders, error: workOrdersError } = await supabase
-    .from('work_orders')
-    .select(
+  const userEmail = (user?.email ?? '').toLowerCase();
+
+  const [
+    { data: workOrders, error: workOrdersError },
+    { data: archivedEntries },
+  ] = await Promise.all([
+    supabase
+      .from('work_orders')
+      .select(
+        `
+        id,
+        title,
+        description,
+        status,
+        priority,
+        due_date,
+        trade,
+        notes,
+        cost,
+        contractor_quote,
+        created_at,
+        updated_at,
+        properties (id, name, address)
       `
-      id,
-      title,
-      description,
-      status,
-      priority,
-      due_date,
-      trade,
-      notes,
-      cost,
-      contractor_quote,
-      created_at,
-      updated_at,
-      properties (id, name, address)
-    `
-    )
-    .eq('assigned_contractor_email', (user?.email ?? '').toLowerCase())
-    .order('created_at', { ascending: false });
+      )
+      .eq('assigned_contractor_email', userEmail)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('work_order_user_archives')
+      .select('work_order_id')
+      .eq('user_email', userEmail),
+  ]);
 
   if (workOrdersError) {
     console.error('[ContractorDashboard] work_orders query failed:', workOrdersError.message);
   }
+
+  const archivedWorkOrderIds = (archivedEntries ?? []).map((e) => e.work_order_id as string);
 
   return (
     <ContractorClient
       workOrders={((workOrders ?? []) as any) as ContractorWorkOrder[]}
       greeting={greeting}
       firstName={firstName}
+      archivedWorkOrderIds={archivedWorkOrderIds}
     />
   );
 }
