@@ -938,12 +938,20 @@ export function WorkOrdersClient({
                   <TableCell>
                     {wo.due_date ? new Date(wo.due_date).toLocaleDateString() : '—'}
                   </TableCell>
-                  <TableCell className="text-right font-mono text-sm">
-                    {wo.cost ? `$${Number(wo.cost).toFixed(2)}` : '—'}
-                    {wo.contractor_quote != null && (
-                      <div className="text-muted-foreground mt-0.5 font-sans text-[11px]">
-                        Quote: ${Number(wo.contractor_quote).toFixed(2)}
-                      </div>
+                  <TableCell className="text-right">
+                    {wo.contractor_quote != null ? (
+                      <>
+                        <div className="font-mono text-sm font-semibold">
+                          ${Number(wo.contractor_quote).toFixed(2)}
+                        </div>
+                        <div className="text-muted-foreground mt-0.5 font-sans text-[11px]">
+                          Budget: {wo.cost ? `$${Number(wo.cost).toFixed(2)}` : '—'}
+                        </div>
+                      </>
+                    ) : (
+                      <span className="font-mono text-sm">
+                        {wo.cost ? `$${Number(wo.cost).toFixed(2)}` : '—'}
+                      </span>
                     )}
                   </TableCell>
                   <TableCell>
