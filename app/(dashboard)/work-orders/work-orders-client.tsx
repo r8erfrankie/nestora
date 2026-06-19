@@ -6,7 +6,7 @@ import Counter from 'yet-another-react-lightbox/plugins/counter';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { deleteWorkOrder, createWorkOrder, updateWorkOrderStatus, updateContractorAssignment } from './crud-actions';
+import { deleteWorkOrder, createWorkOrder, updateWorkOrderStatus, updateContractorAssignment, updateWorkOrderBudget } from './crud-actions';
 import { createContractor } from '../teams/contractor-actions';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -175,6 +175,11 @@ export function WorkOrdersClient({
     cost: '',
   });
 
+  // Budget inline-edit state (detail view)
+  const [editingBudget, setEditingBudget] = useState(false);
+  const [budgetDraft, setBudgetDraft] = useState('');
+  const [savingBudget, setSavingBudget] = useState(false);
+
   // Contractor re-assignment state (detail view)
   const [editingContractor, setEditingContractor] = useState(false);
   const [contractorEdit, setContractorEdit] = useState({
@@ -308,6 +313,7 @@ export function WorkOrdersClient({
     setLightboxOpen(false);
     setEditingContractor(false);
     setEditContractorKey('');
+    setEditingBudget(false);
   };
 
   const handleSaveContractor = async () => {
@@ -338,6 +344,23 @@ export function WorkOrdersClient({
       alert('Failed to update contractor assignment.');
     } finally {
       setSavingContractor(false);
+    }
+  };
+
+  const handleSaveBudget = async () => {
+    if (!selectedWorkOrder) return;
+    setSavingBudget(true);
+    try {
+      const newCost = budgetDraft.trim() ? parseFloat(budgetDraft) : null;
+      await updateWorkOrderBudget(selectedWorkOrder.id, newCost);
+      const updated: WorkOrder = { ...selectedWorkOrder, cost: newCost };
+      setSelectedWorkOrder(updated);
+      setWorkOrders((prev) => prev.map((w) => (w.id === updated.id ? updated : w)));
+      setEditingBudget(false);
+    } catch {
+      alert('Failed to update budget.');
+    } finally {
+      setSavingBudget(false);
     }
   };
 
@@ -1514,12 +1537,66 @@ export function WorkOrdersClient({
                     <div>{selectedWorkOrder.properties?.name}</div>
                   </div>
                   <div>
-                    <div className="text-muted-foreground mb-1 text-xs">COST</div>
-                    <div className="font-mono">
-                      {selectedWorkOrder.cost
-                        ? `$${Number(selectedWorkOrder.cost).toFixed(2)}`
-                        : 'Not set'}
-                    </div>
+                    <div className="text-muted-foreground mb-1 text-xs">BUDGET</div>
+                    {editingBudget ? (
+                      <div className="flex items-center gap-2">
+                        <div className="relative">
+                          <span className="text-muted-foreground pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm">
+                            $
+                          </span>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={budgetDraft}
+                            onChange={(e) => setBudgetDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveBudget();
+                              if (e.key === 'Escape') setEditingBudget(false);
+                            }}
+                            className="h-8 w-32 pl-6 font-mono text-sm"
+                            autoFocus
+                          />
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={handleSaveBudget}
+                          disabled={savingBudget}
+                          className="h-8 text-xs"
+                        >
+                          {savingBudget ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Save'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setEditingBudget(false)}
+                          className="h-8 text-xs"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono">
+                          {selectedWorkOrder.cost != null
+                            ? `$${Number(selectedWorkOrder.cost).toFixed(2)}`
+                            : 'Not set'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBudgetDraft(
+                              selectedWorkOrder.cost != null ? String(selectedWorkOrder.cost) : ''
+                            );
+                            setEditingBudget(true);
+                          }}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <div className="text-muted-foreground mb-1 text-xs">CONTRACTOR QUOTE</div>
