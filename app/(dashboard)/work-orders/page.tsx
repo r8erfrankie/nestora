@@ -10,6 +10,12 @@ export default async function WorkOrdersPage({
   const params = await searchParams;
   const autoOpenCreate = params.create === '1';
 
+  // Fetch the current user's email before the parallel queries so we can
+  // filter work_order_user_archives to this user only.
+  // (Unauthenticated users are redirected by proxy before reaching here.)
+  const { data: { user } } = await supabase.auth.getUser();
+  const userEmail = (user?.email ?? '').toLowerCase();
+
   const [
     { data: workOrders, error: workOrdersError },
     { data: properties },
@@ -27,7 +33,10 @@ export default async function WorkOrdersPage({
       .order('created_at', { ascending: false }),
     supabase.from('properties').select('id, name').order('name'),
     supabase.from('contractors').select('id, name, email, phone, trade').order('name'),
-    supabase.from('work_order_user_archives').select('work_order_id'),
+    supabase
+      .from('work_order_user_archives')
+      .select('work_order_id')
+      .eq('user_email', userEmail),
   ]);
 
   const archivedWorkOrderIds = (archivedEntries ?? []).map((e) => e.work_order_id as string);
