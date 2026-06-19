@@ -31,10 +31,17 @@ export async function deleteAccount() {
   if (!user) throw new Error('Not authenticated');
 
   const admin = createAdminClient();
-  const { error } = await admin.auth.admin.deleteUser(user.id);
-  if (error) throw new Error(error.message);
 
-  // Clear session cookies; ignore errors since the user record is already gone
+  // Delete profile first to avoid FK constraint issues before removing the auth record
+  await admin.from('profiles').delete().eq('id', user.id);
+
+  const { error } = await admin.auth.admin.deleteUser(user.id);
+  if (error) {
+    console.error('Failed to delete auth user:', error);
+    throw new Error('Failed to delete account');
+  }
+
+  // Clear session cookies; may fail since the user record is already gone
   try {
     await supabase.auth.signOut();
   } catch { /* non-fatal */ }
