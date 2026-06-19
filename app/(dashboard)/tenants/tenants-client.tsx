@@ -62,12 +62,15 @@ export type PropertyWithCode = {
 
 export type MaintenanceRequest = {
   id: string;
+  tenant_id: string;
   title: string;
   description: string | null;
   category: string | null;
   priority: string;
   status: string;
   tenant_email: string;
+  tenant_name: string | null;
+  unit: string | null;
   created_at: string;
   property: PropertySummary | null;
 };
@@ -246,6 +249,7 @@ function RequestRow({ request }: { request: MaintenanceRequest }) {
   const priorityStyle = PRIORITY_STYLES[request.priority] ?? PRIORITY_STYLES['Medium'];
   const statusStyle   = STATUS_STYLES[request.status]    ?? STATUS_STYLES['Submitted'];
   const ago = request.created_at ? timeAgo(request.created_at) : null;
+  const tenantLabel = request.tenant_name ?? request.tenant_email;
 
   return (
     <div className="px-4 py-3">
@@ -258,8 +262,16 @@ function RequestRow({ request }: { request: MaintenanceRequest }) {
               <Building2 className="h-3 w-3" />
               {request.property?.name ?? 'Property'}
             </span>
+            {request.unit && (
+              <>
+                <span>·</span>
+                <span>Unit {request.unit}</span>
+              </>
+            )}
             <span>·</span>
-            <span>{request.tenant_email}</span>
+            <span title={request.tenant_name ? request.tenant_email : undefined}>
+              {tenantLabel}
+            </span>
             {ago && (
               <>
                 <span>·</span>

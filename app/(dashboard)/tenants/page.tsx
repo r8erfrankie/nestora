@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { TenantsClient, type TenantLink, type MaintenanceRequest } from './tenants-client';
 
 export const metadata = { title: 'Tenants' };
@@ -23,7 +23,7 @@ export default async function TenantsPage() {
   // Parallel fetch — links (with property join), property list, and maintenance requests.
   // RLS handles scoping: tenant_property_links by landlord_id, maintenance_requests by
   // "property_id IN (SELECT id FROM properties WHERE user_id = auth.uid())".
-  const [{ data: rawLinks }, { data: properties }, { data: rawRequests }] = await Promise.all([
+  const [{ data: rawLinks }, { data: properties }, { data: rawRequestsData }] = await Promise.all([
     supabase
       .from('tenant_property_links')
       .select(
@@ -38,7 +38,7 @@ export default async function TenantsPage() {
     supabase
       .from('maintenance_requests')
       .select(
-        'id, title, description, category, priority, status, tenant_email, created_at, property:property_id(id, name, address)'
+        'id, tenant_id, property_id, title, description, category, priority, status, tenant_email, created_at, property:property_id(id, name, address)'
       )
       .order('created_at', { ascending: false })
       .limit(100),
@@ -47,7 +47,50 @@ export default async function TenantsPage() {
   const links = (rawLinks ?? []) as unknown as TenantLink[];
   const pendingLinks = links.filter((l) => l.status === 'pending');
   const approvedLinks = links.filter((l) => l.status === 'approved');
-  const maintenanceRequests = (rawRequests ?? []) as unknown as MaintenanceRequest[];
+
+  // Unit lookup built from the already-fetched links — no extra query needed.
+  // Key: "propertyId::lowercaseEmail"
+  const unitMap = new Map<string, string | null>();
+  for (const link of links) {
+    unitMap.set(`${link.property_id}::${link.tenant_email.toLowerCase()}`, link.unit);
+  }
+
+  type RawRequest = {
+    id: string; tenant_id: string; property_id: string;
+    title: string; description: string | null; category: string | null;
+    priority: string; status: string; tenant_email: string; created_at: string;
+    property: { id: string; name: string; address: string | null } | null;
+  };
+  const rawRequests = (rawRequestsData ?? []) as unknown as RawRequest[];
+
+  // profiles RLS is own-row-only — must use admin client for tenant name lookups.
+  const tenantIds = [...new Set(rawRequests.map((r) => r.tenant_id).filter(Boolean))];
+  const nameMap = new Map<string, string | null>();
+  if (tenantIds.length > 0) {
+    const admin = createAdminClient();
+    const { data: tenantProfiles } = await admin
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', tenantIds);
+    for (const p of tenantProfiles ?? []) {
+      nameMap.set(p.id as string, (p.full_name as string | null) ?? null);
+    }
+  }
+
+  const maintenanceRequests: MaintenanceRequest[] = rawRequests.map((r) => ({
+    id: r.id,
+    tenant_id: r.tenant_id,
+    title: r.title,
+    description: r.description,
+    category: r.category,
+    priority: r.priority,
+    status: r.status,
+    tenant_email: r.tenant_email,
+    tenant_name: nameMap.get(r.tenant_id) ?? null,
+    unit: unitMap.get(`${r.property_id}::${r.tenant_email.toLowerCase()}`) ?? null,
+    created_at: r.created_at,
+    property: r.property,
+  }));
 
   return (
     <div className="max-w-3xl p-6">
