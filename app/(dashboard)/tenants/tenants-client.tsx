@@ -36,6 +36,7 @@ import {
   X,
 } from 'lucide-react';
 import { timeAgo } from '@/lib/utils';
+import { PhotoLightbox } from '@/components/PhotoLightbox';
 import { approveTenantRequest, inviteTenantByEmail, rejectTenantRequest } from './actions';
 
 export type PropertySummary = {
@@ -274,6 +275,8 @@ function RequestRow({
 }) {
   const [photos, setPhotos] = useState<Photo[] | null>(null);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   // Lazy-load photos the first time the row is expanded.
   useEffect(() => {
@@ -413,13 +416,15 @@ function RequestRow({
                   Photos
                 </p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-                  {photos.map((photo) => (
-                    <a
+                  {photos.map((photo, idx) => (
+                    <button
                       key={photo.id}
-                      href={photo.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group relative aspect-square overflow-hidden rounded-lg border"
+                      type="button"
+                      onClick={() => {
+                        setLightboxIndex(idx);
+                        setLightboxOpen(true);
+                      }}
+                      className="group relative aspect-square overflow-hidden rounded-lg border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -427,9 +432,15 @@ function RequestRow({
                         alt={photo.name ?? 'Photo'}
                         className="h-full w-full object-cover transition-opacity group-hover:opacity-80"
                       />
-                    </a>
+                    </button>
                   ))}
                 </div>
+                <PhotoLightbox
+                  images={photos.map((p) => p.url)}
+                  startIndex={lightboxIndex}
+                  open={lightboxOpen}
+                  onClose={() => setLightboxOpen(false)}
+                />
               </div>
             )}
           </div>
