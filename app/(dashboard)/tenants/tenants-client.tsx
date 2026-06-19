@@ -288,6 +288,7 @@ function RequestRow({
   );
   const [converting, startConverting] = useTransition();
   const [convertError, setConvertError] = useState('');
+  const [convertWarning, setConvertWarning] = useState('');
 
   // Lazy-load photos the first time the row is expanded.
   useEffect(() => {
@@ -471,36 +472,47 @@ function RequestRow({
                   </Button>
                 </div>
               ) : (
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button
-                    size="sm"
-                    disabled={converting}
-                    onClick={() => {
-                      setConvertError('');
-                      startConverting(async () => {
-                        try {
-                          const { workOrderId } = await convertToWorkOrder(request.id);
-                          setConvertedWoId(workOrderId);
-                        } catch (err: unknown) {
-                          setConvertError(
-                            err instanceof Error ? err.message : 'Conversion failed.'
-                          );
-                        }
-                      });
-                    }}
-                    className="gap-1.5"
-                  >
-                    {converting ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <ArrowRight className="h-3.5 w-3.5" />
+                <>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                      size="sm"
+                      disabled={converting}
+                      onClick={() => {
+                        setConvertError('');
+                        setConvertWarning('');
+                        startConverting(async () => {
+                          try {
+                            const { workOrderId, photoWarning } = await convertToWorkOrder(
+                              request.id
+                            );
+                            setConvertedWoId(workOrderId);
+                            if (photoWarning) setConvertWarning(photoWarning);
+                          } catch (err: unknown) {
+                            setConvertError(
+                              err instanceof Error ? err.message : 'Conversion failed.'
+                            );
+                          }
+                        });
+                      }}
+                      className="gap-1.5"
+                    >
+                      {converting ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      )}
+                      {converting ? 'Converting…' : 'Convert to Work Order'}
+                    </Button>
+                    {convertError && (
+                      <p className="text-destructive text-xs">{convertError}</p>
                     )}
-                    {converting ? 'Converting…' : 'Convert to Work Order'}
-                  </Button>
-                  {convertError && (
-                    <p className="text-destructive text-xs">{convertError}</p>
+                  </div>
+                  {convertWarning && (
+                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                      ⚠ {convertWarning}
+                    </p>
                   )}
-                </div>
+                </>
               )}
             </div>
           </div>
