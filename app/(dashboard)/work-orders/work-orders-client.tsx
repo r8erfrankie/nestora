@@ -86,6 +86,7 @@ interface Photo {
   url: string;
   name: string | null;
   created_at: string;
+  uploaded_by_role?: string | null;
 }
 
 const PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'] as const;
@@ -1963,6 +1964,11 @@ export function WorkOrdersClient({
                                 alt={displayName}
                                 className="h-full w-full object-cover transition-transform group-hover:scale-105"
                               />
+                              {photo.uploaded_by_role === 'contractor' && (
+                                <div className="absolute bottom-1 left-1 rounded bg-violet-600/80 px-1 py-0.5 text-[10px] leading-none text-white">
+                                  Contractor
+                                </div>
+                              )}
                             </div>
 
                             {/* Name - editable inline */}

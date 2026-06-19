@@ -1,8 +1,12 @@
 'use client';
 
-import { useOptimistic, useTransition, useState } from 'react';
+import { useOptimistic, useTransition, useState, useEffect } from 'react';
+import Lightbox from 'yet-another-react-lightbox';
+import Counter from 'yet-another-react-lightbox/plugins/counter';
+import { createClient } from '@/lib/supabase/client';
+import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -23,6 +27,9 @@ import {
   PlayCircle,
   Archive,
   ArchiveRestore,
+  Upload,
+  Loader2,
+  X,
 } from 'lucide-react';
 import { acceptOrCompleteWorkOrder, saveContractorQuote } from './contractor-actions';
 import { archiveWorkOrderForUser, unarchiveWorkOrderForUser } from '@/app/actions/archive-actions';
@@ -41,6 +48,14 @@ export interface ContractorWorkOrder {
   created_at: string;
   updated_at: string;
   properties: { id: string; name: string; address: string | null } | null;
+}
+
+interface Photo {
+  id: string;
+  url: string;
+  name: string | null;
+  created_at: string;
+  uploaded_by_role?: string | null;
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -194,6 +209,16 @@ export function ContractorClient({
     ) => state.map((w) => (w.id === update.id ? { ...w, ...update.changes } : w))
   );
 
+  const supabase = createClient();
+
+  // Photo state
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [pendingPhotos, setPendingPhotos] = useState<Array<{ file: File; preview: string }>>([]);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
   // Personal archive state (separate from work order status)
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set(archivedWorkOrderIds));
   const [showArchived, setShowArchived] = useState(false);
@@ -250,6 +275,109 @@ export function ContractorClient({
       prev.map((w) => (w.id === woId ? { ...w, contractor_quote: quote } : w))
     );
   }
+
+  // Load photos whenever the detail dialog opens a different work order
+  useEffect(() => {
+    if (!selectedId) {
+      setPhotos([]);
+      setPendingPhotos((prev) => {
+        prev.forEach((p) => URL.revokeObjectURL(p.preview));
+        return [];
+      });
+      setLightboxOpen(false);
+      return;
+    }
+    let cancelled = false;
+    setLoadingPhotos(true);
+    setPhotos([]);
+    supabase
+      .from('work_order_photos')
+      .select('id, url, name, created_at, uploaded_by_role')
+      .eq('work_order_id', selectedId)
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        if (!cancelled) {
+          setPhotos((data ?? []) as Photo[]);
+          setLoadingPhotos(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  // supabase is stable within the render cycle; selectedId is the real trigger
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
+
+  const PHOTO_LIMIT = 30;
+
+  const handlePhotoFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    const remaining = PHOTO_LIMIT - photos.length - pendingPhotos.length;
+    const allowed = files.slice(0, Math.max(0, remaining));
+    const newPending = allowed.map((file) => ({ file, preview: URL.createObjectURL(file) }));
+    setPendingPhotos((prev) => [...prev, ...newPending]);
+    e.target.value = '';
+  };
+
+  const removePendingPhoto = (index: number) => {
+    setPendingPhotos((prev) => {
+      URL.revokeObjectURL(prev[index].preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const uploadPendingPhotos = async () => {
+    if (!selectedId || pendingPhotos.length === 0) return;
+    setUploadingPhotos(true);
+    try {
+      const newPhotos: Photo[] = [];
+      for (let i = 0; i < pendingPhotos.length; i++) {
+        const { file, preview } = pendingPhotos[i];
+        const filePath = `${selectedId}/${Date.now()}-${i}-${file.name.replace(/\s+/g, '_')}`;
+        const { error: uploadError } = await supabase.storage
+          .from('work-order-photos')
+          .upload(filePath, file);
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage.from('work-order-photos').getPublicUrl(filePath);
+        const { data: photoRecord, error: dbError } = await supabase
+          .from('work_order_photos')
+          .insert({
+            work_order_id: selectedId,
+            url: urlData.publicUrl,
+            uploaded_by_role: 'contractor',
+          })
+          .select()
+          .single();
+        if (dbError) throw dbError;
+        if (photoRecord) newPhotos.push(photoRecord as Photo);
+        URL.revokeObjectURL(preview);
+      }
+      setPhotos((prev) => [...prev, ...newPhotos]);
+      setPendingPhotos([]);
+    } catch {
+      alert('Failed to upload photos. Check your Supabase storage setup (see supabase/work-orders.sql).');
+    } finally {
+      setUploadingPhotos(false);
+    }
+  };
+
+  const deleteSinglePhoto = async (photo: Photo) => {
+    if (!confirm('Delete this photo?')) return;
+    try {
+      const marker = '/work-order-photos/';
+      const markerIdx = photo.url.indexOf(marker);
+      const path =
+        markerIdx !== -1 ? photo.url.substring(markerIdx + marker.length).split('?')[0] : null;
+      if (path) await supabase.storage.from('work-order-photos').remove([path]);
+      const { error } = await supabase.from('work_order_photos').delete().eq('id', photo.id);
+      if (error) throw error;
+      setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
+      setLightboxOpen(false);
+    } catch {
+      alert('Failed to delete photo.');
+    }
+  };
 
   async function handleArchive(wo: ContractorWorkOrder) {
     setArchivedIds((prev) => new Set([...prev, wo.id]));
@@ -657,6 +785,128 @@ export function ContractorClient({
                   </p>
                 </div>
               )}
+
+              {/* Photos */}
+              <div>
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                    Photos ({photos.length}/{PHOTO_LIMIT})
+                  </div>
+                  {photos.length + pendingPhotos.length < PHOTO_LIMIT && (
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={handlePhotoFiles}
+                        disabled={uploadingPhotos}
+                      />
+                      <span
+                        className={cn(
+                          buttonVariants({ variant: 'outline', size: 'sm' }),
+                          'cursor-pointer',
+                          uploadingPhotos && 'pointer-events-none opacity-50'
+                        )}
+                      >
+                        <Upload className="mr-1.5 h-3.5 w-3.5" />
+                        Add Photos
+                      </span>
+                    </label>
+                  )}
+                </div>
+
+                {/* Pending — confirm before uploading */}
+                {pendingPhotos.length > 0 && (
+                  <div className="bg-muted/30 mb-3 rounded-lg border p-3">
+                    <div className="grid grid-cols-3 gap-2">
+                      {pendingPhotos.map((p, idx) => (
+                        <div key={idx} className="relative aspect-square overflow-hidden rounded-md bg-muted">
+                          <img src={p.preview} alt="" className="h-full w-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removePendingPhoto(idx)}
+                            className="absolute top-1 right-1 rounded-full bg-black/70 p-0.5 text-white hover:bg-black"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <Button
+                      size="sm"
+                      className="mt-2.5 w-full gap-2"
+                      onClick={uploadPendingPhotos}
+                      disabled={uploadingPhotos}
+                    >
+                      {uploadingPhotos && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                      Upload {pendingPhotos.length} photo{pendingPhotos.length !== 1 ? 's' : ''}
+                    </Button>
+                  </div>
+                )}
+
+                {/* Loading skeleton */}
+                {loadingPhotos && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {[0, 1, 2].map((i) => (
+                      <div key={i} className="aspect-square animate-pulse rounded-md bg-muted" />
+                    ))}
+                  </div>
+                )}
+
+                {/* Uploaded photos grid */}
+                {!loadingPhotos && photos.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {photos.map((photo, idx) => (
+                      <div
+                        key={photo.id}
+                        className="group relative aspect-square cursor-zoom-in overflow-hidden rounded-md bg-muted"
+                        onClick={() => {
+                          setLightboxIndex(idx);
+                          setLightboxOpen(true);
+                        }}
+                      >
+                        <img
+                          src={photo.url}
+                          alt={photo.name || ''}
+                          className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                        />
+                        {photo.uploaded_by_role === 'landlord' && (
+                          <div className="absolute bottom-1 left-1 rounded bg-black/50 px-1 py-0.5 text-[10px] leading-none text-white">
+                            Owner
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteSinglePhoto(photo);
+                          }}
+                          className="absolute top-1 right-1 rounded-full bg-black/70 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-600"
+                          aria-label="Delete photo"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {!loadingPhotos && photos.length === 0 && pendingPhotos.length === 0 && (
+                  <div className="text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm">
+                    No photos yet. Tap Add Photos to attach images from your camera or gallery.
+                  </div>
+                )}
+              </div>
+
+              {/* Lightbox — portals to document.body, not trapped by Dialog stacking context */}
+              <Lightbox
+                open={lightboxOpen}
+                close={() => setLightboxOpen(false)}
+                index={lightboxIndex}
+                slides={photos.map((p) => ({ src: p.url, alt: p.name || '' }))}
+                plugins={[Counter]}
+              />
 
               {/* Footer meta */}
               <div className="border-border/60 border-t pt-3 text-xs text-muted-foreground">
