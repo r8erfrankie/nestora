@@ -50,8 +50,28 @@ export async function GET(request: Request) {
         }
 
         if (!role) {
-          // New user — no role chosen yet; proxy will redirect from / to /select-role
-          return NextResponse.redirect(`${origin}/select-role`)
+          // New user (or profile was reset after previous session).
+          // We must explicitly expire the nestora_role cookie before redirecting.
+          //
+          // Without this, a stale cookie from a previous session causes an
+          // infinite redirect loop:
+          //   1. Callback → /select-role (no cookie cleared)
+          //   2. Proxy step 7: cookie says 'landlord' → redirect to /
+          //   3. Root page: DB says role=null → redirect to /select-role
+          //   4. Proxy step 7: cookie says 'landlord' → redirect to /
+          //   ... loop
+          //
+          // The proxy skips its DB fallback on isRoleFlow pages (including
+          // /select-role), so there is no self-healing path once the stale
+          // cookie is present. Expiring it here breaks the loop at the source.
+          const res = NextResponse.redirect(`${origin}/select-role`)
+          res.cookies.set('nestora_role', '', {
+            httpOnly: true,
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 0,
+          })
+          return res
         }
 
         const destination =
