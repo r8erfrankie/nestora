@@ -155,14 +155,31 @@ export async function removeTenant(linkId: string, closeRequests: boolean): Prom
   if (error) throw new Error(error.message);
 
   if (closeRequests) {
-    // Silently resolve open requests — removal succeeds even if this fails.
-    await supabase
+    // updated_at is bumped automatically by the set_maintenance_requests_updated_at trigger.
+    // .select('id') returns the IDs so we can attach a system note to each closed request.
+    const { data: resolved } = await supabase
       .from('maintenance_requests')
       .update({ status: 'Resolved' })
       .eq('property_id', link.property_id)
       .eq('tenant_email', link.tenant_email)
       .in('status', ['Submitted', 'In Progress'])
-      .then(() => null);
+      .select('id');
+
+    if (resolved && resolved.length > 0 && user.email) {
+      // Non-fatal: system note write failure should not roll back the removal.
+      await supabase
+        .from('maintenance_request_notes')
+        .insert(
+          resolved.map((r) => ({
+            request_id: r.id,
+            author_email: user.email!,
+            author_role: 'landlord',
+            note_type: 'system',
+            content: 'Request closed — tenant removed from property.',
+          }))
+        )
+        .then(() => null);
+    }
   }
 
   revalidatePath('/tenants');
