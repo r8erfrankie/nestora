@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -104,11 +105,30 @@ interface TenantsClientProps {
   approvedLinks: TenantLink[];
   properties: PropertyWithCode[];
   maintenanceRequests: MaintenanceRequest[];
+  expandRequest?: string | null;
 }
 
-export function TenantsClient({ pendingLinks, approvedLinks, properties, maintenanceRequests }: TenantsClientProps) {
+export function TenantsClient({ pendingLinks, approvedLinks, properties, maintenanceRequests, expandRequest }: TenantsClientProps) {
+  const router = useRouter();
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Pre-expand the target request when arriving via deep link; verify it exists first.
+  const validExpandId =
+    expandRequest && maintenanceRequests.some((r) => r.id === expandRequest)
+      ? expandRequest
+      : null;
+  const [expandedId, setExpandedId] = useState<string | null>(validExpandId);
+
+  // On deep-link arrival: scroll the target row into view and clean the URL.
+  useEffect(() => {
+    if (!validExpandId) return;
+    const el = document.getElementById(`request-${validExpandId}`);
+    if (el) {
+      setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120);
+    }
+    router.replace('/tenants', { scroll: false });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Group approved links by property for the summary section.
   const approvedByProperty = approvedLinks.reduce<
@@ -228,12 +248,13 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
         ) : (
           <div className="divide-y rounded-lg border overflow-hidden">
             {maintenanceRequests.map((req) => (
-              <RequestRow
-                key={req.id}
-                request={req}
-                isExpanded={expandedId === req.id}
-                onToggle={() => setExpandedId(expandedId === req.id ? null : req.id)}
-              />
+              <div key={req.id} id={`request-${req.id}`}>
+                <RequestRow
+                  request={req}
+                  isExpanded={expandedId === req.id}
+                  onToggle={() => setExpandedId(expandedId === req.id ? null : req.id)}
+                />
+              </div>
             ))}
           </div>
         )}

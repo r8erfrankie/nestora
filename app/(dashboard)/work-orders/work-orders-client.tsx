@@ -116,7 +116,7 @@ export function WorkOrdersClient({
   properties,
   contractors,
   archivedWorkOrderIds,
-  linkedWorkOrderIds = [],
+  linkedWorkOrderMap = {},
   loadError,
   autoOpenCreate = false,
 }: {
@@ -124,7 +124,7 @@ export function WorkOrdersClient({
   properties: Property[];
   contractors: Contractor[];
   archivedWorkOrderIds: string[];
-  linkedWorkOrderIds?: string[];
+  linkedWorkOrderMap?: Record<string, string>;
   loadError?: { message?: string; details?: string; hint?: string; code?: string } | null;
   autoOpenCreate?: boolean;
 }) {
@@ -229,7 +229,7 @@ export function WorkOrdersClient({
 
 
   // Set for O(1) banner/icon lookups — derived from maintenance_requests.converted_to_work_order_id
-  const linkedSet = useMemo(() => new Set(linkedWorkOrderIds), [linkedWorkOrderIds]);
+  const linkedSet = useMemo(() => new Set(Object.keys(linkedWorkOrderMap)), [linkedWorkOrderMap]);
 
   const activeWorkOrders = useMemo(
     () => workOrders.filter((wo) => !archivedIds.has(wo.id)),
@@ -1526,7 +1526,7 @@ export function WorkOrdersClient({
                       Converted from a maintenance request
                     </span>
                     <Link
-                      href="/tenants"
+                      href={`/tenants?expandRequest=${linkedWorkOrderMap[selectedWorkOrder.id] ?? ''}`}
                       onClick={closeDetail}
                       className="text-primary shrink-0 text-xs underline underline-offset-2 hover:opacity-80 transition-opacity"
                     >

@@ -40,20 +40,23 @@ export default async function WorkOrdersPage({
       .eq('user_email', userEmail),
     // Derive which work orders originated from a maintenance request.
     // maintenance_requests.converted_to_work_order_id already stores this link;
-    // we reverse it here so the work orders list can show a badge without needing
-    // a schema migration on work_orders.
+    // we reverse it here so the work orders list can show a badge and build
+    // deep links back to the specific request — no schema migration on work_orders needed.
     supabase
       .from('maintenance_requests')
-      .select('converted_to_work_order_id')
+      .select('id, converted_to_work_order_id')
       .not('converted_to_work_order_id', 'is', null),
   ]);
 
   const archivedWorkOrderIds = (archivedEntries ?? []).map((e) => e.work_order_id as string);
 
-  // Set of work_order IDs that were converted from a maintenance request.
-  const linkedWorkOrderIds = (convertedRequests ?? [])
-    .map((r) => r.converted_to_work_order_id as string)
-    .filter(Boolean);
+  // Map: work_order_id → maintenance_request_id (for deep-link construction)
+  const linkedWorkOrderMap: Record<string, string> = {};
+  for (const r of convertedRequests ?? []) {
+    if (r.converted_to_work_order_id && r.id) {
+      linkedWorkOrderMap[r.converted_to_work_order_id as string] = r.id as string;
+    }
+  }
 
   if (workOrdersError) {
     // error will be passed to client for display
@@ -66,7 +69,7 @@ export default async function WorkOrdersPage({
         properties={properties || []}
         contractors={contractors || []}
         archivedWorkOrderIds={archivedWorkOrderIds}
-        linkedWorkOrderIds={linkedWorkOrderIds}
+        linkedWorkOrderMap={linkedWorkOrderMap}
         loadError={workOrdersError}
         autoOpenCreate={autoOpenCreate}
       />

@@ -4,8 +4,13 @@ import { TenantsClient, type TenantLink, type MaintenanceRequest } from './tenan
 
 export const metadata = { title: 'Tenants' };
 
-export default async function TenantsPage() {
+export default async function TenantsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ expandRequest?: string }>;
+}) {
   const supabase = await createClient();
+  const { expandRequest } = await searchParams;
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -118,6 +123,7 @@ export default async function TenantsPage() {
         approvedLinks={approvedLinks}
         properties={properties ?? []}
         maintenanceRequests={maintenanceRequests}
+        expandRequest={expandRequest ?? null}
       />
     </div>
   );
