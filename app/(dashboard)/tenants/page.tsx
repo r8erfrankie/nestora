@@ -34,7 +34,7 @@ export default async function TenantsPage({
       .select(
         'id, tenant_id, tenant_email, status, unit, initiated_by, created_at, property_id, property:property_id(id, name, address)'
       )
-      .neq('status', 'removed')
+      .in('status', ['pending', 'approved'])
       .order('created_at', { ascending: false }),
     supabase
       .from('properties')
@@ -50,7 +50,7 @@ export default async function TenantsPage({
   ]);
 
   const links = (rawLinks ?? []) as unknown as TenantLink[];
-  const pendingLinks = links.filter((l) => l.status === 'pending');
+  const rawPending = links.filter((l) => l.status === 'pending');
   const rawApproved = links.filter((l) => l.status === 'approved');
 
   // Unit lookup built from the already-fetched links — no extra query needed.
@@ -77,6 +77,7 @@ export default async function TenantsPage({
   const allEmails = [
     ...new Set([
       ...rawApproved.map((l) => l.tenant_email.toLowerCase()),
+      ...rawPending.map((l) => l.tenant_email.toLowerCase()),
       ...rawRequests.map((r) => r.tenant_email.toLowerCase()),
     ]),
   ];
@@ -95,6 +96,11 @@ export default async function TenantsPage({
   }
 
   const approvedLinks: TenantLink[] = rawApproved.map((l) => ({
+    ...l,
+    tenant_name: nameByEmail.get(l.tenant_email.toLowerCase()) ?? null,
+  }));
+
+  const pendingLinks: TenantLink[] = rawPending.map((l) => ({
     ...l,
     tenant_name: nameByEmail.get(l.tenant_email.toLowerCase()) ?? null,
   }));

@@ -192,11 +192,13 @@ export async function rejectTenantRequest(linkId: string) {
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  // Delete the row so the tenant can re-request if needed.
-  // 'rejected' is not in the status CHECK constraint, so we don't set it.
+  // Set status to 'declined' rather than deleting the row. This preserves
+  // history and lets the tenant see a clear "declined" state on their side,
+  // with the option to re-request. The (property_id, tenant_email) UNIQUE
+  // constraint means we can't INSERT a new row anyway — an UPDATE is correct.
   const { error } = await supabase
     .from('tenant_property_links')
-    .delete()
+    .update({ status: 'declined' })
     .eq('id', linkId)
     .eq('landlord_id', user.id);
 

@@ -783,7 +783,12 @@ function PendingRow({ link }: { link: TenantLink }) {
             <UserCheck className="text-muted-foreground h-4 w-4" />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{link.tenant_email}</p>
+            <p
+              className="truncate text-sm font-medium"
+              title={link.tenant_name ? link.tenant_email : undefined}
+            >
+              {link.tenant_name ?? link.tenant_email}
+            </p>
             <div className="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-1.5 text-xs">
               <span className="flex items-center gap-1">
                 <Building2 className="h-3 w-3" />

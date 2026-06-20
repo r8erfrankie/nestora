@@ -85,6 +85,10 @@ export default async function TenantDashboardPage() {
   const pendingLinks = allLinks.filter((l) => l.status === 'pending');
   const requests = (rawRequests ?? []) as MaintenanceRequest[];
 
+  // Gate: only show the dashboard to tenants with at least one approved property.
+  // Pending / declined tenants are sent to the onboarding flow instead.
+  if (approvedLinks.length === 0) redirect('/tenant-onboarding');
+
   // Build a single property ID set covering both links and requests.
   const allPropertyIds = [
     ...new Set([

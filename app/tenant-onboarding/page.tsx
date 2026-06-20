@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { createClient, getCurrentUserRole, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Layers, Building2, Clock, AlertCircle, UserX, ArrowLeft } from 'lucide-react'
+import { Layers, Building2, Clock, AlertCircle, UserX, ArrowLeft, XCircle } from 'lucide-react'
 
 export const metadata = { title: 'Set Up Your Tenant Account' }
 
@@ -14,7 +14,6 @@ export default async function TenantOnboardingPage({
   searchParams: Promise<{ join?: string; err?: string }>
 }) {
   const { join, err } = await searchParams
-  // Normalize to uppercase; treat empty/missing as no code
   const joinCode = join?.trim().toUpperCase() || null
 
   const supabase = await createClient()
@@ -23,13 +22,9 @@ export default async function TenantOnboardingPage({
   } = await supabase.auth.getUser()
 
   if (!user?.email) {
-    const returnTo = joinCode
-      ? `/tenant-onboarding?join=${joinCode}`
-      : '/tenant-onboarding'
+    const returnTo = joinCode ? `/tenant-onboarding?join=${joinCode}` : '/tenant-onboarding'
     redirect(`/login?redirectTo=${encodeURIComponent(returnTo)}`)
   }
-
-  const role = await getCurrentUserRole()
 
   // ── Server actions ────────────────────────────────────────────────────────────
 
@@ -45,6 +40,9 @@ export default async function TenantOnboardingPage({
     const propertyId = formData.get('property_id') as string
     const landlordId = formData.get('landlord_id') as string
     const code = formData.get('join_code') as string
+    const fullName = (formData.get('full_name') as string | null)?.trim() || null
+    const unitValue = (formData.get('unit') as string | null)?.trim() || null
+    const phone = (formData.get('phone') as string | null)?.trim() || null
 
     const sc = await createClient()
     const {
@@ -55,11 +53,20 @@ export default async function TenantOnboardingPage({
     const email = u.email.toLowerCase()
     const errUrl = `/tenant-onboarding?join=${code}&err=1`
 
-    // Check for any existing link — including 'removed' ones.
-    // .maybeSingle() returns null (no error) when zero rows match, unlike
-    // .single() which returns PGRST116. We need to see removed links here
-    // because (property_id, tenant_email) has a UNIQUE constraint — a plain
-    // INSERT over a removed row would silently fail with a 409 conflict.
+    // Save name / phone to the tenant's own profile row so the landlord can
+    // see them when reviewing the pending request (looked up by email on their side).
+    // The tenant can UPDATE their own row (own-row-only RLS allows this).
+    if (fullName || phone) {
+      const updates: Record<string, string> = {}
+      if (fullName) updates.full_name = fullName
+      if (phone) updates.phone = phone
+      await sc.from('profiles').update(updates).eq('id', u.id)
+    }
+
+    // Check for any existing link — including 'removed' and 'declined' ones.
+    // .maybeSingle() returns null (no error) when zero rows match. We must check
+    // all statuses because (property_id, tenant_email) has a UNIQUE constraint —
+    // a plain INSERT over an existing row would silently fail with a 409 conflict.
     const { data: existing } = await sc
       .from('tenant_property_links')
       .select('id, status')
@@ -70,13 +77,13 @@ export default async function TenantOnboardingPage({
     if (existing?.status === 'approved') redirect('/tenant')
     if (existing?.status === 'pending') redirect(`/tenant-onboarding?join=${code}`)
 
-    if (existing?.status === 'removed') {
-      // Can't INSERT again due to UNIQUE constraint.
-      // Tenant RLS has no UPDATE policy, so use admin client with explicit row ID guard.
+    if (existing?.status === 'removed' || existing?.status === 'declined') {
+      // Can't INSERT again due to UNIQUE constraint. Tenant RLS has no UPDATE
+      // policy on this table, so use admin client scoped to the exact row ID.
       const admin = createAdminClient()
       const { error } = await admin
         .from('tenant_property_links')
-        .update({ status: 'pending', initiated_by: 'tenant', tenant_id: u.id })
+        .update({ status: 'pending', initiated_by: 'tenant', tenant_id: u.id, unit: unitValue })
         .eq('id', existing.id)
       if (error) redirect(errUrl)
     } else {
@@ -90,12 +97,24 @@ export default async function TenantOnboardingPage({
           tenant_id: u.id,
           status: 'pending',
           initiated_by: 'tenant',
+          unit: unitValue,
         })
       if (error) redirect(errUrl)
     }
 
     redirect(`/tenant-onboarding?join=${code}`)
   }
+
+  // ── Profile: role check + form pre-fill in one query ─────────────────────────
+  const { data: profileData } = await supabase
+    .from('profiles')
+    .select('role, full_name, phone')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  const role = (profileData?.role as string | null) ?? null
+  const prefillName = (profileData?.full_name as string | null) ?? null
+  const prefillPhone = (profileData?.phone as string | null) ?? null
 
   // ── Wrong role ────────────────────────────────────────────────────────────────
   if (role === 'landlord' || role === 'contractor') {
@@ -136,16 +155,15 @@ export default async function TenantOnboardingPage({
     .neq('status', 'removed')
     .order('created_at', { ascending: false })
 
-  // Already approved anywhere → dashboard
-  if (links?.some((l) => l.status === 'approved')) {
-    redirect('/tenant')
-  }
+  // Already approved → send to the dashboard.
+  if (links?.some((l) => l.status === 'approved')) redirect('/tenant')
 
   const pendingLinks = (links ?? []).filter((l) => l.status === 'pending')
+  const declinedLinks = (links ?? []).filter((l) => l.status === 'declined')
 
   // ── With join code ─────────────────────────────────────────────────────────────
   if (joinCode) {
-    // Use admin client — tenant RLS does not allow reading other users' properties
+    // Admin client required — tenant RLS does not allow reading others' properties.
     const admin = createAdminClient()
     const { data: property } = await admin
       .from('properties')
@@ -153,7 +171,6 @@ export default async function TenantOnboardingPage({
       .eq('join_code', joinCode)
       .single()
 
-    // Code not found
     if (!property) {
       return (
         <Wrapper>
@@ -188,9 +205,9 @@ export default async function TenantOnboardingPage({
       )
     }
 
-    // Check if this user already has a link for this exact property
     const existingLink = links?.find((l) => l.property_id === property.id)
 
+    // ── Pending ────────────────────────────────────────────────────────────────
     if (existingLink?.status === 'pending') {
       return (
         <Wrapper>
@@ -209,8 +226,11 @@ export default async function TenantOnboardingPage({
                   landlord&apos;s approval.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground text-center text-sm">
+              <CardContent className="space-y-1 text-center">
+                {existingLink.unit && (
+                  <p className="text-muted-foreground text-sm">Unit {existingLink.unit}</p>
+                )}
+                <p className="text-muted-foreground text-sm">
                   You&apos;ll be able to submit maintenance requests once approved.
                 </p>
               </CardContent>
@@ -221,7 +241,66 @@ export default async function TenantOnboardingPage({
       )
     }
 
-    // No link (or previously removed) — show confirmation to request access
+    // ── Declined ───────────────────────────────────────────────────────────────
+    if (existingLink?.status === 'declined') {
+      return (
+        <Wrapper>
+          <div className="space-y-5">
+            <div className="text-center">
+              <h1 className="text-2xl font-semibold tracking-tight">Request declined</h1>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Update your info below and request again, or contact your landlord.
+              </p>
+            </div>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-start gap-3">
+                  <div className="bg-destructive/10 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
+                    <XCircle className="text-destructive h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <CardTitle className="text-base">{property.name}</CardTitle>
+                    {property.address && (
+                      <CardDescription className="mt-0.5">{property.address}</CardDescription>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-muted-foreground text-sm">
+                  Your previous request was not approved. You can submit a new request below.
+                </p>
+                <RequestForm
+                  action={requestPropertyAccess}
+                  propertyId={property.id}
+                  landlordId={property.user_id as string}
+                  joinCode={joinCode}
+                  prefillName={prefillName}
+                  prefillUnit={existingLink.unit as string | null}
+                  prefillPhone={prefillPhone}
+                  err={err}
+                  submitLabel="Request Again"
+                />
+              </CardContent>
+            </Card>
+
+            <div className="text-center">
+              <Link
+                href="/tenant-onboarding"
+                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Enter a different code
+              </Link>
+            </div>
+            <SignOutFooter handleSignOut={handleSignOut} />
+          </div>
+        </Wrapper>
+      )
+    }
+
+    // ── No link (or previously removed) — initial request form ────────────────
     return (
       <Wrapper>
         <div className="space-y-5">
@@ -246,24 +325,21 @@ export default async function TenantOnboardingPage({
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4">
               <p className="text-muted-foreground text-sm">
-                Your landlord will be notified and can approve your access. Once approved, you can
-                submit maintenance requests for this property.
+                Your landlord will be notified and can approve your access.
               </p>
-              {err === '1' && (
-                <p className="text-destructive text-sm text-center">
-                  Something went wrong. Please try again or contact your landlord.
-                </p>
-              )}
-              <form action={requestPropertyAccess}>
-                <input type="hidden" name="property_id" value={property.id} />
-                <input type="hidden" name="landlord_id" value={property.user_id} />
-                <input type="hidden" name="join_code" value={joinCode} />
-                <Button type="submit" className="w-full">
-                  Request Access
-                </Button>
-              </form>
+              <RequestForm
+                action={requestPropertyAccess}
+                propertyId={property.id}
+                landlordId={property.user_id as string}
+                joinCode={joinCode}
+                prefillName={prefillName}
+                prefillUnit={null}
+                prefillPhone={prefillPhone}
+                err={err}
+                submitLabel="Request Access"
+              />
             </CardContent>
           </Card>
 
@@ -276,7 +352,6 @@ export default async function TenantOnboardingPage({
               Enter a different code
             </Link>
           </div>
-
           <SignOutFooter handleSignOut={handleSignOut} />
         </div>
       </Wrapper>
@@ -284,18 +359,27 @@ export default async function TenantOnboardingPage({
   }
 
   // ── No join code — show code entry ─────────────────────────────────────────────
-  // Fetch property names for pending links so the list is meaningful
-  let propertyNameMap: Record<string, string> = {}
-  if (pendingLinks.length > 0) {
+  // Fetch property names + join codes for pending and declined links so the list
+  // is meaningful and declined rows can link to the re-request flow.
+  const linkedPropertyIds = [
+    ...new Set([
+      ...pendingLinks.map((l) => l.property_id),
+      ...declinedLinks.map((l) => l.property_id),
+    ]),
+  ]
+  let propertyMap: Record<string, { name: string; joinCode: string | null }> = {}
+  if (linkedPropertyIds.length > 0) {
     const admin = createAdminClient()
     const { data: props } = await admin
       .from('properties')
-      .select('id, name')
-      .in(
-        'id',
-        pendingLinks.map((l) => l.property_id),
-      )
-    propertyNameMap = Object.fromEntries((props ?? []).map((p) => [p.id, p.name as string]))
+      .select('id, name, join_code')
+      .in('id', linkedPropertyIds)
+    propertyMap = Object.fromEntries(
+      (props ?? []).map((p) => [
+        p.id,
+        { name: p.name as string, joinCode: p.join_code as string | null },
+      ])
+    )
   }
 
   return (
@@ -322,11 +406,10 @@ export default async function TenantOnboardingPage({
                 <Clock className="text-muted-foreground h-4 w-4 shrink-0" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">
-                    {propertyNameMap[link.property_id] ?? 'Property'}
+                    {propertyMap[link.property_id]?.name ?? 'Property'}
                     {link.unit && (
                       <span className="text-muted-foreground font-normal">
-                        {' '}
-                        · Unit {link.unit}
+                        {' '}· Unit {link.unit}
                       </span>
                     )}
                   </p>
@@ -337,11 +420,52 @@ export default async function TenantOnboardingPage({
           </div>
         )}
 
+        {/* Declined connections */}
+        {declinedLinks.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+              Declined
+            </p>
+            {declinedLinks.map((link) => {
+              const prop = propertyMap[link.property_id]
+              return (
+                <div
+                  key={link.id}
+                  className="bg-card flex items-center gap-3 rounded-lg border px-4 py-3"
+                >
+                  <XCircle className="text-destructive h-4 w-4 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {prop?.name ?? 'Property'}
+                      {link.unit && (
+                        <span className="text-muted-foreground font-normal">
+                          {' '}· Unit {link.unit}
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-muted-foreground text-xs">Request declined by landlord</p>
+                  </div>
+                  {prop?.joinCode && (
+                    <Link
+                      href={`/tenant-onboarding?join=${prop.joinCode}`}
+                      className="text-primary shrink-0 text-xs hover:underline"
+                    >
+                      Re-request →
+                    </Link>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
         {/* Code entry */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">
-              {pendingLinks.length > 0 ? 'Add another property' : 'Connect to your property'}
+              {pendingLinks.length > 0 || declinedLinks.length > 0
+                ? 'Add another property'
+                : 'Connect to your property'}
             </CardTitle>
             <CardDescription>
               Enter the 8-character code from your landlord, or scan the QR code posted in your
@@ -349,7 +473,6 @@ export default async function TenantOnboardingPage({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {/* GET form — navigates to ?join=CODE without a server action */}
             <form method="GET" action="/tenant-onboarding" className="space-y-3">
               <div className="space-y-1.5">
                 <label htmlFor="join" className="text-sm font-medium">
@@ -379,6 +502,89 @@ export default async function TenantOnboardingPage({
   )
 }
 
+// ── Shared request form (initial + re-request) ─────────────────────────────────
+
+function RequestForm({
+  action,
+  propertyId,
+  landlordId,
+  joinCode,
+  prefillName,
+  prefillUnit,
+  prefillPhone,
+  err,
+  submitLabel,
+}: {
+  action: (formData: FormData) => Promise<void>
+  propertyId: string
+  landlordId: string
+  joinCode: string
+  prefillName: string | null
+  prefillUnit: string | null
+  prefillPhone: string | null
+  err: string | undefined
+  submitLabel: string
+}) {
+  return (
+    <form action={action} className="space-y-3">
+      <input type="hidden" name="property_id" value={propertyId} />
+      <input type="hidden" name="landlord_id" value={landlordId} />
+      <input type="hidden" name="join_code" value={joinCode} />
+
+      <div className="space-y-1.5">
+        <label htmlFor="full_name" className="text-sm font-medium">
+          Full name
+        </label>
+        <Input
+          id="full_name"
+          name="full_name"
+          placeholder="Your name"
+          defaultValue={prefillName ?? ''}
+          required
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <label htmlFor="unit" className="text-sm font-medium">
+            Unit{' '}
+            <span className="text-muted-foreground font-normal">(optional)</span>
+          </label>
+          <Input
+            id="unit"
+            name="unit"
+            placeholder="e.g. 12"
+            defaultValue={prefillUnit ?? ''}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="phone" className="text-sm font-medium">
+            Phone{' '}
+            <span className="text-muted-foreground font-normal">(optional)</span>
+          </label>
+          <Input
+            id="phone"
+            name="phone"
+            type="tel"
+            placeholder="(555) 123-4567"
+            defaultValue={prefillPhone ?? ''}
+          />
+        </div>
+      </div>
+
+      {err === '1' && (
+        <p className="text-destructive text-center text-sm">
+          Something went wrong. Please try again or contact your landlord.
+        </p>
+      )}
+
+      <Button type="submit" className="w-full">
+        {submitLabel}
+      </Button>
+    </form>
+  )
+}
+
 // ── Layout and shared primitives ───────────────────────────────────────────────
 
 function Wrapper({ children }: { children: React.ReactNode }) {
@@ -396,7 +602,6 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   )
 }
 
-// Server actions can be passed as props between server components in the same module.
 function SignOutFooter({ handleSignOut }: { handleSignOut: () => Promise<void> }) {
   return (
     <form action={handleSignOut} className="text-center">
