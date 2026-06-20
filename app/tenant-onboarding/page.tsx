@@ -35,6 +35,42 @@ export default async function TenantOnboardingPage({
     redirect('/login')
   }
 
+  // Saves name + phone to the tenant profile; also links tenant_id to the
+  // approved invite row (if linkId is provided) so the landlord sees a real
+  // account rather than an unlinked invite.
+  async function completeProfile(formData: FormData) {
+    'use server'
+    const linkId = formData.get('link_id') as string | null
+    const fullName = (formData.get('full_name') as string | null)?.trim() || null
+    const phone = (formData.get('phone') as string | null)?.trim() || null
+
+    const sc = await createClient()
+    const {
+      data: { user: u },
+    } = await sc.auth.getUser()
+    if (!u?.email) redirect('/login')
+
+    if (fullName || phone) {
+      const updates: Record<string, string> = {}
+      if (fullName) updates.full_name = fullName
+      if (phone) updates.phone = phone
+      const { error } = await sc.from('profiles').update(updates).eq('id', u.id)
+      if (error) redirect('/tenant-onboarding?err=1')
+    }
+
+    if (linkId) {
+      // Admin client required — tenant RLS has no UPDATE policy on this table.
+      const admin = createAdminClient()
+      await admin
+        .from('tenant_property_links')
+        .update({ tenant_id: u.id })
+        .eq('id', linkId)
+        .is('tenant_id', null)
+    }
+
+    redirect('/tenant')
+  }
+
   async function requestPropertyAccess(formData: FormData) {
     'use server'
     const propertyId = formData.get('property_id') as string
@@ -53,9 +89,7 @@ export default async function TenantOnboardingPage({
     const email = u.email.toLowerCase()
     const errUrl = `/tenant-onboarding?join=${code}&err=1`
 
-    // Save name / phone to the tenant's own profile row so the landlord can
-    // see them when reviewing the pending request (looked up by email on their side).
-    // The tenant can UPDATE their own row (own-row-only RLS allows this).
+    // Save name / phone so the landlord can see them when reviewing requests.
     if (fullName || phone) {
       const updates: Record<string, string> = {}
       if (fullName) updates.full_name = fullName
@@ -64,36 +98,21 @@ export default async function TenantOnboardingPage({
     }
 
     // Check for any existing link — including 'removed' and 'declined' ones.
-    // .maybeSingle() returns null (no error) when zero rows match. We must check
-    // all statuses because (property_id, tenant_email) has a UNIQUE constraint —
-    // a plain INSERT over an existing row would silently fail with a 409 conflict.
+    // (property_id, tenant_email) has a UNIQUE constraint so we must UPDATE
+    // rather than INSERT when a row already exists.
     const { data: existing } = await sc
       .from('tenant_property_links')
-      .select('id, status, initiated_by, unit')
+      .select('id, status')
       .eq('property_id', propertyId)
       .eq('tenant_email', email)
       .maybeSingle()
 
     if (existing?.status === 'approved') redirect('/tenant')
-
-    if (existing?.status === 'pending') {
-      if (existing.initiated_by === 'landlord') {
-        // Tenant is accepting a landlord invite — link their account and update unit.
-        // Admin client required: tenant RLS has no UPDATE policy on this table.
-        const admin = createAdminClient()
-        const { error } = await admin
-          .from('tenant_property_links')
-          .update({ tenant_id: u.id, unit: unitValue ?? (existing.unit as string | null) })
-          .eq('id', existing.id)
-        if (error) redirect(errUrl)
-      }
-      // Redirect to show the pending state regardless of initiated_by.
-      redirect(`/tenant-onboarding?join=${code}`)
-    }
+    if (existing?.status === 'pending') redirect(`/tenant-onboarding?join=${code}`)
 
     if (existing?.status === 'removed' || existing?.status === 'declined') {
-      // Can't INSERT again due to UNIQUE constraint. Tenant RLS has no UPDATE
-      // policy on this table, so use admin client scoped to the exact row ID.
+      // Can't INSERT again due to UNIQUE constraint. Admin client required —
+      // tenant RLS has no UPDATE policy on this table.
       const admin = createAdminClient()
       const { error } = await admin
         .from('tenant_property_links')
@@ -101,7 +120,6 @@ export default async function TenantOnboardingPage({
         .eq('id', existing.id)
       if (error) redirect(errUrl)
     } else {
-      // No existing link — INSERT via regular client (passes tenant self-request RLS).
       const { error } = await sc
         .from('tenant_property_links')
         .insert({
@@ -169,11 +187,86 @@ export default async function TenantOnboardingPage({
     .neq('status', 'removed')
     .order('created_at', { ascending: false })
 
-  // Already approved → send to the dashboard.
-  if (links?.some((l) => l.status === 'approved')) redirect('/tenant')
-
+  const approvedLink = (links ?? []).find((l) => l.status === 'approved')
   const pendingLinks = (links ?? []).filter((l) => l.status === 'pending')
   const declinedLinks = (links ?? []).filter((l) => l.status === 'declined')
+
+  // ── Approved — profile completeness gate ──────────────────────────────────────
+  // For landlord-initiated links where tenant_id is still null, always show the
+  // form so completeProfile() can set tenant_id. For all other approved tenants,
+  // skip the gate if name + phone are already present.
+  if (approvedLink) {
+    const isUnlinkedInvite =
+      approvedLink.initiated_by === 'landlord' && !approvedLink.tenant_id
+
+    if (!isUnlinkedInvite && prefillName && prefillPhone) redirect('/tenant')
+
+    let inviteProperty: { name: string; address: string | null } | null = null
+    if (isUnlinkedInvite) {
+      const admin = createAdminClient()
+      const { data: prop } = await admin
+        .from('properties')
+        .select('name, address')
+        .eq('id', approvedLink.property_id)
+        .single()
+      inviteProperty = prop
+        ? { name: prop.name as string, address: prop.address as string | null }
+        : null
+    }
+
+    return (
+      <Wrapper>
+        <div className="space-y-5">
+          {isUnlinkedInvite ? (
+            <>
+              <div className="text-center">
+                <h1 className="text-2xl font-semibold tracking-tight">You&apos;ve been invited</h1>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Set up your profile to access your property dashboard.
+                </p>
+              </div>
+              {inviteProperty && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start gap-3">
+                      <div className="bg-primary/10 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
+                        <Building2 className="text-primary h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <CardTitle className="text-base">{inviteProperty.name}</CardTitle>
+                        {inviteProperty.address && (
+                          <CardDescription className="mt-0.5">{inviteProperty.address}</CardDescription>
+                        )}
+                      </div>
+                    </div>
+                  </CardHeader>
+                </Card>
+              )}
+            </>
+          ) : (
+            <div className="text-center">
+              <h1 className="text-2xl font-semibold tracking-tight">Complete your profile</h1>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Add your name and phone number to continue.
+              </p>
+            </div>
+          )}
+          <Card>
+            <CardContent className="pt-6">
+              <ProfileCompletionForm
+                action={completeProfile}
+                linkId={isUnlinkedInvite ? (approvedLink.id as string) : null}
+                prefillName={prefillName}
+                prefillPhone={prefillPhone}
+                err={err}
+              />
+            </CardContent>
+          </Card>
+          <SignOutFooter handleSignOut={handleSignOut} />
+        </div>
+      </Wrapper>
+    )
+  }
 
   // ── With join code ─────────────────────────────────────────────────────────────
   if (joinCode) {
@@ -249,56 +342,6 @@ export default async function TenantOnboardingPage({
                 </p>
               </CardContent>
             </Card>
-            <SignOutFooter handleSignOut={handleSignOut} />
-          </div>
-        </Wrapper>
-      )
-    }
-
-    // ── Landlord invite (not yet accepted) ────────────────────────────────────
-    // A landlord-initiated pending link with no tenant_id means the tenant
-    // hasn't filled in their details yet. Show the acceptance form.
-    if (existingLink?.status === 'pending' && existingLink?.initiated_by === 'landlord' && !existingLink?.tenant_id) {
-      return (
-        <Wrapper>
-          <div className="space-y-5">
-            <div className="text-center">
-              <h1 className="text-2xl font-semibold tracking-tight">You&apos;ve been invited</h1>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Fill in your details so your landlord can approve your access.
-              </p>
-            </div>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-start gap-3">
-                  <div className="bg-primary/10 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
-                    <Building2 className="text-primary h-5 w-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <CardTitle className="text-base">{property.name}</CardTitle>
-                    {property.address && (
-                      <CardDescription className="mt-0.5">{property.address}</CardDescription>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <RequestForm
-                  action={requestPropertyAccess}
-                  propertyId={property.id}
-                  landlordId={property.user_id as string}
-                  joinCode={joinCode}
-                  prefillName={prefillName}
-                  prefillUnit={existingLink.unit as string | null}
-                  prefillPhone={prefillPhone}
-                  err={err}
-                  submitLabel="Send Request"
-                  phoneRequired
-                />
-              </CardContent>
-            </Card>
-
             <SignOutFooter handleSignOut={handleSignOut} />
           </div>
         </Wrapper>
@@ -566,6 +609,65 @@ export default async function TenantOnboardingPage({
   )
 }
 
+// ── Profile completion form (approved tenants who haven't set up yet) ──────────
+
+function ProfileCompletionForm({
+  action,
+  linkId,
+  prefillName,
+  prefillPhone,
+  err,
+}: {
+  action: (formData: FormData) => Promise<void>
+  linkId: string | null
+  prefillName: string | null
+  prefillPhone: string | null
+  err: string | undefined
+}) {
+  return (
+    <form action={action} className="space-y-3">
+      {linkId && <input type="hidden" name="link_id" value={linkId} />}
+
+      <div className="space-y-1.5">
+        <label htmlFor="full_name" className="text-sm font-medium">
+          Full name
+        </label>
+        <Input
+          id="full_name"
+          name="full_name"
+          placeholder="Your name"
+          defaultValue={prefillName ?? ''}
+          required
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <label htmlFor="phone" className="text-sm font-medium">
+          Phone number
+        </label>
+        <Input
+          id="phone"
+          name="phone"
+          type="tel"
+          placeholder="(555) 123-4567"
+          defaultValue={prefillPhone ?? ''}
+          required
+        />
+      </div>
+
+      {err === '1' && (
+        <p className="text-destructive text-center text-sm">
+          Something went wrong. Please try again.
+        </p>
+      )}
+
+      <Button type="submit" className="w-full">
+        Continue to dashboard
+      </Button>
+    </form>
+  )
+}
+
 // ── Shared request form (initial + re-request) ─────────────────────────────────
 
 function RequestForm({
@@ -578,7 +680,6 @@ function RequestForm({
   prefillPhone,
   err,
   submitLabel,
-  phoneRequired,
 }: {
   action: (formData: FormData) => Promise<void>
   propertyId: string
@@ -589,7 +690,6 @@ function RequestForm({
   prefillPhone: string | null
   err: string | undefined
   submitLabel: string
-  phoneRequired?: boolean
 }) {
   return (
     <form action={action} className="space-y-3">
@@ -634,7 +734,6 @@ function RequestForm({
             type="tel"
             placeholder="(555) 123-4567"
             defaultValue={prefillPhone ?? ''}
-            required={phoneRequired}
           />
         </div>
       </div>

@@ -113,12 +113,12 @@ export async function sendTenantInviteEmail({
               You've been invited to join ${escapeHtml(propertyName)}
             </h1>
             <p style="margin:0 0 12px;font-size:15px;color:#374151;line-height:1.6">
-              Your landlord has invited you to connect your tenant account to
+              Your landlord has granted you access to
               <strong>${escapeHtml(propertyName)}</strong> on Nestora.
             </p>
             <p style="margin:0 0 28px;font-size:15px;color:#374151;line-height:1.6">
-              Click the button below to set up your profile. Your landlord will
-              receive your request and can approve your access.
+              Click the button below to set up your profile and start submitting
+              maintenance requests right away — no approval step required.
             </p>
             <a href="${acceptUrl}"
                style="display:inline-block;padding:12px 24px;background:#09090b;color:#ffffff;font-size:14px;font-weight:600;border-radius:8px;text-decoration:none">

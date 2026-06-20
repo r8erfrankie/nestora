@@ -235,7 +235,7 @@ export async function inviteTenantByEmail(email: string, propertyId: string, uni
   // every case explicitly rather than silently stomping on existing rows.
   const { data: existing } = await supabase
     .from('tenant_property_links')
-    .select('id, status')
+    .select('id, status, initiated_by, unit')
     .eq('property_id', propertyId)
     .eq('tenant_email', normalizedEmail)
     .maybeSingle();
@@ -244,51 +244,66 @@ export async function inviteTenantByEmail(email: string, propertyId: string, uni
     throw new Error('This tenant already has access to this property.');
   }
 
-  if (existing?.status === 'pending') {
-    // A pending request already exists (either tenant- or landlord-initiated).
-    // Direct the landlord to the Pending Requests section to take action there
-    // rather than creating a duplicate or silently resending.
-    throw new Error(
-      'This tenant already has a pending request. Approve or decline it from the Pending Requests section.'
-    );
-  }
+  const approvedAt = new Date().toISOString();
 
-  if (existing?.status === 'removed' || existing?.status === 'declined') {
-    // Re-invite a previously removed or declined tenant.
-    // The UNIQUE constraint means we must UPDATE rather than INSERT.
-    // Reset tenant_id so the tenant must re-accept the invitation.
+  if (existing?.status === 'pending') {
+    // Approve the existing request immediately — landlord invite = instant approval.
+    // Preserve the tenant's submitted unit if the landlord didn't specify one.
     const { error } = await supabase
       .from('tenant_property_links')
       .update({
-        status: 'pending',
-        initiated_by: 'landlord',
-        unit: unitValue,
-        tenant_id: null,
-        approved_at: null,
+        status: 'approved',
+        approved_at: approvedAt,
+        unit: unitValue ?? (existing.unit as string | null),
       })
       .eq('id', existing.id)
       .eq('landlord_id', user.id);
     if (error) throw new Error(error.message);
+    // Tenant-initiated requests come from tenants who already have an account.
+    if (existing.initiated_by === 'tenant') {
+      sendTenantAccessGrantedEmail({ to: normalizedEmail, propertyName: property.name as string }).catch(
+        (err) => { console.error('Access-granted email failed:', err); }
+      );
+    } else {
+      sendTenantInviteEmail({ to: normalizedEmail, propertyName: property.name as string, joinCode }).catch(
+        (err) => { console.error('Invite email failed:', err); }
+      );
+    }
+  } else if (existing?.status === 'removed' || existing?.status === 'declined') {
+    // Re-invite: reset and approve in one step.
+    // tenant_id is cleared so the tenant re-links their account when they accept.
+    const { error } = await supabase
+      .from('tenant_property_links')
+      .update({
+        status: 'approved',
+        approved_at: approvedAt,
+        initiated_by: 'landlord',
+        unit: unitValue,
+        tenant_id: null,
+      })
+      .eq('id', existing.id)
+      .eq('landlord_id', user.id);
+    if (error) throw new Error(error.message);
+    sendTenantInviteEmail({ to: normalizedEmail, propertyName: property.name as string, joinCode }).catch(
+      (err) => { console.error('Invite email failed:', err); }
+    );
   } else {
-    // No existing link — create a new pending invite.
-    // tenant_id is omitted: the tenant links their account when they accept.
+    // No existing link — INSERT pre-approved.
+    // tenant_id is omitted: the tenant links their account when they set up their profile.
     const { error } = await supabase.from('tenant_property_links').insert({
       landlord_id: user.id,
       property_id: propertyId,
       tenant_email: normalizedEmail,
-      status: 'pending',
+      status: 'approved',
+      approved_at: approvedAt,
       initiated_by: 'landlord',
       unit: unitValue,
     });
     if (error) throw new Error(error.message);
+    sendTenantInviteEmail({ to: normalizedEmail, propertyName: property.name as string, joinCode }).catch(
+      (err) => { console.error('Invite email failed:', err); }
+    );
   }
-
-  // Non-blocking invite email containing the property join link.
-  sendTenantInviteEmail({ to: normalizedEmail, propertyName: property.name as string, joinCode }).catch(
-    (err) => {
-      console.error('Invite email failed:', err);
-    }
-  );
 
   revalidatePath('/tenants');
 }

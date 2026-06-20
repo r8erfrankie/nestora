@@ -143,11 +143,11 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
 
   // Group approved links by property for the summary section.
   const approvedByProperty = approvedLinks.reduce<
-    Record<string, { property: PropertySummary | null; tenants: { linkId: string; email: string; name: string | null; unit: string | null; profileMissing: boolean }[] }>
+    Record<string, { property: PropertySummary | null; tenants: { linkId: string; email: string; name: string | null; unit: string | null; profileMissing: boolean; tenantId: string | null }[] }>
   >((acc, link) => {
     const key = link.property_id;
     if (!acc[key]) acc[key] = { property: link.property, tenants: [] };
-    acc[key].tenants.push({ linkId: link.id, email: link.tenant_email, name: link.tenant_name, unit: link.unit, profileMissing: link.profileMissing ?? false });
+    acc[key].tenants.push({ linkId: link.id, email: link.tenant_email, name: link.tenant_name, unit: link.unit, profileMissing: link.profileMissing ?? false, tenantId: link.tenant_id });
     return acc;
   }, {});
 
@@ -216,17 +216,28 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
                 </div>
                 {/* Tenant rows */}
                 <div className="divide-y">
-                  {tenants.map(({ linkId, email, name, unit, profileMissing }) => {
+                  {tenants.map(({ linkId, email, name, unit, profileMissing, tenantId }) => {
                     const unitLabel = unit ? `Unit ${unit}` : null;
+                    // profileMissing && tenantId === null → landlord invite, tenant hasn't set up yet
+                    // profileMissing && tenantId !== null → tenant had an account that was deleted
+                    const isInviteSent = profileMissing && tenantId === null;
+                    const isDeleted = profileMissing && tenantId !== null;
                     return (
                       <div key={linkId} className={`flex items-center gap-3 px-4 py-2.5 text-sm${profileMissing ? ' opacity-70' : ''}`}>
                         <div className="min-w-0 flex-1">
                           {profileMissing ? (
                             <div className="flex flex-wrap items-center gap-1.5">
                               <p className="text-muted-foreground truncate">{email}</p>
-                              <span className="bg-muted text-muted-foreground inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium">
-                                Account deleted
-                              </span>
+                              {isInviteSent && (
+                                <span className="bg-muted text-muted-foreground inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium">
+                                  Invite sent
+                                </span>
+                              )}
+                              {isDeleted && (
+                                <span className="bg-muted text-muted-foreground inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium">
+                                  Account deleted
+                                </span>
+                              )}
                             </div>
                           ) : (
                             <p className="truncate" title={name ? email : undefined}>
@@ -237,14 +248,14 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
                             <p className="text-muted-foreground truncate text-xs">{unitLabel}</p>
                           )}
                         </div>
-                        {profileMissing ? (
+                        {isDeleted ? (
                           <CleanupButton linkId={linkId} />
                         ) : (
                           <Button
                             variant="ghost"
                             size="sm"
                             className="text-muted-foreground h-7 w-7 shrink-0 p-0 hover:text-destructive"
-                            title="Remove tenant"
+                            title={isInviteSent ? 'Revoke invite' : 'Remove tenant'}
                             onClick={() =>
                               setRemoveTarget({
                                 linkId,
