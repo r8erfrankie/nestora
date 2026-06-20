@@ -78,7 +78,7 @@ export default async function TenantOnboardingPage({
         .is('tenant_id', null)
     }
 
-    redirect('/tenant-onboarding')
+    redirect('/tenant')
   }
 
   async function requestPropertyAccess(formData: FormData) {
