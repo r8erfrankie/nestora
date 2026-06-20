@@ -65,8 +65,13 @@ export default async function TenantOnboardingPage({
       if (error) redirect('/tenant-onboarding?err=1')
     }
 
-    // Assign tenant role only when it is not yet set — never override landlord/contractor.
-    await sc.from('profiles').update({ role: 'tenant' }).eq('id', u.id).is('role', null)
+    // Landlord invite: force role = 'tenant' so re-used test accounts onboard correctly.
+    // No invite context: only set if currently null to protect real landlord/contractor roles.
+    if (linkId) {
+      await sc.from('profiles').update({ role: 'tenant' }).eq('id', u.id)
+    } else {
+      await sc.from('profiles').update({ role: 'tenant' }).eq('id', u.id).is('role', null)
+    }
 
     if (linkId) {
       // Admin client required — tenant RLS has no UPDATE policy on this table.
