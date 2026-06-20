@@ -22,6 +22,7 @@ export default async function WorkOrdersPage({
     { data: contractors },
     { data: archivedEntries },
     { data: convertedRequests },
+    { data: tenantLinks },
   ] = await Promise.all([
     supabase
       .from('work_orders')
@@ -39,22 +40,36 @@ export default async function WorkOrdersPage({
       .select('work_order_id')
       .eq('user_email', userEmail),
     // Derive which work orders originated from a maintenance request.
-    // maintenance_requests.converted_to_work_order_id already stores this link;
-    // we reverse it here so the work orders list can show a badge and build
-    // deep links back to the specific request — no schema migration on work_orders needed.
+    // Fetches tenant_email + property_id so we can look up the unit number below.
     supabase
       .from('maintenance_requests')
-      .select('id, converted_to_work_order_id')
+      .select('id, converted_to_work_order_id, tenant_email, property_id')
       .not('converted_to_work_order_id', 'is', null),
+    // Unit lookup — RLS scopes this to the landlord's own properties.
+    supabase
+      .from('tenant_property_links')
+      .select('property_id, tenant_email, unit'),
   ]);
 
   const archivedWorkOrderIds = (archivedEntries ?? []).map((e) => e.work_order_id as string);
 
-  // Map: work_order_id → maintenance_request_id (for deep-link construction)
-  const linkedWorkOrderMap: Record<string, string> = {};
+  // Map: "propertyId::email" → unit
+  const unitByPropertyEmail = new Map<string, string | null>();
+  for (const link of tenantLinks ?? []) {
+    const key = `${link.property_id}::${(link.tenant_email as string).toLowerCase()}`;
+    unitByPropertyEmail.set(key, link.unit as string | null);
+  }
+
+  // Map: work_order_id → { requestId, unit } (for deep-link + unit display)
+  const linkedWorkOrderMap: Record<string, { requestId: string; unit: string | null }> = {};
   for (const r of convertedRequests ?? []) {
     if (r.converted_to_work_order_id && r.id) {
-      linkedWorkOrderMap[r.converted_to_work_order_id as string] = r.id as string;
+      const email = (r.tenant_email as string | null)?.toLowerCase() ?? '';
+      const unit = unitByPropertyEmail.get(`${r.property_id}::${email}`) ?? null;
+      linkedWorkOrderMap[r.converted_to_work_order_id as string] = {
+        requestId: r.id as string,
+        unit,
+      };
     }
   }
 

@@ -116,7 +116,7 @@ export function WorkOrdersClient({
   properties,
   contractors,
   archivedWorkOrderIds,
-  linkedWorkOrderMap = {},
+  linkedWorkOrderMap = {} as Record<string, { requestId: string; unit: string | null }>,
   loadError,
   autoOpenCreate = false,
 }: {
@@ -124,7 +124,7 @@ export function WorkOrdersClient({
   properties: Property[];
   contractors: Contractor[];
   archivedWorkOrderIds: string[];
-  linkedWorkOrderMap?: Record<string, string>;
+  linkedWorkOrderMap?: Record<string, { requestId: string; unit: string | null }>;
   loadError?: { message?: string; details?: string; hint?: string; code?: string } | null;
   autoOpenCreate?: boolean;
 }) {
@@ -1043,11 +1043,18 @@ export function WorkOrdersClient({
                       )}
                     </span>
                   </TableCell>
-                  <TableCell className="max-w-[160px] truncate" title={wo.properties?.name || ''}>
-                    {wo.properties?.name ||
-                      properties.find((p) => p.id === wo.property_id)?.name ||
-                      wo.property_id ||
-                      '—'}
+                  <TableCell className="max-w-[160px]">
+                    {(() => {
+                      const name = wo.properties?.name || properties.find((p) => p.id === wo.property_id)?.name || wo.property_id || '—';
+                      const unit = linkedWorkOrderMap[wo.id]?.unit;
+                      return unit ? (
+                        <span className="block truncate" title={`${name} • Unit ${unit}`}>
+                          {name} <span className="text-muted-foreground">• Unit {unit}</span>
+                        </span>
+                      ) : (
+                        <span className="block truncate" title={name}>{name}</span>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell>
                     <Badge className={getPriorityBadge(wo.priority)}>{wo.priority}</Badge>
@@ -1526,7 +1533,7 @@ export function WorkOrdersClient({
                       Converted from a maintenance request
                     </span>
                     <Link
-                      href={`/tenants?expandRequest=${linkedWorkOrderMap[selectedWorkOrder.id] ?? ''}`}
+                      href={`/tenants?expandRequest=${linkedWorkOrderMap[selectedWorkOrder.id]?.requestId ?? ''}`}
                       onClick={closeDetail}
                       className="text-primary shrink-0 text-xs underline underline-offset-2 hover:opacity-80 transition-opacity"
                     >
@@ -1574,7 +1581,15 @@ export function WorkOrdersClient({
                   </div>
                   <div>
                     <div className="text-muted-foreground mb-1 text-xs">PROPERTY</div>
-                    <div>{selectedWorkOrder.properties?.name}</div>
+                    <div>
+                      {selectedWorkOrder.properties?.name}
+                      {linkedWorkOrderMap[selectedWorkOrder.id]?.unit && (
+                        <span className="text-muted-foreground">
+                          {' • Unit '}
+                          {linkedWorkOrderMap[selectedWorkOrder.id]!.unit}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <div className="text-muted-foreground mb-1 text-xs">BUDGET</div>

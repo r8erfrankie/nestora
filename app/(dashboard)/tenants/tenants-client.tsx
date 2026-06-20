@@ -205,21 +205,27 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
                 </div>
                 {/* Tenant rows */}
                 <div className="divide-y">
-                  {tenants.map(({ email, name, unit }) => (
-                    <div key={email} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                      {unit && (
-                        <span className="text-muted-foreground w-16 shrink-0 text-xs">
-                          Unit {unit}
-                        </span>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate">{name ?? email}</p>
-                        {name && (
-                          <p className="text-muted-foreground truncate text-xs">{email}</p>
-                        )}
+                  {tenants.map(({ email, name, unit }) => {
+                    const propUnit = property?.name
+                      ? unit
+                        ? `${property.name} • Unit ${unit}`
+                        : property.name
+                      : unit
+                        ? `Unit ${unit}`
+                        : null;
+                    return (
+                      <div key={email} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate" title={name ? email : undefined}>
+                            {name ?? email}
+                          </p>
+                          {propUnit && (
+                            <p className="text-muted-foreground truncate text-xs">{propUnit}</p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -412,6 +418,19 @@ function RequestRow({
 
             {/* Metadata grid */}
             <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+              {request.property && (
+                <div>
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                    Property
+                  </p>
+                  <p className="mt-0.5">
+                    {request.property.name}
+                    {request.unit && (
+                      <span className="text-muted-foreground"> • Unit {request.unit}</span>
+                    )}
+                  </p>
+                </div>
+              )}
               {request.phone && (
                 <div>
                   <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
