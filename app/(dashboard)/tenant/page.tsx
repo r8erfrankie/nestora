@@ -13,6 +13,7 @@ type PropertyLink = {
   id: string;
   property_id: string;
   status: string;
+  initiated_by: string | null;
   unit: string | null;
   created_at: string;
 };
@@ -74,7 +75,7 @@ export default async function TenantDashboardPage() {
   const [{ data: rawLinks }, { data: rawRequests }] = await Promise.all([
     supabase
       .from('tenant_property_links')
-      .select('id, property_id, status, unit, created_at')
+      .select('id, property_id, status, initiated_by, unit, created_at')
       .neq('status', 'removed')
       .order('created_at', { ascending: false }),
     supabase
@@ -88,6 +89,11 @@ export default async function TenantDashboardPage() {
   const approvedLinks = allLinks.filter((l) => l.status === 'approved');
   const pendingLinks = allLinks.filter((l) => l.status === 'pending');
   const requests = (rawRequests ?? []) as MaintenanceRequest[];
+
+  // If there are any pending landlord-initiated invites, route through onboarding
+  // so the auto-approval logic can accept them and link the tenant's account.
+  const hasPendingLandlordInvite = pendingLinks.some((l) => l.initiated_by === 'landlord');
+  if (hasPendingLandlordInvite) redirect('/tenant-onboarding');
 
   // Gate: only show the dashboard to tenants with at least one approved property.
   // Pending / declined tenants are sent to the onboarding flow instead.
