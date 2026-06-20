@@ -63,18 +63,22 @@ export default async function TenantDashboardPage() {
 
   const role = profile?.role as string | null;
 
-  // An approved link is proof of tenant intent — grant access regardless of current role.
-  // Users without any approved link are sent to the role selector.
-  if (role !== 'tenant') {
-    const { data: approvedLink } = await supabase
+  // landlord/contractor always go to their own dashboard.
+  if (role !== 'tenant' && role !== null) redirect('/');
+
+  // null-role users are allowed through only when they have an approved
+  // landlord-initiated link — handles lost safeNext after magic-link auth.
+  if (role === null) {
+    const { data: approvedInvite } = await supabase
       .from('tenant_property_links')
       .select('id')
       .eq('status', 'approved')
+      .eq('initiated_by', 'landlord')
       .limit(1)
       .maybeSingle();
-    if (!approvedLink) redirect('/');
-    // Force-sync the role so future requests skip this check.
-    await supabase.from('profiles').update({ role: 'tenant' }).eq('id', user.id);
+    if (!approvedInvite) redirect('/');
+    // Non-destructive sync — only writes when role is still null.
+    await supabase.from('profiles').update({ role: 'tenant' }).eq('id', user.id).is('role', null);
   }
 
   // Invited tenants who just authenticated land here before completing their profile.
