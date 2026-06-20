@@ -9,6 +9,8 @@ export default async function WorkOrdersPage({
   const supabase = await createClient();
   const params = await searchParams;
   const autoOpenCreate = params.create === '1';
+  const prefillPropertyId = typeof params.prefill_property === 'string' ? params.prefill_property : undefined;
+  const prefillUnit = typeof params.prefill_unit === 'string' ? params.prefill_unit : undefined;
 
   // Fetch the current user's email before the parallel queries so we can
   // filter work_order_user_archives to this user only.
@@ -87,6 +89,8 @@ export default async function WorkOrdersPage({
         linkedWorkOrderMap={linkedWorkOrderMap}
         loadError={workOrdersError}
         autoOpenCreate={autoOpenCreate}
+        prefillPropertyId={prefillPropertyId}
+        prefillUnit={prefillUnit}
       />
     </div>
   );

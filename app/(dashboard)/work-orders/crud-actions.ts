@@ -227,6 +227,7 @@ export async function createWorkOrder(data: {
   priority: string;
   due_date?: string | null;
   property_id: string;
+  unit?: string | null;
   assigned_contractor?: string | null;
   assigned_contractor_email?: string | null;
   assigned_contractor_phone?: string | null;
@@ -247,6 +248,7 @@ export async function createWorkOrder(data: {
       priority: data.priority,
       due_date: data.due_date || null,
       property_id: data.property_id,
+      unit: data.unit || null,
       assigned_contractor: data.assigned_contractor || null,
       assigned_contractor_email: data.assigned_contractor_email?.trim().toLowerCase() || null,
       assigned_contractor_phone: data.assigned_contractor_phone || null,

@@ -957,6 +957,18 @@ function TenantRow({
               )}
             </div>
 
+            {/* Quick actions */}
+            <div className="flex gap-2">
+              <Button asChild size="sm" variant="outline" className="gap-1.5 text-xs">
+                <Link
+                  href={`/work-orders?create=1&prefill_property=${encodeURIComponent(link.property_id)}${link.unit ? `&prefill_unit=${encodeURIComponent(link.unit)}` : ''}`}
+                >
+                  <Wrench className="h-3 w-3" />
+                  Create work order
+                </Link>
+              </Button>
+            </div>
+
             {/* Landlord notes */}
             <div className="space-y-2 border-t pt-3">
               <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">

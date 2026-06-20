@@ -59,6 +59,7 @@ interface WorkOrder {
   priority: string;
   due_date: string | null;
   status: string;
+  unit: string | null;
   assigned_contractor: string | null;
   assigned_contractor_email: string | null;
   assigned_contractor_phone?: string | null;
@@ -121,6 +122,8 @@ export function WorkOrdersClient({
   linkedWorkOrderMap = {} as Record<string, { requestId: string; unit: string | null }>,
   loadError,
   autoOpenCreate = false,
+  prefillPropertyId,
+  prefillUnit,
 }: {
   initialWorkOrders: WorkOrder[];
   properties: Property[];
@@ -129,6 +132,8 @@ export function WorkOrdersClient({
   linkedWorkOrderMap?: Record<string, { requestId: string; unit: string | null }>;
   loadError?: { message?: string; details?: string; hint?: string; code?: string } | null;
   autoOpenCreate?: boolean;
+  prefillPropertyId?: string;
+  prefillUnit?: string;
 }) {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>(initialWorkOrders);
   const [view, setView] = useState<'active' | 'archived'>('active');
@@ -173,7 +178,8 @@ export function WorkOrdersClient({
     description: '',
     priority: 'Medium',
     due_date: '',
-    property_id: '',
+    property_id: autoOpenCreate && prefillPropertyId ? prefillPropertyId : (properties[0]?.id || ''),
+    unit: autoOpenCreate && prefillUnit ? prefillUnit : '',
     assigned_contractor: '',
     assigned_contractor_email: '',
     assigned_contractor_phone: '',
@@ -271,15 +277,16 @@ export function WorkOrdersClient({
     }
   };
 
-  // Open create dialog
-  const openCreate = () => {
+  // Open create dialog (optionally pre-fill property and unit)
+  const openCreate = (prefill?: { propertyId?: string; unit?: string }) => {
     setView('active');
     setForm({
       title: '',
       description: '',
       priority: 'Medium',
       due_date: '',
-      property_id: properties[0]?.id || '',
+      property_id: prefill?.propertyId || properties[0]?.id || '',
+      unit: prefill?.unit || '',
       assigned_contractor: '',
       assigned_contractor_email: '',
       assigned_contractor_phone: '',
@@ -761,6 +768,7 @@ export function WorkOrdersClient({
         priority: form.priority,
         due_date: form.due_date || null,
         property_id: form.property_id,
+        unit: form.unit.trim() || null,
         assigned_contractor: form.assigned_contractor.trim() || null,
         assigned_contractor_email: form.assigned_contractor_email.trim() || null,
         assigned_contractor_phone: form.assigned_contractor_phone || null,
@@ -928,7 +936,7 @@ export function WorkOrdersClient({
           </p>
         </div>
         {view === 'active' && (
-          <Button onClick={openCreate} className="w-full sm:w-auto">
+          <Button onClick={() => openCreate()} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" />
             New Work Order
           </Button>
@@ -1000,7 +1008,7 @@ export function WorkOrdersClient({
                   No work orders yet. Create one to start tracking maintenance and repairs across your
                   properties.
                 </p>
-                <Button onClick={openCreate}>
+                <Button onClick={() => openCreate()}>
                   <Plus className="mr-2 h-4 w-4" />
                   Create work order
                 </Button>
@@ -1048,7 +1056,7 @@ export function WorkOrdersClient({
                   <TableCell className="max-w-[160px]">
                     {(() => {
                       const name = wo.properties?.name || properties.find((p) => p.id === wo.property_id)?.name || wo.property_id || '—';
-                      const unit = linkedWorkOrderMap[wo.id]?.unit;
+                      const unit = wo.unit || linkedWorkOrderMap[wo.id]?.unit;
                       return unit ? (
                         <span className="block truncate" title={`${name} • Unit ${unit}`}>
                           {name} <span className="text-muted-foreground">• Unit {unit}</span>
@@ -1213,6 +1221,18 @@ export function WorkOrdersClient({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Unit <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <Input
+                value={form.unit}
+                onChange={(e) => updateForm('unit', e.target.value)}
+                placeholder="e.g. 12, Unit B, Main House"
+                className="!h-11 sm:!h-8"
+              />
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
@@ -1579,10 +1599,10 @@ export function WorkOrdersClient({
                     <div className="text-muted-foreground mb-1 text-xs">PROPERTY</div>
                     <div>
                       {selectedWorkOrder.properties?.name}
-                      {linkedWorkOrderMap[selectedWorkOrder.id]?.unit && (
+                      {(selectedWorkOrder.unit || linkedWorkOrderMap[selectedWorkOrder.id]?.unit) && (
                         <span className="text-muted-foreground">
                           {' • Unit '}
-                          {linkedWorkOrderMap[selectedWorkOrder.id]!.unit}
+                          {selectedWorkOrder.unit || linkedWorkOrderMap[selectedWorkOrder.id]!.unit}
                         </span>
                       )}
                     </div>
