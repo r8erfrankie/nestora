@@ -1521,8 +1521,8 @@ export function WorkOrdersClient({
                 {/* Maintenance request origin banner */}
                 {linkedSet.has(selectedWorkOrder.id) && (
                   <div className="bg-muted/50 flex items-center gap-2 rounded-md px-3 py-2 text-sm">
-                    <ClipboardList className="text-muted-foreground h-4 w-4 shrink-0" />
-                    <span className="text-muted-foreground min-w-0 flex-1">
+                    <ClipboardList className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                    <span className="min-w-0 flex-1 text-blue-600 dark:text-blue-400">
                       Converted from a maintenance request
                     </span>
                     <Link
