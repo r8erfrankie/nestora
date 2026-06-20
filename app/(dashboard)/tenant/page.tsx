@@ -63,23 +63,18 @@ export default async function TenantDashboardPage() {
 
   const role = profile?.role as string | null;
 
-  // Hard block: landlords and contractors have separate dashboards.
-  if (role === 'landlord' || role === 'contractor') redirect('/');
-
-  // Soft block: users whose role is not yet 'tenant' are allowed through if they
-  // have an approved landlord-initiated link. This handles the case where the role
-  // was not stamped after accepting an invite (e.g. magic-link safeNext was lost).
+  // An approved link is proof of tenant intent — grant access regardless of current role.
+  // Users without any approved link are sent to the role selector.
   if (role !== 'tenant') {
-    const { data: landlordLink } = await supabase
+    const { data: approvedLink } = await supabase
       .from('tenant_property_links')
       .select('id')
       .eq('status', 'approved')
-      .eq('initiated_by', 'landlord')
       .limit(1)
       .maybeSingle();
-    if (!landlordLink) redirect('/'); // No approved tenant access → role selector
-    // Non-destructive sync so future requests take the fast path.
-    await supabase.from('profiles').update({ role: 'tenant' }).eq('id', user.id).is('role', null);
+    if (!approvedLink) redirect('/');
+    // Force-sync the role so future requests skip this check.
+    await supabase.from('profiles').update({ role: 'tenant' }).eq('id', user.id);
   }
 
   // Invited tenants who just authenticated land here before completing their profile.
