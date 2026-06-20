@@ -1528,7 +1528,7 @@ export function WorkOrdersClient({
                     <Link
                       href="/tenants"
                       onClick={closeDetail}
-                      className="text-primary shrink-0 text-xs underline-offset-4 hover:underline"
+                      className="text-primary shrink-0 text-xs underline underline-offset-2 hover:opacity-80 transition-opacity"
                     >
                       View on Tenants page →
                     </Link>
