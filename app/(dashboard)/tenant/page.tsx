@@ -61,10 +61,28 @@ export default async function TenantDashboardPage() {
     .eq('id', user.id)
     .single();
 
-  if (profile?.role !== 'tenant') redirect('/');
+  const role = profile?.role as string | null;
 
-  // Invited tenants who just authenticated for the first time land here before
-  // completing their profile. Route them to onboarding so they can set name + phone.
+  // Hard block: landlords and contractors have separate dashboards.
+  if (role === 'landlord' || role === 'contractor') redirect('/');
+
+  // Soft block: users whose role is not yet 'tenant' are allowed through if they
+  // have an approved landlord-initiated link. This handles the case where the role
+  // was not stamped after accepting an invite (e.g. magic-link safeNext was lost).
+  if (role !== 'tenant') {
+    const { data: landlordLink } = await supabase
+      .from('tenant_property_links')
+      .select('id')
+      .eq('status', 'approved')
+      .eq('initiated_by', 'landlord')
+      .limit(1)
+      .maybeSingle();
+    if (!landlordLink) redirect('/'); // No approved tenant access → role selector
+    // Non-destructive sync so future requests take the fast path.
+    await supabase.from('profiles').update({ role: 'tenant' }).eq('id', user.id).is('role', null);
+  }
+
+  // Invited tenants who just authenticated land here before completing their profile.
   if (!profile?.full_name) redirect('/tenant-onboarding');
 
   const fullName = profile?.full_name as string | null;
