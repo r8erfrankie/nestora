@@ -45,6 +45,8 @@ export default async function TenantOnboardingPage({
     const linkId = formData.get('link_id') as string | null
     const fullName = (formData.get('full_name') as string | null)?.trim() || null
     const phone = (formData.get('phone') as string | null)?.trim() || null
+    const ecName = (formData.get('emergency_contact_name') as string | null)?.trim() || null
+    const ecPhone = (formData.get('emergency_contact_phone') as string | null)?.trim() || null
 
     const sc = await createClient()
     const {
@@ -57,10 +59,12 @@ export default async function TenantOnboardingPage({
       redirect('/tenant-onboarding?err=phone')
     }
 
-    if (fullName || phone) {
+    if (fullName || phone || ecName || ecPhone) {
       const updates: Record<string, string> = {}
       if (fullName) updates.full_name = fullName
       if (phone) updates.phone = phone
+      if (ecName) updates.emergency_contact_name = ecName
+      if (ecPhone) updates.emergency_contact_phone = ecPhone
       const { error } = await sc.from('profiles').update(updates).eq('id', u.id)
       if (error) redirect('/tenant-onboarding?err=1')
     }
@@ -94,6 +98,8 @@ export default async function TenantOnboardingPage({
     const fullName = (formData.get('full_name') as string | null)?.trim() || null
     const unitValue = (formData.get('unit') as string | null)?.trim() || null
     const phone = (formData.get('phone') as string | null)?.trim() || null
+    const ecName = (formData.get('emergency_contact_name') as string | null)?.trim() || null
+    const ecPhone = (formData.get('emergency_contact_phone') as string | null)?.trim() || null
 
     const sc = await createClient()
     const {
@@ -104,11 +110,13 @@ export default async function TenantOnboardingPage({
     const email = u.email.toLowerCase()
     const errUrl = `/tenant-onboarding?join=${code}&err=1`
 
-    // Save name / phone so the landlord can see them when reviewing requests.
-    if (fullName || phone) {
+    // Save profile fields so the landlord can see them when reviewing requests.
+    if (fullName || phone || ecName || ecPhone) {
       const updates: Record<string, string> = {}
       if (fullName) updates.full_name = fullName
       if (phone) updates.phone = phone
+      if (ecName) updates.emergency_contact_name = ecName
+      if (ecPhone) updates.emergency_contact_phone = ecPhone
       await sc.from('profiles').update(updates).eq('id', u.id)
     }
 
@@ -155,13 +163,15 @@ export default async function TenantOnboardingPage({
   // ── Profile: role check + form pre-fill in one query ─────────────────────────
   const { data: profileData } = await supabase
     .from('profiles')
-    .select('role, full_name, phone')
+    .select('role, full_name, phone, emergency_contact_name, emergency_contact_phone')
     .eq('id', user.id)
     .maybeSingle()
 
   const role = (profileData?.role as string | null) ?? null
   const prefillName = (profileData?.full_name as string | null) ?? null
   const prefillPhone = (profileData?.phone as string | null) ?? null
+  const prefillECName = (profileData?.emergency_contact_name as string | null) ?? null
+  const prefillECPhone = (profileData?.emergency_contact_phone as string | null) ?? null
 
   // ── Wrong role ────────────────────────────────────────────────────────────────
   if (role === 'landlord' || role === 'contractor') {
@@ -273,6 +283,8 @@ export default async function TenantOnboardingPage({
                 linkId={isUnlinkedInvite ? (approvedLink.id as string) : null}
                 prefillName={prefillName}
                 prefillPhone={prefillPhone}
+                prefillECName={prefillECName}
+                prefillECPhone={prefillECPhone}
                 err={err}
               />
             </CardContent>
@@ -415,6 +427,8 @@ export default async function TenantOnboardingPage({
                   prefillName={prefillName}
                   prefillUnit={existingLink.unit as string | null}
                   prefillPhone={prefillPhone}
+                  prefillECName={prefillECName}
+                  prefillECPhone={prefillECPhone}
                   err={err}
                   submitLabel="Request Again"
                 />
@@ -473,6 +487,8 @@ export default async function TenantOnboardingPage({
                 prefillName={prefillName}
                 prefillUnit={null}
                 prefillPhone={prefillPhone}
+                prefillECName={prefillECName}
+                prefillECPhone={prefillECPhone}
                 err={err}
                 submitLabel="Request Access"
               />
@@ -665,12 +681,16 @@ function ProfileCompletionForm({
   linkId,
   prefillName,
   prefillPhone,
+  prefillECName,
+  prefillECPhone,
   err,
 }: {
   action: (formData: FormData) => Promise<void>
   linkId: string | null
   prefillName: string | null
   prefillPhone: string | null
+  prefillECName: string | null
+  prefillECPhone: string | null
   err: string | undefined
 }) {
   return (
@@ -695,6 +715,30 @@ function ProfileCompletionForm({
           Phone number
         </label>
         <PhoneInputField name="phone" id="phone" defaultValue={prefillPhone} />
+      </div>
+
+      {/* Emergency contact — optional */}
+      <div className="space-y-2 border-t pt-3">
+        <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+          Emergency contact <span className="font-normal normal-case">(optional)</span>
+        </p>
+        <div className="space-y-1.5">
+          <label htmlFor="ec_name" className="text-sm font-medium">
+            Name
+          </label>
+          <Input
+            id="ec_name"
+            name="emergency_contact_name"
+            placeholder="Contact name"
+            defaultValue={prefillECName ?? ''}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="ec_phone" className="text-sm font-medium">
+            Phone
+          </label>
+          <PhoneInputField name="emergency_contact_phone" id="ec_phone" defaultValue={prefillECPhone} />
+        </div>
       </div>
 
       {err === 'phone' ? (
@@ -724,6 +768,8 @@ function RequestForm({
   prefillName,
   prefillUnit,
   prefillPhone,
+  prefillECName,
+  prefillECPhone,
   err,
   submitLabel,
 }: {
@@ -734,6 +780,8 @@ function RequestForm({
   prefillName: string | null
   prefillUnit: string | null
   prefillPhone: string | null
+  prefillECName: string | null
+  prefillECPhone: string | null
   err: string | undefined
   submitLabel: string
 }) {
@@ -775,6 +823,32 @@ function RequestForm({
             <span className="text-muted-foreground font-normal">(optional)</span>
           </label>
           <PhoneInputField name="phone" id="phone" defaultValue={prefillPhone} />
+        </div>
+      </div>
+
+      {/* Emergency contact — optional */}
+      <div className="space-y-2 border-t pt-3">
+        <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+          Emergency contact <span className="font-normal normal-case">(optional)</span>
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <label htmlFor="ec_name" className="text-sm font-medium">
+              Name
+            </label>
+            <Input
+              id="ec_name"
+              name="emergency_contact_name"
+              placeholder="Contact name"
+              defaultValue={prefillECName ?? ''}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="ec_phone" className="text-sm font-medium">
+              Phone
+            </label>
+            <PhoneInputField name="emergency_contact_phone" id="ec_phone" defaultValue={prefillECPhone} />
+          </div>
         </div>
       </div>
 
