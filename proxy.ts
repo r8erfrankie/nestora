@@ -56,6 +56,11 @@ export async function proxy(request: NextRequest) {
 
   // ── 2. Unauthenticated → login ───────────────────────────────────────────────
   if (!user) {
+    // /tenant-onboarding is allowed through so the page can issue its own redirect
+    // to /login?redirectTo=... preserving the ?join= code through the auth round-trip.
+    if (pathname.startsWith('/tenant-onboarding')) {
+      return response
+    }
     return NextResponse.redirect(new URL('/login', request.url))
   }
 

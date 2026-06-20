@@ -78,12 +78,13 @@ export async function sendTenantAccessGrantedEmail({
 export async function sendTenantInviteEmail({
   to,
   propertyName,
-  acceptUrl,
+  joinCode,
 }: {
   to: string;
   propertyName: string;
-  acceptUrl: string;
+  joinCode: string;
 }) {
+  const acceptUrl = `${APP_URL}/tenant-onboarding?join=${joinCode}`;
 
   await resend.emails.send({
     from: FROM,
