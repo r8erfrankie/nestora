@@ -98,6 +98,9 @@ export default async function TenantsPage({
   const approvedLinks: TenantLink[] = rawApproved.map((l) => ({
     ...l,
     tenant_name: nameByEmail.get(l.tenant_email.toLowerCase()) ?? null,
+    // nameByEmail only contains emails present in profiles. If the email is
+    // absent the profile row was deleted after the link was created.
+    profileMissing: !nameByEmail.has(l.tenant_email.toLowerCase()),
   }));
 
   const pendingLinks: TenantLink[] = rawPending.map((l) => ({

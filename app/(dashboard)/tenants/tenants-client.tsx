@@ -33,6 +33,7 @@ import {
   ExternalLink,
   Loader2,
   QrCode,
+  Trash2,
   UserX,
   Wrench,
   UserCheck,
@@ -61,6 +62,7 @@ export type TenantLink = {
   created_at: string;
   property_id: string;
   property: PropertySummary | null;
+  profileMissing?: boolean;
 };
 
 export type PropertyWithCode = {
@@ -141,11 +143,11 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
 
   // Group approved links by property for the summary section.
   const approvedByProperty = approvedLinks.reduce<
-    Record<string, { property: PropertySummary | null; tenants: { linkId: string; email: string; name: string | null; unit: string | null }[] }>
+    Record<string, { property: PropertySummary | null; tenants: { linkId: string; email: string; name: string | null; unit: string | null; profileMissing: boolean }[] }>
   >((acc, link) => {
     const key = link.property_id;
     if (!acc[key]) acc[key] = { property: link.property, tenants: [] };
-    acc[key].tenants.push({ linkId: link.id, email: link.tenant_email, name: link.tenant_name, unit: link.unit });
+    acc[key].tenants.push({ linkId: link.id, email: link.tenant_email, name: link.tenant_name, unit: link.unit, profileMissing: link.profileMissing ?? false });
     return acc;
   }, {});
 
@@ -214,40 +216,47 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
                 </div>
                 {/* Tenant rows */}
                 <div className="divide-y">
-                  {tenants.map(({ linkId, email, name, unit }) => {
-                    const propUnit = property?.name
-                      ? unit
-                        ? `${property.name} • Unit ${unit}`
-                        : property.name
-                      : unit
-                        ? `Unit ${unit}`
-                        : null;
+                  {tenants.map(({ linkId, email, name, unit, profileMissing }) => {
+                    const unitLabel = unit ? `Unit ${unit}` : null;
                     return (
-                      <div key={email} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                      <div key={linkId} className={`flex items-center gap-3 px-4 py-2.5 text-sm${profileMissing ? ' opacity-70' : ''}`}>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate" title={name ? email : undefined}>
-                            {name ?? email}
-                          </p>
-                          {propUnit && (
-                            <p className="text-muted-foreground truncate text-xs">{propUnit}</p>
+                          {profileMissing ? (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <p className="text-muted-foreground truncate">{email}</p>
+                              <span className="bg-muted text-muted-foreground inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium">
+                                Account deleted
+                              </span>
+                            </div>
+                          ) : (
+                            <p className="truncate" title={name ? email : undefined}>
+                              {name ?? email}
+                            </p>
+                          )}
+                          {unitLabel && (
+                            <p className="text-muted-foreground truncate text-xs">{unitLabel}</p>
                           )}
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-muted-foreground h-7 w-7 shrink-0 p-0 hover:text-destructive"
-                          title="Remove tenant"
-                          onClick={() =>
-                            setRemoveTarget({
-                              linkId,
-                              tenantEmail: email,
-                              tenantName: name,
-                              propertyName: property?.name ?? 'Property',
-                            })
-                          }
-                        >
-                          <UserX className="h-3.5 w-3.5" />
-                        </Button>
+                        {profileMissing ? (
+                          <CleanupButton linkId={linkId} />
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground h-7 w-7 shrink-0 p-0 hover:text-destructive"
+                            title="Remove tenant"
+                            onClick={() =>
+                              setRemoveTarget({
+                                linkId,
+                                tenantEmail: email,
+                                tenantName: name,
+                                propertyName: property?.name ?? 'Property',
+                              })
+                            }
+                          >
+                            <UserX className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
                     );
                   })}
@@ -749,6 +758,39 @@ function JoinCodeRow({ property }: { property: PropertyWithCode }) {
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Cleanup button (orphaned link — account deleted) ───────────────────────────
+
+function CleanupButton({ linkId }: { linkId: string }) {
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <div className="flex flex-col items-end">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="text-muted-foreground h-7 shrink-0 gap-1.5 px-2 text-xs hover:text-destructive"
+        title="Remove orphaned link"
+        disabled={isPending}
+        onClick={() => {
+          setError(null);
+          startTransition(async () => {
+            try {
+              await removeTenant(linkId, false);
+            } catch (err) {
+              setError(err instanceof Error ? err.message : 'Failed to remove');
+            }
+          });
+        }}
+      >
+        {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+        Clean up
+      </Button>
+      {error && <p className="text-destructive mt-0.5 text-xs">{error}</p>}
     </div>
   );
 }
