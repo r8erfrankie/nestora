@@ -206,6 +206,23 @@ export async function rejectTenantRequest(linkId: string) {
   revalidatePath('/tenants');
 }
 
+export async function updateTenantNotes(linkId: string, notes: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { error } = await supabase
+    .from('tenant_property_links')
+    .update({ notes: notes.trim() || null })
+    .eq('id', linkId)
+    .eq('landlord_id', user.id);
+
+  if (error) throw new Error(error.message);
+  revalidatePath('/tenants');
+}
+
 export async function inviteTenantByEmail(email: string, propertyId: string, unit?: string) {
   const normalizedEmail = email.trim().toLowerCase();
   if (!normalizedEmail || !propertyId) throw new Error('Email and property are required');

@@ -32,7 +32,7 @@ export default async function TenantsPage({
     supabase
       .from('tenant_property_links')
       .select(
-        'id, tenant_id, tenant_email, status, unit, initiated_by, created_at, property_id, property:property_id(id, name, address)'
+        'id, tenant_id, tenant_email, status, unit, initiated_by, notes, created_at, property_id, property:property_id(id, name, address)'
       )
       .in('status', ['pending', 'approved'])
       .order('created_at', { ascending: false }),
@@ -83,29 +83,43 @@ export default async function TenantsPage({
   ];
   const nameByEmail = new Map<string, string | null>();
   const phoneByEmail = new Map<string, string | null>();
+  const ecNameByEmail = new Map<string, string | null>();
+  const ecPhoneByEmail = new Map<string, string | null>();
   if (allEmails.length > 0) {
     const admin = createAdminClient();
     const { data: tenantProfiles } = await admin
       .from('profiles')
-      .select('email, full_name, phone')
+      .select('email, full_name, phone, emergency_contact_name, emergency_contact_phone')
       .in('email', allEmails);
     for (const p of tenantProfiles ?? []) {
-      nameByEmail.set((p.email as string).toLowerCase(), (p.full_name as string | null) ?? null);
-      phoneByEmail.set((p.email as string).toLowerCase(), (p.phone as string | null) ?? null);
+      const key = (p.email as string).toLowerCase();
+      nameByEmail.set(key, (p.full_name as string | null) ?? null);
+      phoneByEmail.set(key, (p.phone as string | null) ?? null);
+      ecNameByEmail.set(key, (p.emergency_contact_name as string | null) ?? null);
+      ecPhoneByEmail.set(key, (p.emergency_contact_phone as string | null) ?? null);
     }
   }
 
-  const approvedLinks: TenantLink[] = rawApproved.map((l) => ({
-    ...l,
-    tenant_name: nameByEmail.get(l.tenant_email.toLowerCase()) ?? null,
-    // nameByEmail only contains emails present in profiles. If the email is
-    // absent the profile row was deleted after the link was created.
-    profileMissing: !nameByEmail.has(l.tenant_email.toLowerCase()),
-  }));
+  const approvedLinks: TenantLink[] = rawApproved.map((l) => {
+    const key = l.tenant_email.toLowerCase();
+    return {
+      ...l,
+      tenant_name: nameByEmail.get(key) ?? null,
+      // nameByEmail only contains emails present in profiles. If the email is
+      // absent the profile row was deleted after the link was created.
+      profileMissing: !nameByEmail.has(key),
+      phone: phoneByEmail.get(key) ?? null,
+      ec_name: ecNameByEmail.get(key) ?? null,
+      ec_phone: ecPhoneByEmail.get(key) ?? null,
+    };
+  });
 
   const pendingLinks: TenantLink[] = rawPending.map((l) => ({
     ...l,
     tenant_name: nameByEmail.get(l.tenant_email.toLowerCase()) ?? null,
+    phone: null,
+    ec_name: null,
+    ec_phone: null,
   }));
 
   const maintenanceRequests: MaintenanceRequest[] = rawRequests.map((r) => ({

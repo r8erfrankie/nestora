@@ -8,6 +8,7 @@ import { formatPhone } from '@/lib/phone';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -44,7 +45,7 @@ import {
 import Link from 'next/link';
 import { timeAgo } from '@/lib/utils';
 import { PhotoLightbox } from '@/components/PhotoLightbox';
-import { approveTenantRequest, convertToWorkOrder, inviteTenantByEmail, rejectTenantRequest, removeTenant } from './actions';
+import { approveTenantRequest, convertToWorkOrder, inviteTenantByEmail, rejectTenantRequest, removeTenant, updateTenantNotes } from './actions';
 
 export type PropertySummary = {
   id: string;
@@ -64,6 +65,10 @@ export type TenantLink = {
   property_id: string;
   property: PropertySummary | null;
   profileMissing?: boolean;
+  phone: string | null;
+  ec_name: string | null;
+  ec_phone: string | null;
+  notes: string | null;
 };
 
 export type PropertyWithCode = {
@@ -144,11 +149,11 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
 
   // Group approved links by property for the summary section.
   const approvedByProperty = approvedLinks.reduce<
-    Record<string, { property: PropertySummary | null; tenants: { linkId: string; email: string; name: string | null; unit: string | null; profileMissing: boolean; tenantId: string | null }[] }>
+    Record<string, { property: PropertySummary | null; tenants: TenantLink[] }>
   >((acc, link) => {
     const key = link.property_id;
     if (!acc[key]) acc[key] = { property: link.property, tenants: [] };
-    acc[key].tenants.push({ linkId: link.id, email: link.tenant_email, name: link.tenant_name, unit: link.unit, profileMissing: link.profileMissing ?? false, tenantId: link.tenant_id });
+    acc[key].tenants.push(link);
     return acc;
   }, {});
 
@@ -217,61 +222,20 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
                 </div>
                 {/* Tenant rows */}
                 <div className="divide-y">
-                  {tenants.map(({ linkId, email, name, unit, profileMissing, tenantId }) => {
-                    const unitLabel = unit ? `Unit ${unit}` : null;
-                    // profileMissing && tenantId === null → landlord invite, tenant hasn't set up yet
-                    // profileMissing && tenantId !== null → tenant had an account that was deleted
-                    const isInviteSent = profileMissing && tenantId === null;
-                    const isDeleted = profileMissing && tenantId !== null;
-                    return (
-                      <div key={linkId} className={`flex items-center gap-3 px-4 py-2.5 text-sm${profileMissing ? ' opacity-70' : ''}`}>
-                        <div className="min-w-0 flex-1">
-                          {profileMissing ? (
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <p className="text-muted-foreground truncate">{email}</p>
-                              {isInviteSent && (
-                                <span className="bg-muted text-muted-foreground inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium">
-                                  Invite sent
-                                </span>
-                              )}
-                              {isDeleted && (
-                                <span className="bg-muted text-muted-foreground inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium">
-                                  Account deleted
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <p className="truncate" title={name ? email : undefined}>
-                              {name ?? email}
-                            </p>
-                          )}
-                          {unitLabel && (
-                            <p className="text-muted-foreground truncate text-xs">{unitLabel}</p>
-                          )}
-                        </div>
-                        {isDeleted ? (
-                          <CleanupButton linkId={linkId} />
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-muted-foreground h-7 w-7 shrink-0 p-0 hover:text-destructive"
-                            title={isInviteSent ? 'Revoke invite' : 'Remove tenant'}
-                            onClick={() =>
-                              setRemoveTarget({
-                                linkId,
-                                tenantEmail: email,
-                                tenantName: name,
-                                propertyName: property?.name ?? 'Property',
-                              })
-                            }
-                          >
-                            <UserX className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {tenants.map((link) => (
+                    <TenantRow
+                      key={link.id}
+                      link={link}
+                      onRemove={() =>
+                        setRemoveTarget({
+                          linkId: link.id,
+                          tenantEmail: link.tenant_email,
+                          tenantName: link.tenant_name,
+                          propertyName: link.property?.name ?? 'Property',
+                        })
+                      }
+                    />
+                  ))}
                 </div>
               </div>
             ))}
@@ -768,6 +732,157 @@ function JoinCodeRow({ property }: { property: PropertyWithCode }) {
             {copied === 'link' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
             {copied === 'link' ? 'Copied' : 'Copy link'}
           </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Approved tenant row (expandable — contact info + landlord notes) ──────────
+
+function TenantRow({
+  link,
+  onRemove,
+}: {
+  link: TenantLink;
+  onRemove: () => void;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [notes, setNotes] = useState(link.notes ?? '');
+  const [savedNotes, setSavedNotes] = useState(link.notes ?? '');
+  const [saving, startSaving] = useTransition();
+  const [saveError, setSaveError] = useState('');
+  const [saved, setSaved] = useState(false);
+
+  const isDirty = notes !== savedNotes;
+  const isInviteSent = (link.profileMissing ?? false) && link.tenant_id === null;
+  const isDeleted = (link.profileMissing ?? false) && link.tenant_id !== null;
+  const unitLabel = link.unit ? `Unit ${link.unit}` : null;
+
+  const handleSaveNotes = () => {
+    setSaveError('');
+    setSaved(false);
+    startSaving(async () => {
+      try {
+        await updateTenantNotes(link.id, notes);
+        setSavedNotes(notes);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      } catch (err: unknown) {
+        setSaveError(err instanceof Error ? err.message : 'Failed to save notes.');
+      }
+    });
+  };
+
+  return (
+    <div>
+      <div className={`flex items-center gap-2 px-4 py-2.5 text-sm${link.profileMissing ? ' opacity-70' : ''}`}>
+        <div className="min-w-0 flex-1">
+          {link.profileMissing ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <p className="text-muted-foreground truncate">{link.tenant_email}</p>
+              {isInviteSent && (
+                <span className="bg-muted text-muted-foreground inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium">
+                  Invite sent
+                </span>
+              )}
+              {isDeleted && (
+                <span className="bg-muted text-muted-foreground inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium">
+                  Account deleted
+                </span>
+              )}
+            </div>
+          ) : (
+            <p className="truncate" title={link.tenant_name ? link.tenant_email : undefined}>
+              {link.tenant_name ?? link.tenant_email}
+            </p>
+          )}
+          {unitLabel && (
+            <p className="text-muted-foreground truncate text-xs">{unitLabel}</p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="text-muted-foreground flex h-7 w-7 shrink-0 items-center justify-center rounded p-0 transition-colors hover:bg-muted/60"
+          title={isExpanded ? 'Collapse' : 'Details & notes'}
+        >
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+        </button>
+        {isDeleted ? (
+          <CleanupButton linkId={link.id} />
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground h-7 w-7 shrink-0 p-0 hover:text-destructive"
+            title={isInviteSent ? 'Revoke invite' : 'Remove tenant'}
+            onClick={onRemove}
+          >
+            <UserX className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </div>
+
+      {/* Expanded detail panel */}
+      <div className={`grid transition-all duration-200 ease-in-out ${isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+        <div className="overflow-hidden">
+          <div className="space-y-4 border-t bg-muted/20 px-4 py-4">
+            {/* Contact info grid */}
+            <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+              <div>
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Email</p>
+                <p className="mt-0.5 text-xs">{link.tenant_email}</p>
+              </div>
+              {link.phone && (
+                <div>
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Phone</p>
+                  <p className="mt-0.5 text-xs">{formatPhone(link.phone) ?? link.phone}</p>
+                </div>
+              )}
+              {link.ec_name && (
+                <div>
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Emergency Contact</p>
+                  <p className="mt-0.5 text-xs">{link.ec_name}</p>
+                </div>
+              )}
+              {link.ec_phone && (
+                <div>
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Emergency Phone</p>
+                  <p className="mt-0.5 text-xs">{formatPhone(link.ec_phone) ?? link.ec_phone}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Landlord notes */}
+            <div className="space-y-2 border-t pt-3">
+              <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                Notes <span className="font-normal normal-case">(private)</span>
+              </p>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add private notes about this tenant…"
+                className="min-h-[72px] resize-none text-sm"
+                disabled={saving}
+              />
+              <div className="flex items-center gap-2">
+                {isDirty && (
+                  <Button size="sm" onClick={handleSaveNotes} disabled={saving} className="gap-1.5">
+                    {saving && <Loader2 className="h-3 w-3 animate-spin" />}
+                    {saving ? 'Saving…' : 'Save'}
+                  </Button>
+                )}
+                {saved && !isDirty && (
+                  <span className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+                    <Check className="h-3 w-3" />
+                    Saved
+                  </span>
+                )}
+                {saveError && <p className="text-destructive text-xs">{saveError}</p>}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
