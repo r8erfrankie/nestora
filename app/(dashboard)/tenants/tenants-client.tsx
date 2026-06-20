@@ -788,7 +788,7 @@ function CleanupButton({ linkId }: { linkId: string }) {
         }}
       >
         {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-        Clean up
+        Remove
       </Button>
       {error && <p className="text-destructive mt-0.5 text-xs">{error}</p>}
     </div>
