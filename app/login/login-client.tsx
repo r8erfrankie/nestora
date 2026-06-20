@@ -10,7 +10,12 @@ import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginClient() {
-  const [email, setEmail] = useState('');
+  const searchParams = useSearchParams();
+  const urlError = searchParams.get('error');
+  const redirectTo = searchParams.get('redirectTo') ?? '';
+  const emailParam = searchParams.get('email') ?? '';
+
+  const [email, setEmail] = useState(emailParam);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -22,10 +27,6 @@ export default function LoginClient() {
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
-
-  const searchParams = useSearchParams();
-  const urlError = searchParams.get('error');
-  const redirectTo = searchParams.get('redirectTo') ?? '';
 
   // Live computed validation for enabling the submit button and showing feedback
   const trimmedEmail = email.trim();

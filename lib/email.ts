@@ -84,7 +84,9 @@ export async function sendTenantInviteEmail({
   propertyName: string;
   joinCode: string;
 }) {
-  const acceptUrl = `${APP_URL}/tenant-onboarding?join=${joinCode}`;
+  // Route through /login so the tenant's email is pre-filled and redirectTo
+  // carries the join code through the magic-link round-trip.
+  const acceptUrl = `${APP_URL}/login?email=${encodeURIComponent(to)}&redirectTo=${encodeURIComponent(`/tenant-onboarding?join=${joinCode}`)}`;
 
   await resend.emails.send({
     from: FROM,
