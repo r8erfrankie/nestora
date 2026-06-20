@@ -62,6 +62,10 @@ export default async function TenantDashboardPage() {
 
   if (profile?.role !== 'tenant') redirect('/');
 
+  // Invited tenants who just authenticated for the first time land here before
+  // completing their profile. Route them to onboarding so they can set name + phone.
+  if (!profile?.full_name) redirect('/tenant-onboarding');
+
   const fullName = profile?.full_name as string | null;
   const firstName = fullName ? fullName.trim().split(/\s+/)[0] : null;
   const greeting = getGreeting();

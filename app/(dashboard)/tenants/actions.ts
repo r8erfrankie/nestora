@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { sendTenantAccessGrantedEmail, sendTenantInviteEmail } from '@/lib/email';
 
 export async function convertToWorkOrder(
@@ -231,6 +231,60 @@ export async function inviteTenantByEmail(email: string, propertyId: string, uni
 
   const unitValue = unit?.trim() || null;
 
+  // ── Generate a one-time magic link to embed directly in the invite email ───────
+  // Using the admin API's generateLink() means:
+  //   1. The link in our Resend email IS the magic link — one click, no second email.
+  //   2. The admin API's redirectTo is not subject to the Supabase URL allowlist,
+  //      so ?next= is reliably preserved through to the auth callback.
+  //   3. For brand-new users, generateLink type='invite' creates their Supabase
+  //      account, giving us a user ID to pre-assign role='tenant' immediately so
+  //      they skip /select-role after clicking the link.
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://gonestora.app';
+  const callbackWithNext = `${APP_URL}/auth/callback?next=${encodeURIComponent('/tenant-onboarding')}`;
+  const admin = createAdminClient();
+  // Fallback URL used only when generateLink fails entirely.
+  let acceptUrl = `${APP_URL}/tenant-onboarding?join=${joinCode}`;
+
+  try {
+    // type='invite' creates a new Supabase user; errors if the user already exists.
+    const { data: inviteData, error: inviteErr } = await admin.auth.admin.generateLink({
+      type: 'invite',
+      email: normalizedEmail,
+      options: { redirectTo: callbackWithNext },
+    });
+
+    if (!inviteErr && inviteData?.properties?.action_link) {
+      acceptUrl = inviteData.properties.action_link;
+      // Pre-assign tenant role so the auth callback routes to /tenant (not /select-role).
+      // The handle_new_user trigger creates the profile row; we just set the role.
+      await admin
+        .from('profiles')
+        .update({ role: 'tenant' })
+        .eq('id', inviteData.user.id)
+        .is('role', null);
+    } else {
+      // User already has a Supabase account — generate a magic link for them instead.
+      const { data: magicData } = await admin.auth.admin.generateLink({
+        type: 'magiclink',
+        email: normalizedEmail,
+        options: { redirectTo: callbackWithNext },
+      });
+      if (magicData?.properties?.action_link) {
+        acceptUrl = magicData.properties.action_link;
+        // Pre-assign role if the existing user hasn't chosen one yet.
+        if (magicData.user?.id) {
+          await admin
+            .from('profiles')
+            .update({ role: 'tenant' })
+            .eq('id', magicData.user.id)
+            .is('role', null);
+        }
+      }
+    }
+  } catch (e) {
+    console.error('[inviteTenantByEmail] generateLink failed, using join-code URL fallback', e);
+  }
+
   // Check all statuses — UNIQUE (property_id, tenant_email) means we handle
   // every case explicitly rather than silently stomping on existing rows.
   const { data: existing } = await supabase
@@ -265,14 +319,14 @@ export async function inviteTenantByEmail(email: string, propertyId: string, uni
         (err) => { console.error('Access-granted email failed:', err); }
       );
     } else {
-      sendTenantInviteEmail({ to: normalizedEmail, propertyName: property.name as string, joinCode }).catch(
+      sendTenantInviteEmail({ to: normalizedEmail, propertyName: property.name as string, acceptUrl }).catch(
         (err) => { console.error('Invite email failed:', err); }
       );
     }
   } else if (existing?.status === 'removed' || existing?.status === 'declined') {
     // Re-invite: reset and approve in one step.
     // tenant_id is cleared so the tenant re-links their account when they accept.
-    const { error } = await supabase
+    const { error } = await admin
       .from('tenant_property_links')
       .update({
         status: 'approved',
@@ -284,7 +338,7 @@ export async function inviteTenantByEmail(email: string, propertyId: string, uni
       .eq('id', existing.id)
       .eq('landlord_id', user.id);
     if (error) throw new Error(error.message);
-    sendTenantInviteEmail({ to: normalizedEmail, propertyName: property.name as string, joinCode }).catch(
+    sendTenantInviteEmail({ to: normalizedEmail, propertyName: property.name as string, acceptUrl }).catch(
       (err) => { console.error('Invite email failed:', err); }
     );
   } else {
@@ -300,7 +354,7 @@ export async function inviteTenantByEmail(email: string, propertyId: string, uni
       unit: unitValue,
     });
     if (error) throw new Error(error.message);
-    sendTenantInviteEmail({ to: normalizedEmail, propertyName: property.name as string, joinCode }).catch(
+    sendTenantInviteEmail({ to: normalizedEmail, propertyName: property.name as string, acceptUrl }).catch(
       (err) => { console.error('Invite email failed:', err); }
     );
   }
