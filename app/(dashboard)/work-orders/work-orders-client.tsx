@@ -116,6 +116,7 @@ export function WorkOrdersClient({
   properties,
   contractors,
   archivedWorkOrderIds,
+  linkedWorkOrderIds = [],
   loadError,
   autoOpenCreate = false,
 }: {
@@ -123,6 +124,7 @@ export function WorkOrdersClient({
   properties: Property[];
   contractors: Contractor[];
   archivedWorkOrderIds: string[];
+  linkedWorkOrderIds?: string[];
   loadError?: { message?: string; details?: string; hint?: string; code?: string } | null;
   autoOpenCreate?: boolean;
 }) {
@@ -225,6 +227,9 @@ export function WorkOrdersClient({
       'Failed to load work orders. Make sure you have run supabase/work-orders.sql in your Supabase dashboard.'
     : null;
 
+
+  // Set for O(1) banner/icon lookups — derived from maintenance_requests.converted_to_work_order_id
+  const linkedSet = useMemo(() => new Set(linkedWorkOrderIds), [linkedWorkOrderIds]);
 
   const activeWorkOrders = useMemo(
     () => workOrders.filter((wo) => !archivedIds.has(wo.id)),
@@ -1031,7 +1036,7 @@ export function WorkOrdersClient({
                   <TableCell className="max-w-[160px] font-medium" title={wo.title}>
                     <span className="flex min-w-0 items-center gap-1.5">
                       <span className="truncate">{wo.title}</span>
-                      {wo.maintenance_request_id && (
+                      {linkedSet.has(wo.id) && (
                         <span title="Converted from a maintenance request">
                           <ClipboardList className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
                         </span>
@@ -1514,7 +1519,7 @@ export function WorkOrdersClient({
 
               <div className="space-y-6">
                 {/* Maintenance request origin banner */}
-                {selectedWorkOrder.maintenance_request_id && (
+                {linkedSet.has(selectedWorkOrder.id) && (
                   <div className="bg-muted/50 flex items-center gap-2 rounded-md px-3 py-2 text-sm">
                     <ClipboardList className="text-muted-foreground h-4 w-4 shrink-0" />
                     <span className="text-muted-foreground min-w-0 flex-1">
