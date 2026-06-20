@@ -128,6 +128,46 @@ export async function approveTenantRequest(linkId: string) {
   revalidatePath('/tenants');
 }
 
+export async function removeTenant(linkId: string, closeRequests: boolean): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Fetch the link to get property_id + tenant_email for the optional request update.
+  // .eq('landlord_id', user.id) is an explicit ownership guard on top of RLS.
+  const { data: link } = await supabase
+    .from('tenant_property_links')
+    .select('id, property_id, tenant_email')
+    .eq('id', linkId)
+    .eq('landlord_id', user.id)
+    .single();
+
+  if (!link) throw new Error('Tenant link not found');
+
+  const { error } = await supabase
+    .from('tenant_property_links')
+    .update({ status: 'removed' })
+    .eq('id', linkId)
+    .eq('landlord_id', user.id);
+
+  if (error) throw new Error(error.message);
+
+  if (closeRequests) {
+    // Silently resolve open requests — removal succeeds even if this fails.
+    await supabase
+      .from('maintenance_requests')
+      .update({ status: 'Resolved' })
+      .eq('property_id', link.property_id)
+      .eq('tenant_email', link.tenant_email)
+      .in('status', ['Submitted', 'In Progress'])
+      .then(() => null);
+  }
+
+  revalidatePath('/tenants');
+}
+
 export async function rejectTenantRequest(linkId: string) {
   const supabase = await createClient();
   const {

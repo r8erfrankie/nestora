@@ -33,6 +33,7 @@ import {
   ExternalLink,
   Loader2,
   QrCode,
+  UserX,
   Wrench,
   UserCheck,
   UserPlus,
@@ -41,7 +42,7 @@ import {
 import Link from 'next/link';
 import { timeAgo } from '@/lib/utils';
 import { PhotoLightbox } from '@/components/PhotoLightbox';
-import { approveTenantRequest, convertToWorkOrder, inviteTenantByEmail, rejectTenantRequest } from './actions';
+import { approveTenantRequest, convertToWorkOrder, inviteTenantByEmail, rejectTenantRequest, removeTenant } from './actions';
 
 export type PropertySummary = {
   id: string;
@@ -108,9 +109,17 @@ interface TenantsClientProps {
   expandRequest?: string | null;
 }
 
+type RemoveTarget = {
+  linkId: string;
+  tenantEmail: string;
+  tenantName: string | null;
+  propertyName: string;
+};
+
 export function TenantsClient({ pendingLinks, approvedLinks, properties, maintenanceRequests, expandRequest }: TenantsClientProps) {
   const router = useRouter();
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<RemoveTarget | null>(null);
 
   // Pre-expand the target request when arriving via deep link; verify it exists first.
   const validExpandId =
@@ -132,11 +141,11 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
 
   // Group approved links by property for the summary section.
   const approvedByProperty = approvedLinks.reduce<
-    Record<string, { property: PropertySummary | null; tenants: { email: string; name: string | null; unit: string | null }[] }>
+    Record<string, { property: PropertySummary | null; tenants: { linkId: string; email: string; name: string | null; unit: string | null }[] }>
   >((acc, link) => {
     const key = link.property_id;
     if (!acc[key]) acc[key] = { property: link.property, tenants: [] };
-    acc[key].tenants.push({ email: link.tenant_email, name: link.tenant_name, unit: link.unit });
+    acc[key].tenants.push({ linkId: link.id, email: link.tenant_email, name: link.tenant_name, unit: link.unit });
     return acc;
   }, {});
 
@@ -205,7 +214,7 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
                 </div>
                 {/* Tenant rows */}
                 <div className="divide-y">
-                  {tenants.map(({ email, name, unit }) => {
+                  {tenants.map(({ linkId, email, name, unit }) => {
                     const propUnit = property?.name
                       ? unit
                         ? `${property.name} • Unit ${unit}`
@@ -223,6 +232,22 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
                             <p className="text-muted-foreground truncate text-xs">{propUnit}</p>
                           )}
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-muted-foreground h-7 w-7 shrink-0 p-0 hover:text-destructive"
+                          title="Remove tenant"
+                          onClick={() =>
+                            setRemoveTarget({
+                              linkId,
+                              tenantEmail: email,
+                              tenantName: name,
+                              propertyName: property?.name ?? 'Property',
+                            })
+                          }
+                        >
+                          <UserX className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
                     );
                   })}
@@ -287,6 +312,7 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
       )}
 
       <InviteModal open={inviteOpen} onOpenChange={setInviteOpen} properties={properties} />
+      <RemoveTenantDialog target={removeTarget} onClose={() => setRemoveTarget(null)} />
     </div>
   );
 }
@@ -559,6 +585,122 @@ function RequestRow({
         </div>
       </div>
     </div>
+  );
+}
+
+// ── Remove tenant dialog ──────────────────────────────────────────────────────
+
+function RemoveTenantDialog({
+  target,
+  onClose,
+}: {
+  target: RemoveTarget | null;
+  onClose: () => void;
+}) {
+  const [closeRequests, setCloseRequests] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState('');
+
+  // Reset options whenever a new target is set.
+  useEffect(() => {
+    setCloseRequests(false);
+    setError('');
+  }, [target]);
+
+  const handleRemove = () => {
+    if (!target) return;
+    startTransition(async () => {
+      try {
+        await removeTenant(target.linkId, closeRequests);
+        onClose();
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to remove tenant.');
+      }
+    });
+  };
+
+  const tenantLabel = target?.tenantName ?? target?.tenantEmail ?? '';
+
+  return (
+    <Dialog open={!!target} onOpenChange={(open) => !open && !isPending && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Remove Tenant?</DialogTitle>
+          <DialogDescription>
+            <strong>{tenantLabel}</strong> will lose access to{' '}
+            <strong>{target?.propertyName}</strong>. You can re-invite them at any time.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-2">
+          {(
+            [
+              {
+                value: false,
+                label: 'Keep maintenance history',
+                description: 'Their past requests remain visible in your maintenance log.',
+              },
+              {
+                value: true,
+                label: 'Close open requests',
+                description: 'Active requests (Submitted / In Progress) will be marked as Resolved.',
+              },
+            ] as const
+          ).map(({ value, label, description }) => (
+            <button
+              key={String(value)}
+              type="button"
+              onClick={() => setCloseRequests(value)}
+              className={`w-full rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                closeRequests === value
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-muted-foreground/40'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
+                    closeRequests === value ? 'border-primary' : 'border-muted-foreground/40'
+                  }`}
+                >
+                  {closeRequests === value && (
+                    <div className="h-2 w-2 rounded-full bg-primary" />
+                  )}
+                </div>
+                <p className="text-sm font-medium">{label}</p>
+                {value === false && (
+                  <span className="ml-auto text-xs text-muted-foreground">(default)</span>
+                )}
+              </div>
+              <p className="text-muted-foreground mt-0.5 pl-6 text-xs">{description}</p>
+            </button>
+          ))}
+        </div>
+
+        {error && <p className="text-destructive text-sm">{error}</p>}
+
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onClose}
+            disabled={isPending}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={handleRemove}
+            disabled={isPending}
+            className="gap-1.5"
+          >
+            {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            Remove Tenant
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
