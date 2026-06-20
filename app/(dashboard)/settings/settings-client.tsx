@@ -101,8 +101,9 @@ export function SettingsClient({ email, role, fullName, phone: initialPhone, ecN
           </CardDescription>
         </CardHeader>
         <Separator />
-        <CardContent className="pt-5 space-y-4">
-          <div className="space-y-2">
+        <CardContent className="pt-5 space-y-6">
+          {/* Full name */}
+          <div className="space-y-1.5">
             <label className="text-sm font-medium">Full name</label>
             <Input
               value={name}
@@ -116,22 +117,30 @@ export function SettingsClient({ email, role, fullName, phone: initialPhone, ecN
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">Email</label>
-            <div className="flex items-center gap-2">
-              <Mail className="text-muted-foreground h-4 w-4" />
-              <span className="text-sm">{email}</span>
-              <Badge variant="secondary" className="text-xs">verified</Badge>
-            </div>
-            <p className="text-muted-foreground text-xs">Email is managed by your magic link login and cannot be changed here.</p>
-          </div>
+          {isTenant ? (
+            <div className="space-y-5 border-t pt-5">
+              {/* Section heading */}
+              <div>
+                <h3 className="text-sm font-semibold">Contact Information</h3>
+                <p className="text-muted-foreground mt-0.5 text-xs">
+                  How landlords and the platform can reach you.
+                </p>
+              </div>
 
-          {isTenant && (
-            <div className="space-y-4 border-t pt-4">
-              <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-                Contact info
-              </p>
+              {/* Email (read-only) */}
+              <div className="space-y-1.5">
+                <label className="text-muted-foreground text-sm font-medium">Email</label>
+                <div className="flex items-center gap-2">
+                  <Mail className="text-muted-foreground h-4 w-4" />
+                  <span className="text-sm">{email}</span>
+                  <Badge variant="secondary" className="text-xs">verified</Badge>
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  Managed by magic link login — cannot be changed here.
+                </p>
+              </div>
 
+              {/* Phone */}
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">
                   Phone <span className="text-muted-foreground font-normal">(optional)</span>
@@ -149,10 +158,14 @@ export function SettingsClient({ email, role, fullName, phone: initialPhone, ecN
                 </div>
               </div>
 
-              <div className="space-y-3 border-t pt-3">
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-                  Emergency contact <span className="font-normal normal-case">(optional)</span>
-                </p>
+              {/* Emergency Contact */}
+              <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold">Emergency Contact</h3>
+                  <p className="text-muted-foreground mt-0.5 text-xs">
+                    Shared with your landlord if needed. Optional.
+                  </p>
+                </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">Name</label>
                   <Input
@@ -185,6 +198,19 @@ export function SettingsClient({ email, role, fullName, phone: initialPhone, ecN
               {phoneError && (
                 <p className="text-destructive text-xs">{phoneError}</p>
               )}
+            </div>
+          ) : (
+            /* Non-tenant: email only */
+            <div className="space-y-1.5 border-t pt-5">
+              <label className="text-muted-foreground text-sm font-medium">Email</label>
+              <div className="flex items-center gap-2">
+                <Mail className="text-muted-foreground h-4 w-4" />
+                <span className="text-sm">{email}</span>
+                <Badge variant="secondary" className="text-xs">verified</Badge>
+              </div>
+              <p className="text-muted-foreground text-xs">
+                Email is managed by your magic link login and cannot be changed here.
+              </p>
             </div>
           )}
         </CardContent>
