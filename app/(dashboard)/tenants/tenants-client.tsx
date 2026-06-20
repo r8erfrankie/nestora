@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
+import { formatPhone } from '@/lib/phone';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -482,7 +483,7 @@ function RequestRow({
                   <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
                     Phone
                   </p>
-                  <p className="mt-0.5">{request.phone}</p>
+                  <p className="mt-0.5">{formatPhone(request.phone) ?? request.phone}</p>
                 </div>
               )}
               {request.category && (

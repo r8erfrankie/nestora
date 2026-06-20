@@ -8,7 +8,7 @@ create table if not exists public.profiles (
   email text,
   role text check (role in ('landlord', 'contractor')),  -- NULL until user selects a role
   full_name text,
-  phone text,
+  phone text, -- E.164 format (e.g. +15551234567)
   company_name text,
   trade text,
   notes text,

@@ -128,3 +128,84 @@
     @apply font-sans;
   }
 }
+
+/* ── PhoneInput component ──────────────────────────────────────────────────── */
+/* Styles the react-phone-number-input country selector to match our Input.    */
+
+.phone-input {
+  display: flex;
+  align-items: stretch;
+}
+
+.phone-input .PhoneInputCountry {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.625rem;
+  border: 1px solid var(--border);
+  border-right: none;
+  border-top-left-radius: calc(var(--radius) - 2px);
+  border-bottom-left-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.phone-input .PhoneInputCountry:hover {
+  background-color: color-mix(in oklch, var(--muted) 80%, transparent);
+}
+
+/* Keyboard focus ring on the invisible select */
+.phone-input .PhoneInputCountry:has(.PhoneInputCountrySelect:focus-visible) {
+  outline: 3px solid var(--ring);
+  outline-offset: 0;
+  z-index: 1;
+}
+
+/* The invisible native <select> that handles country picking */
+.phone-input .PhoneInputCountrySelect {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+}
+
+/* Flag emoji or SVG container */
+.phone-input .PhoneInputCountryIcon {
+  font-size: 1.15rem;
+  line-height: 1;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.phone-input .PhoneInputCountryIcon > img,
+.phone-input .PhoneInputCountryIcon > svg {
+  width: 1.25rem;
+  height: 0.875rem;
+  object-fit: cover;
+  display: block;
+  border-radius: 2px;
+}
+
+/* Chevron arrow */
+.phone-input .PhoneInputCountrySelectArrow {
+  display: block;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid currentColor;
+  opacity: 0.4;
+  flex-shrink: 0;
+}
+
+/* Disabled state */
+.phone-input:has(input:disabled) .PhoneInputCountry {
+  opacity: 0.5;
+  pointer-events: none;
+}

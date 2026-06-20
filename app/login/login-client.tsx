@@ -25,6 +25,7 @@ export default function LoginClient() {
 
   const searchParams = useSearchParams();
   const urlError = searchParams.get('error');
+  const redirectTo = searchParams.get('redirectTo') ?? '';
 
   // Live computed validation for enabling the submit button and showing feedback
   const trimmedEmail = email.trim();
@@ -108,11 +109,14 @@ export default function LoginClient() {
 
     try {
       const supabase = createClient();
+      // Forward the post-login destination through the magic link so the auth
+      // callback can redirect there instead of the default role-based route.
+      const callbackUrl = redirectTo
+        ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`
+        : `${window.location.origin}/auth/callback`;
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email: trimmed,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
+        options: { emailRedirectTo: callbackUrl },
       });
 
       if (otpError) {

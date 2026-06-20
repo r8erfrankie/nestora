@@ -10,6 +10,8 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { deleteWorkOrder, createWorkOrder, updateWorkOrderStatus, updateContractorAssignment, updateWorkOrderBudget } from './crud-actions';
 import { createContractor } from '../teams/contractor-actions';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
+import { formatPhone, isValidPhoneNumber } from '@/lib/phone';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
@@ -340,14 +342,14 @@ export function WorkOrdersClient({
       await updateContractorAssignment(selectedWorkOrder.id, {
         assigned_contractor: contractorEdit.name.trim() || null,
         assigned_contractor_email: contractorEdit.email.trim() || null,
-        assigned_contractor_phone: contractorEdit.phone.trim() || null,
+        assigned_contractor_phone: contractorEdit.phone || null,
         trade: effectiveTrade,
       });
       const updated: WorkOrder = {
         ...selectedWorkOrder,
         assigned_contractor: contractorEdit.name.trim() || null,
         assigned_contractor_email: contractorEdit.email.trim() || null,
-        assigned_contractor_phone: contractorEdit.phone.trim() || null,
+        assigned_contractor_phone: contractorEdit.phone || null,
         trade: effectiveTrade,
       };
       setSelectedWorkOrder(updated);
@@ -391,7 +393,7 @@ export function WorkOrdersClient({
       const inserted = (await createContractor({
         name: addContractorForm.name.trim(),
         email: addContractorForm.email.trim() || null,
-        phone: addContractorForm.phone.trim() || null,
+        phone: addContractorForm.phone || null,
         trade,
       })) as Contractor;
       setLocalContractors((prev) =>
@@ -761,7 +763,7 @@ export function WorkOrdersClient({
         property_id: form.property_id,
         assigned_contractor: form.assigned_contractor.trim() || null,
         assigned_contractor_email: form.assigned_contractor_email.trim() || null,
-        assigned_contractor_phone: form.assigned_contractor_phone.trim() || null,
+        assigned_contractor_phone: form.assigned_contractor_phone || null,
         trade: effectiveTrade,
         cost: form.cost ? parseFloat(form.cost) : 0,
         propertyName: prop?.name || null,
@@ -1367,15 +1369,12 @@ export function WorkOrdersClient({
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Phone</label>
-                <Input
-                  type="tel"
-                  value={form.assigned_contractor_phone}
-                  onChange={(e) => {
-                    updateForm('assigned_contractor_phone', e.target.value);
+                <PhoneInput
+                  value={form.assigned_contractor_phone || undefined}
+                  onChange={(v) => {
+                    updateForm('assigned_contractor_phone', v ?? '');
                     updateForm('contractorKey', '');
                   }}
-                  placeholder="555-123-4567"
-                  className="!h-11 sm:!h-8"
                 />
               </div>
             </div>
@@ -1491,12 +1490,9 @@ export function WorkOrdersClient({
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Phone</label>
-                <Input
-                  type="tel"
-                  value={addContractorForm.phone}
-                  onChange={(e) => setAddContractorForm((p) => ({ ...p, phone: e.target.value }))}
-                  placeholder="555-123-4567"
-                  className="!h-11 sm:!h-8"
+                <PhoneInput
+                  value={addContractorForm.phone || undefined}
+                  onChange={(v) => setAddContractorForm((p) => ({ ...p, phone: v ?? '' }))}
                 />
               </div>
             </div>
@@ -1731,14 +1727,9 @@ export function WorkOrdersClient({
                           </div>
                           <div className="space-y-1.5">
                             <label className="text-xs font-medium">Phone</label>
-                            <Input
-                              type="tel"
-                              value={contractorEdit.phone}
-                              onChange={(e) =>
-                                setContractorEdit((p) => ({ ...p, phone: e.target.value }))
-                              }
-                              placeholder="555-123-4567"
-                              className="!h-11 sm:!h-8"
+                            <PhoneInput
+                              value={contractorEdit.phone || undefined}
+                              onChange={(v) => setContractorEdit((p) => ({ ...p, phone: v ?? '' }))}
                             />
                           </div>
                           <div className="space-y-1.5 sm:col-span-2">
@@ -1807,7 +1798,7 @@ export function WorkOrdersClient({
                         {selectedWorkOrder.assigned_contractor_phone && (
                           <span className="text-muted-foreground flex items-center gap-1 text-xs">
                             <Phone className="h-3 w-3" />
-                            {selectedWorkOrder.assigned_contractor_phone}
+                            {formatPhone(selectedWorkOrder.assigned_contractor_phone) ?? selectedWorkOrder.assigned_contractor_phone}
                           </span>
                         )}
                         {selectedWorkOrder.trade && (

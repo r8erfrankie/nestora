@@ -5,6 +5,8 @@ import { HardHat, ArrowRight, CheckCircle } from 'lucide-react';
 import { saveContractorOnboarding } from '@/app/actions/onboarding-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
+import { isValidPhoneNumber } from '@/lib/phone';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -23,7 +25,7 @@ const TRADES = [
 export function ContractorOnboardingClient() {
   const [fullName, setFullName] = useState('');
   const [trade, setTrade] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState<string | undefined>(undefined);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -37,7 +39,7 @@ export function ContractorOnboardingClient() {
       await saveContractorOnboarding({
         full_name: fullName,
         trade: trade || null,
-        phone: phone || null,
+        phone: phone && isValidPhoneNumber(phone) ? phone : null,
         notes: notes || null,
       });
     } catch (err: any) {
@@ -96,13 +98,7 @@ export function ContractorOnboardingClient() {
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Phone number</label>
-                <Input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+1 555 000 0000"
-                  disabled={loading}
-                />
+                <PhoneInput value={phone} onChange={setPhone} disabled={loading} />
               </div>
 
               <div className="space-y-2">

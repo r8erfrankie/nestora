@@ -23,6 +23,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
+import { formatPhone, isValidPhoneNumber } from '@/lib/phone';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -124,12 +126,16 @@ export function TeamsClient({ initialContractors }: { initialContractors: Contra
       setFormError('Contractor name is required.');
       return;
     }
+    if (form.phone && !isValidPhoneNumber(form.phone)) {
+      setFormError('Please enter a valid phone number or leave it blank.');
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
         name: form.name.trim(),
         email: form.email.trim() || null,
-        phone: form.phone.trim() || null,
+        phone: form.phone || null,
         trade: effectiveTrade(form),
         notes: form.notes.trim() || null,
       };
@@ -214,7 +220,7 @@ export function TeamsClient({ initialContractors }: { initialContractors: Contra
                     {c.phone && (
                       <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
                         <Phone className="h-3 w-3 shrink-0" />
-                        <span>{c.phone}</span>
+                        <span>{formatPhone(c.phone) ?? c.phone}</span>
                       </div>
                     )}
                     {c.notes && (
@@ -309,12 +315,9 @@ export function TeamsClient({ initialContractors }: { initialContractors: Contra
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Phone</label>
-                <Input
-                  type="tel"
-                  value={form.phone}
-                  onChange={(e) => update('phone', e.target.value)}
-                  placeholder="e.g. 555-123-4567"
-                  className="!h-11 sm:!h-8"
+                <PhoneInput
+                  value={form.phone || undefined}
+                  onChange={(v) => update('phone', v ?? '')}
                 />
               </div>
             </div>

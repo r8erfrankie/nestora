@@ -9,6 +9,8 @@ import {
 } from '@/app/actions/onboarding-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
+import { isValidPhoneNumber } from '@/lib/phone';
 import {
   Select,
   SelectContent,
@@ -42,7 +44,7 @@ export function Onboarding({ greetingName }: OnboardingProps) {
 
   // Profile step
   const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState<string | undefined>(undefined);
   const [company, setCompany] = useState('');
 
   // Property step
@@ -63,7 +65,7 @@ export function Onboarding({ greetingName }: OnboardingProps) {
     try {
       await saveOnboardingProfile({
         full_name: fullName.trim(),
-        phone: phone.trim() || null,
+        phone: phone && isValidPhoneNumber(phone) ? phone : null,
         company_name: company.trim() || null,
       });
       setStep('property');
@@ -206,13 +208,7 @@ export function Onboarding({ greetingName }: OnboardingProps) {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Phone (optional)</label>
-                <Input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+1 555 000 0000"
-                  disabled={loading}
-                />
+                <PhoneInput value={phone} onChange={setPhone} disabled={loading} />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Company name (optional)</label>

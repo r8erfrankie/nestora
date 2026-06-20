@@ -1,9 +1,11 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { isValidPhoneNumber } from 'libphonenumber-js'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PhoneInputField } from '@/components/ui/phone-input'
 import { Layers, Building2, Clock, AlertCircle, UserX, ArrowLeft, XCircle } from 'lucide-react'
 
 export const metadata = { title: 'Set Up Your Tenant Account' }
@@ -50,8 +52,13 @@ export default async function TenantOnboardingPage({
     } = await sc.auth.getUser()
     if (!u?.email) redirect('/login')
 
+    // Phone is required and must be a valid E.164 number.
+    if (!phone || !isValidPhoneNumber(phone)) {
+      redirect('/tenant-onboarding?err=phone')
+    }
+
     if (fullName || phone) {
-      const updates: Record<string, string> = {}
+      const updates: Record<string, string> = { role: 'tenant' }
       if (fullName) updates.full_name = fullName
       if (phone) updates.phone = phone
       const { error } = await sc.from('profiles').update(updates).eq('id', u.id)
@@ -645,21 +652,18 @@ function ProfileCompletionForm({
         <label htmlFor="phone" className="text-sm font-medium">
           Phone number
         </label>
-        <Input
-          id="phone"
-          name="phone"
-          type="tel"
-          placeholder="(555) 123-4567"
-          defaultValue={prefillPhone ?? ''}
-          required
-        />
+        <PhoneInputField name="phone" id="phone" defaultValue={prefillPhone} />
       </div>
 
-      {err === '1' && (
+      {err === 'phone' ? (
+        <p className="text-destructive text-center text-sm">
+          Please enter a valid phone number.
+        </p>
+      ) : err === '1' ? (
         <p className="text-destructive text-center text-sm">
           Something went wrong. Please try again.
         </p>
-      )}
+      ) : null}
 
       <Button type="submit" className="w-full">
         Continue to dashboard
@@ -728,13 +732,7 @@ function RequestForm({
             Phone{' '}
             <span className="text-muted-foreground font-normal">(optional)</span>
           </label>
-          <Input
-            id="phone"
-            name="phone"
-            type="tel"
-            placeholder="(555) 123-4567"
-            defaultValue={prefillPhone ?? ''}
-          />
+          <PhoneInputField name="phone" id="phone" defaultValue={prefillPhone} />
         </div>
       </div>
 

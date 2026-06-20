@@ -7,6 +7,10 @@ export async function GET(request: Request) {
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/'
 
+  // Accept only relative URLs to prevent open redirects.
+  // A bare '/' means "no specific destination" so fall through to role defaults.
+  const safeNext = next.startsWith('/') && next.length > 1 ? next : null
+
   if (code) {
     const cookieStore = await cookies()
     const supabase = createServerClient(
@@ -64,7 +68,12 @@ export async function GET(request: Request) {
           // The proxy skips its DB fallback on isRoleFlow pages (including
           // /select-role), so there is no self-healing path once the stale
           // cookie is present. Expiring it here breaks the loop at the source.
-          const res = NextResponse.redirect(`${origin}/select-role`)
+          //
+          // If safeNext is set (e.g. a landlord invite link), go there directly —
+          // the destination page (tenant-onboarding) will assign the role when
+          // the tenant completes their profile.
+          const target = safeNext ?? '/select-role'
+          const res = NextResponse.redirect(`${origin}${target}`)
           res.cookies.set('nestora_role', '', {
             httpOnly: true,
             sameSite: 'lax',
@@ -74,16 +83,19 @@ export async function GET(request: Request) {
           return res
         }
 
-        const destination =
-          role === 'contractor' ? `${origin}/contractor` :
-          role === 'tenant'     ? `${origin}/tenant`     :
-          `${origin}${next}`
+        // If the magic link carried a specific destination (e.g. an invite),
+        // honour it even for users who already have a role.
+        const destination = safeNext
+          ? `${origin}${safeNext}`
+          : role === 'contractor' ? `${origin}/contractor`
+          : role === 'tenant'     ? `${origin}/tenant`
+          : `${origin}/`
         const res = NextResponse.redirect(destination)
         res.cookies.set('nestora_role', role, roleCookieOptions)
         return res
       }
 
-      return NextResponse.redirect(`${origin}${next}`)
+      return NextResponse.redirect(`${origin}${safeNext ?? '/'}`)
     }
   }
 

@@ -84,7 +84,7 @@ export async function sendTenantInviteEmail({
   propertyName: string;
   joinCode: string;
 }) {
-  const acceptUrl = `${APP_URL}/join/${joinCode}`;
+  const acceptUrl = `${APP_URL}/tenant-onboarding?join=${joinCode}`;
 
   await resend.emails.send({
     from: FROM,
