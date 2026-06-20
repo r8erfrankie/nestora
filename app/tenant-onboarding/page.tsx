@@ -11,9 +11,9 @@ export const metadata = { title: 'Set Up Your Tenant Account' }
 export default async function TenantOnboardingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ join?: string }>
+  searchParams: Promise<{ join?: string; err?: string }>
 }) {
-  const { join } = await searchParams
+  const { join, err } = await searchParams
   // Normalize to uppercase; treat empty/missing as no code
   const joinCode = join?.trim().toUpperCase() || null
 
@@ -52,23 +52,46 @@ export default async function TenantOnboardingPage({
     } = await sc.auth.getUser()
     if (!u?.email) redirect('/login')
 
-    // Idempotent — skip if a link already exists for this (property, email) pair
+    const email = u.email.toLowerCase()
+    const errUrl = `/tenant-onboarding?join=${code}&err=1`
+
+    // Check for any existing link — including 'removed' ones.
+    // .maybeSingle() returns null (no error) when zero rows match, unlike
+    // .single() which returns PGRST116. We need to see removed links here
+    // because (property_id, tenant_email) has a UNIQUE constraint — a plain
+    // INSERT over a removed row would silently fail with a 409 conflict.
     const { data: existing } = await sc
       .from('tenant_property_links')
-      .select('id')
+      .select('id, status')
       .eq('property_id', propertyId)
-      .eq('tenant_email', u.email.toLowerCase())
-      .single()
+      .eq('tenant_email', email)
+      .maybeSingle()
 
-    if (!existing) {
-      await sc.from('tenant_property_links').insert({
-        landlord_id: landlordId,
-        property_id: propertyId,
-        tenant_email: u.email.toLowerCase(),
-        tenant_id: u.id,
-        status: 'pending',
-        initiated_by: 'tenant',
-      })
+    if (existing?.status === 'approved') redirect('/tenant')
+    if (existing?.status === 'pending') redirect(`/tenant-onboarding?join=${code}`)
+
+    if (existing?.status === 'removed') {
+      // Can't INSERT again due to UNIQUE constraint.
+      // Tenant RLS has no UPDATE policy, so use admin client with explicit row ID guard.
+      const admin = createAdminClient()
+      const { error } = await admin
+        .from('tenant_property_links')
+        .update({ status: 'pending', initiated_by: 'tenant', tenant_id: u.id })
+        .eq('id', existing.id)
+      if (error) redirect(errUrl)
+    } else {
+      // No existing link — INSERT via regular client (passes tenant self-request RLS).
+      const { error } = await sc
+        .from('tenant_property_links')
+        .insert({
+          landlord_id: landlordId,
+          property_id: propertyId,
+          tenant_email: email,
+          tenant_id: u.id,
+          status: 'pending',
+          initiated_by: 'tenant',
+        })
+      if (error) redirect(errUrl)
     }
 
     redirect(`/tenant-onboarding?join=${code}`)
@@ -228,6 +251,11 @@ export default async function TenantOnboardingPage({
                 Your landlord will be notified and can approve your access. Once approved, you can
                 submit maintenance requests for this property.
               </p>
+              {err === '1' && (
+                <p className="text-destructive text-sm text-center">
+                  Something went wrong. Please try again or contact your landlord.
+                </p>
+              )}
               <form action={requestPropertyAccess}>
                 <input type="hidden" name="property_id" value={property.id} />
                 <input type="hidden" name="landlord_id" value={property.user_id} />
