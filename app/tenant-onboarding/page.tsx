@@ -69,13 +69,27 @@ export default async function TenantOnboardingPage({
     // a plain INSERT over an existing row would silently fail with a 409 conflict.
     const { data: existing } = await sc
       .from('tenant_property_links')
-      .select('id, status')
+      .select('id, status, initiated_by, unit')
       .eq('property_id', propertyId)
       .eq('tenant_email', email)
       .maybeSingle()
 
     if (existing?.status === 'approved') redirect('/tenant')
-    if (existing?.status === 'pending') redirect(`/tenant-onboarding?join=${code}`)
+
+    if (existing?.status === 'pending') {
+      if (existing.initiated_by === 'landlord') {
+        // Tenant is accepting a landlord invite — link their account and update unit.
+        // Admin client required: tenant RLS has no UPDATE policy on this table.
+        const admin = createAdminClient()
+        const { error } = await admin
+          .from('tenant_property_links')
+          .update({ tenant_id: u.id, unit: unitValue ?? (existing.unit as string | null) })
+          .eq('id', existing.id)
+        if (error) redirect(errUrl)
+      }
+      // Redirect to show the pending state regardless of initiated_by.
+      redirect(`/tenant-onboarding?join=${code}`)
+    }
 
     if (existing?.status === 'removed' || existing?.status === 'declined') {
       // Can't INSERT again due to UNIQUE constraint. Tenant RLS has no UPDATE
@@ -150,7 +164,7 @@ export default async function TenantOnboardingPage({
   // ── Load existing links for this tenant ───────────────────────────────────────
   const { data: links } = await supabase
     .from('tenant_property_links')
-    .select('id, property_id, status, unit, initiated_by, created_at')
+    .select('id, property_id, status, unit, initiated_by, tenant_id, created_at')
     .eq('tenant_email', user.email.toLowerCase())
     .neq('status', 'removed')
     .order('created_at', { ascending: false })
@@ -235,6 +249,56 @@ export default async function TenantOnboardingPage({
                 </p>
               </CardContent>
             </Card>
+            <SignOutFooter handleSignOut={handleSignOut} />
+          </div>
+        </Wrapper>
+      )
+    }
+
+    // ── Landlord invite (not yet accepted) ────────────────────────────────────
+    // A landlord-initiated pending link with no tenant_id means the tenant
+    // hasn't filled in their details yet. Show the acceptance form.
+    if (existingLink?.status === 'pending' && existingLink?.initiated_by === 'landlord' && !existingLink?.tenant_id) {
+      return (
+        <Wrapper>
+          <div className="space-y-5">
+            <div className="text-center">
+              <h1 className="text-2xl font-semibold tracking-tight">You&apos;ve been invited</h1>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Fill in your details so your landlord can approve your access.
+              </p>
+            </div>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-start gap-3">
+                  <div className="bg-primary/10 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
+                    <Building2 className="text-primary h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <CardTitle className="text-base">{property.name}</CardTitle>
+                    {property.address && (
+                      <CardDescription className="mt-0.5">{property.address}</CardDescription>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <RequestForm
+                  action={requestPropertyAccess}
+                  propertyId={property.id}
+                  landlordId={property.user_id as string}
+                  joinCode={joinCode}
+                  prefillName={prefillName}
+                  prefillUnit={existingLink.unit as string | null}
+                  prefillPhone={prefillPhone}
+                  err={err}
+                  submitLabel="Send Request"
+                  phoneRequired
+                />
+              </CardContent>
+            </Card>
+
             <SignOutFooter handleSignOut={handleSignOut} />
           </div>
         </Wrapper>
@@ -514,6 +578,7 @@ function RequestForm({
   prefillPhone,
   err,
   submitLabel,
+  phoneRequired,
 }: {
   action: (formData: FormData) => Promise<void>
   propertyId: string
@@ -524,6 +589,7 @@ function RequestForm({
   prefillPhone: string | null
   err: string | undefined
   submitLabel: string
+  phoneRequired?: boolean
 }) {
   return (
     <form action={action} className="space-y-3">
@@ -568,6 +634,7 @@ function RequestForm({
             type="tel"
             placeholder="(555) 123-4567"
             defaultValue={prefillPhone ?? ''}
+            required={phoneRequired}
           />
         </div>
       </div>

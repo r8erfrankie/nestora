@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { sendTenantAccessGrantedEmail } from '@/lib/email';
+import { sendTenantAccessGrantedEmail, sendTenantInviteEmail } from '@/lib/email';
 
 export async function convertToWorkOrder(
   requestId: string
@@ -216,23 +216,28 @@ export async function inviteTenantByEmail(email: string, propertyId: string, uni
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  // Confirm the landlord owns this property (RLS enforces it, but we need the name).
+  // Confirm the landlord owns this property and fetch the join code for the email link.
   const { data: property } = await supabase
     .from('properties')
-    .select('id, name')
+    .select('id, name, join_code')
     .eq('id', propertyId)
     .eq('user_id', user.id)
     .single();
 
   if (!property) throw new Error('Property not found');
 
-  // Check for an existing non-removed link for this (property, email) pair.
+  const joinCode = property.join_code as string | null;
+  if (!joinCode) throw new Error('This property has no join code yet. Please try again.');
+
+  const unitValue = unit?.trim() || null;
+
+  // Check all statuses — UNIQUE (property_id, tenant_email) means we handle
+  // every case explicitly rather than silently stomping on existing rows.
   const { data: existing } = await supabase
     .from('tenant_property_links')
     .select('id, status')
     .eq('property_id', propertyId)
     .eq('tenant_email', normalizedEmail)
-    .neq('status', 'removed')
     .maybeSingle();
 
   if (existing?.status === 'approved') {
@@ -240,30 +245,46 @@ export async function inviteTenantByEmail(email: string, propertyId: string, uni
   }
 
   if (existing?.status === 'pending') {
-    // Promote the pending request to approved instead of creating a duplicate.
+    // A pending request already exists (either tenant- or landlord-initiated).
+    // Direct the landlord to the Pending Requests section to take action there
+    // rather than creating a duplicate or silently resending.
+    throw new Error(
+      'This tenant already has a pending request. Approve or decline it from the Pending Requests section.'
+    );
+  }
+
+  if (existing?.status === 'removed' || existing?.status === 'declined') {
+    // Re-invite a previously removed or declined tenant.
+    // The UNIQUE constraint means we must UPDATE rather than INSERT.
+    // Reset tenant_id so the tenant must re-accept the invitation.
     const { error } = await supabase
       .from('tenant_property_links')
-      .update({ status: 'approved', approved_at: new Date().toISOString() })
-      .eq('id', existing.id);
+      .update({
+        status: 'pending',
+        initiated_by: 'landlord',
+        unit: unitValue,
+        tenant_id: null,
+        approved_at: null,
+      })
+      .eq('id', existing.id)
+      .eq('landlord_id', user.id);
     if (error) throw new Error(error.message);
   } else {
-    // No existing link — create a new approved one.
-    // tenant_id is null because the tenant may not have a Nestora account yet;
-    // the email-based RLS policy handles their read access once they sign up.
+    // No existing link — create a new pending invite.
+    // tenant_id is omitted: the tenant links their account when they accept.
     const { error } = await supabase.from('tenant_property_links').insert({
       landlord_id: user.id,
       property_id: propertyId,
       tenant_email: normalizedEmail,
-      status: 'approved',
+      status: 'pending',
       initiated_by: 'landlord',
-      approved_at: new Date().toISOString(),
-      unit: unit?.trim() || null,
+      unit: unitValue,
     });
     if (error) throw new Error(error.message);
   }
 
-  // Non-blocking email.
-  sendTenantAccessGrantedEmail({ to: normalizedEmail, propertyName: property.name }).catch(
+  // Non-blocking invite email containing the property join link.
+  sendTenantInviteEmail({ to: normalizedEmail, propertyName: property.name as string, joinCode }).catch(
     (err) => {
       console.error('Invite email failed:', err);
     }

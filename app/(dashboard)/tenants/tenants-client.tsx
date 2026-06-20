@@ -937,8 +937,13 @@ function InviteModal({
                   }}
                   disabled={isPending}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a property" />
+                  <SelectTrigger className="w-full">
+                    {/* Base UI extracts label from nested JSX unreliably — derive from state instead */}
+                    <span className="flex flex-1 items-center text-left text-sm">
+                      {propertyId
+                        ? (properties.find((p) => p.id === propertyId)?.name ?? 'Select a property')
+                        : <span className="text-muted-foreground">Select a property</span>}
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
                     {properties.map((p) => (
