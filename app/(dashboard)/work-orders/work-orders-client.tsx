@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef } from 'react';
+import Link from 'next/link';
 import Lightbox from 'yet-another-react-lightbox';
 import Counter from 'yet-another-react-lightbox/plugins/counter';
 import { createClient } from '@/lib/supabase/client';
@@ -65,6 +66,7 @@ interface WorkOrder {
   notes?: string | null;
   cost?: number | null;
   contractor_quote?: number | null;
+  maintenance_request_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1026,8 +1028,15 @@ export function WorkOrdersClient({
                   onClick={() => openDetail(wo)}
                   className="hover:bg-muted/50 cursor-pointer"
                 >
-                  <TableCell className="max-w-[160px] truncate font-medium" title={wo.title}>
-                    {wo.title}
+                  <TableCell className="max-w-[160px] font-medium" title={wo.title}>
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate">{wo.title}</span>
+                      {wo.maintenance_request_id && (
+                        <span title="Converted from a maintenance request">
+                          <ClipboardList className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
+                        </span>
+                      )}
+                    </span>
                   </TableCell>
                   <TableCell className="max-w-[160px] truncate" title={wo.properties?.name || ''}>
                     {wo.properties?.name ||
@@ -1504,6 +1513,23 @@ export function WorkOrdersClient({
               </DialogHeader>
 
               <div className="space-y-6">
+                {/* Maintenance request origin banner */}
+                {selectedWorkOrder.maintenance_request_id && (
+                  <div className="bg-muted/50 flex items-center gap-2 rounded-md px-3 py-2 text-sm">
+                    <ClipboardList className="text-muted-foreground h-4 w-4 shrink-0" />
+                    <span className="text-muted-foreground min-w-0 flex-1">
+                      Converted from a maintenance request
+                    </span>
+                    <Link
+                      href="/tenants"
+                      onClick={closeDetail}
+                      className="text-primary shrink-0 text-xs underline-offset-4 hover:underline"
+                    >
+                      View on Tenants page →
+                    </Link>
+                  </div>
+                )}
+
                 {/* Quick Status Update */}
                 <div>
                   <label className="mb-2 block text-sm font-medium">Status</label>

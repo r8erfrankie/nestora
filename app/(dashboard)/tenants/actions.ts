@@ -40,6 +40,7 @@ export async function convertToWorkOrder(
       description: workOrderDescription,
       priority: request.priority,
       status: 'Open',
+      maintenance_request_id: requestId,
     })
     .select('id')
     .single();
