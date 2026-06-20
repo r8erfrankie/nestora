@@ -698,6 +698,7 @@ function InviteModal({
 }) {
   const [email, setEmail] = useState('');
   const [propertyId, setPropertyId] = useState('');
+  const [unit, setUnit] = useState('');
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -705,6 +706,7 @@ function InviteModal({
   const reset = () => {
     setEmail('');
     setPropertyId('');
+    setUnit('');
     setError('');
     setSuccess(false);
   };
@@ -723,7 +725,7 @@ function InviteModal({
     setError('');
     startTransition(async () => {
       try {
-        await inviteTenantByEmail(email.trim(), propertyId);
+        await inviteTenantByEmail(email.trim(), propertyId, unit);
         setSuccess(true);
         setTimeout(() => handleOpenChange(false), 1600);
       } catch (err: unknown) {
@@ -805,6 +807,19 @@ function InviteModal({
                   </SelectContent>
                 </Select>
               )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">
+                Unit <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <Input
+                type="text"
+                placeholder="e.g. 12, Unit B, Main House"
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                disabled={isPending}
+              />
             </div>
 
             {error && <p className="text-destructive text-sm">{error}</p>}

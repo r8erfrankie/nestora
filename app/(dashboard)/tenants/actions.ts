@@ -147,7 +147,7 @@ export async function rejectTenantRequest(linkId: string) {
   revalidatePath('/tenants');
 }
 
-export async function inviteTenantByEmail(email: string, propertyId: string) {
+export async function inviteTenantByEmail(email: string, propertyId: string, unit?: string) {
   const normalizedEmail = email.trim().toLowerCase();
   if (!normalizedEmail || !propertyId) throw new Error('Email and property are required');
 
@@ -198,6 +198,7 @@ export async function inviteTenantByEmail(email: string, propertyId: string) {
       status: 'approved',
       initiated_by: 'landlord',
       approved_at: new Date().toISOString(),
+      unit: unit?.trim() || null,
     });
     if (error) throw new Error(error.message);
   }
