@@ -124,6 +124,23 @@ type RemoveTarget = {
   propertyName: string;
 };
 
+function useLocalStorageToggle(key: string, defaultOpen = false): [boolean, () => void] {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(key);
+      if (stored !== null) setIsOpen(stored === 'true');
+    } catch {}
+  }, [key]);
+  const toggle = () =>
+    setIsOpen((prev) => {
+      const next = !prev;
+      try { localStorage.setItem(key, String(next)); } catch {}
+      return next;
+    });
+  return [isOpen, toggle];
+}
+
 export function TenantsClient({ pendingLinks, approvedLinks, properties, maintenanceRequests, expandRequest }: TenantsClientProps) {
   const router = useRouter();
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -176,15 +193,11 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
       </div>
 
       {/* ── Pending requests ─────────────────────────────────────────────────── */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-medium">Pending Requests</h2>
-          {pendingLinks.length > 0 && (
-            <Badge variant="secondary">{pendingLinks.length}</Badge>
-          )}
-        </div>
-        <Separator />
-
+      <CollapsibleSection
+        title="Pending Requests"
+        badge={pendingLinks.length > 0 ? <Badge variant="secondary">{pendingLinks.length}</Badge> : undefined}
+        storageKey="tenants-section-pending"
+      >
         {pendingLinks.length === 0 ? (
           <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-lg border border-dashed py-10 text-center">
             <Clock className="h-8 w-8 opacity-40" />
@@ -200,59 +213,35 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
             ))}
           </div>
         )}
-      </section>
+      </CollapsibleSection>
 
       {/* ── Approved tenants ─────────────────────────────────────────────────── */}
       {approvedLinks.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-medium">Approved Tenants</h2>
-          <Separator />
+        <CollapsibleSection
+          title="Approved Tenants"
+          badge={<Badge variant="secondary">{approvedLinks.length}</Badge>}
+          storageKey="tenants-section-approved"
+        >
           <div className="space-y-3">
             {Object.entries(approvedByProperty).map(([propertyId, { property, tenants }]) => (
-              <div key={propertyId} className="rounded-lg border">
-                {/* Property header */}
-                <div className="flex items-center gap-3 border-b px-4 py-2.5">
-                  <Building2 className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
-                  <div className="min-w-0">
-                    <span className="text-sm font-medium">{property?.name ?? 'Property'}</span>
-                    {property?.address && (
-                      <span className="text-muted-foreground ml-2 text-xs">{property.address}</span>
-                    )}
-                  </div>
-                </div>
-                {/* Tenant rows */}
-                <div className="divide-y">
-                  {tenants.map((link) => (
-                    <TenantRow
-                      key={link.id}
-                      link={link}
-                      onRemove={() =>
-                        setRemoveTarget({
-                          linkId: link.id,
-                          tenantEmail: link.tenant_email,
-                          tenantName: link.tenant_name,
-                          propertyName: link.property?.name ?? 'Property',
-                        })
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
+              <PropertyGroup
+                key={propertyId}
+                propertyId={propertyId}
+                property={property}
+                tenants={tenants}
+                onRemove={setRemoveTarget}
+              />
             ))}
           </div>
-        </section>
+        </CollapsibleSection>
       )}
 
       {/* ── Maintenance requests ─────────────────────────────────────────────── */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-medium">Maintenance Requests</h2>
-          {maintenanceRequests.length > 0 && (
-            <Badge variant="secondary">{maintenanceRequests.length}</Badge>
-          )}
-        </div>
-        <Separator />
-
+      <CollapsibleSection
+        title="Maintenance Requests"
+        badge={maintenanceRequests.length > 0 ? <Badge variant="secondary">{maintenanceRequests.length}</Badge> : undefined}
+        storageKey="tenants-section-maintenance"
+      >
         {maintenanceRequests.length === 0 ? (
           <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-lg border border-dashed py-10 text-center">
             <Wrench className="h-8 w-8 opacity-40" />
@@ -274,30 +263,144 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
             ))}
           </div>
         )}
-      </section>
+      </CollapsibleSection>
 
       {/* ── Property join codes ───────────────────────────────────────────────── */}
       {propertiesWithCode.length > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-medium">Join Codes</h2>
-            <QrCode className="text-muted-foreground h-3.5 w-3.5" />
+        <CollapsibleSection
+          title="Join Codes"
+          trailing={<QrCode className="text-muted-foreground h-3.5 w-3.5" />}
+          storageKey="tenants-section-joincodes"
+        >
+          <div className="space-y-3">
+            <p className="text-muted-foreground text-xs">
+              Share a code or link with your tenant. They enter it at{' '}
+              <span className="font-mono">gonestora.app/join/&lt;CODE&gt;</span> or scan a QR code.
+            </p>
+            <div className="space-y-2">
+              {propertiesWithCode.map((p) => (
+                <JoinCodeRow key={p.id} property={p} />
+              ))}
+            </div>
           </div>
-          <Separator />
-          <p className="text-muted-foreground text-xs">
-            Share a code or link with your tenant. They enter it at{' '}
-            <span className="font-mono">gonestora.app/join/&lt;CODE&gt;</span> or scan a QR code.
-          </p>
-          <div className="space-y-2">
-            {propertiesWithCode.map((p) => (
-              <JoinCodeRow key={p.id} property={p} />
-            ))}
-          </div>
-        </section>
+        </CollapsibleSection>
       )}
 
       <InviteModal open={inviteOpen} onOpenChange={setInviteOpen} properties={properties} />
       <RemoveTenantDialog target={removeTarget} onClose={() => setRemoveTarget(null)} />
+    </div>
+  );
+}
+
+// ── Collapsible section wrapper ───────────────────────────────────────────────
+
+function CollapsibleSection({
+  title,
+  badge,
+  trailing,
+  storageKey,
+  children,
+}: {
+  title: string;
+  badge?: React.ReactNode;
+  trailing?: React.ReactNode;
+  storageKey: string;
+  children: React.ReactNode;
+}) {
+  const [isOpen, toggle] = useLocalStorageToggle(storageKey);
+  return (
+    <section>
+      <button
+        type="button"
+        onClick={toggle}
+        className="-mx-1 flex w-full items-center gap-2 rounded-md px-1 py-1 text-left transition-colors hover:bg-muted/40"
+      >
+        <h2 className="text-sm font-medium">{title}</h2>
+        {badge}
+        {trailing}
+        <ChevronDown
+          className={`text-muted-foreground ml-auto h-4 w-4 shrink-0 transition-transform duration-200 ${
+            isOpen ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+      <Separator className="mt-1" />
+      <div
+        className={`grid transition-all duration-200 ease-in-out ${
+          isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="pt-3">{children}</div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── Per-property group inside Approved Tenants (collapsible) ──────────────────
+
+function PropertyGroup({
+  propertyId,
+  property,
+  tenants,
+  onRemove,
+}: {
+  propertyId: string;
+  property: PropertySummary | null;
+  tenants: TenantLink[];
+  onRemove: (target: RemoveTarget) => void;
+}) {
+  const [isOpen, toggle] = useLocalStorageToggle(`tenants-property-${propertyId}`, false);
+  return (
+    <div className="rounded-lg border">
+      <button
+        type="button"
+        onClick={toggle}
+        className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted/30 ${
+          isOpen ? 'border-b' : ''
+        }`}
+      >
+        <Building2 className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
+        <div className="min-w-0 flex-1">
+          <span className="text-sm font-medium">{property?.name ?? 'Property'}</span>
+          {property?.address && (
+            <span className="text-muted-foreground ml-2 text-xs">{property.address}</span>
+          )}
+        </div>
+        <span className="text-muted-foreground shrink-0 text-xs">
+          {tenants.length} {tenants.length === 1 ? 'tenant' : 'tenants'}
+        </span>
+        <ChevronDown
+          className={`text-muted-foreground h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${
+            isOpen ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+      <div
+        className={`grid transition-all duration-200 ease-in-out ${
+          isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="divide-y">
+            {tenants.map((link) => (
+              <TenantRow
+                key={link.id}
+                link={link}
+                onRemove={() =>
+                  onRemove({
+                    linkId: link.id,
+                    tenantEmail: link.tenant_email,
+                    tenantName: link.tenant_name,
+                    propertyName: link.property?.name ?? 'Property',
+                  })
+                }
+              />
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
