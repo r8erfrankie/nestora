@@ -79,7 +79,7 @@ export function SettingsClient({
       ecName !== (initialEcName ?? '') ||
       (ecPhone ?? '') !== (initialEcPhone ?? '')
     )) ||
-    (isContractor && (
+    (!isTenant && (
       (phone ?? '') !== (initialPhone ?? '') ||
       companyName !== (initialCompanyName ?? '') ||
       trade !== (initialTrade ?? null)
@@ -97,7 +97,7 @@ export function SettingsClient({
         return;
       }
     }
-    if (isContractor) {
+    if (!isTenant) {
       if (!phone) {
         setPhoneError('Phone is required.');
         return;
@@ -119,7 +119,7 @@ export function SettingsClient({
           emergency_contact_name: ecName.trim() || null,
           emergency_contact_phone: ecPhone ?? null,
         }),
-        ...(isContractor && {
+        ...(!isTenant && {
           phone: phone ?? null,
           company_name: companyName.trim() || null,
           trade: trade || null,
@@ -177,24 +177,22 @@ export function SettingsClient({
           </div>
         </div>
 
-        {/* Phone row — tenants and contractors */}
-        {(isTenant || isContractor) && (
-          <div className="flex items-start gap-6 py-4">
-            <p className="text-muted-foreground w-28 shrink-0 pt-2 text-sm">
-              Phone{isContractor && <span className="text-destructive ml-0.5">*</span>}
-            </p>
-            <div className="max-w-xs flex-1 space-y-1">
-              <PhoneInput
-                value={phone}
-                onChange={(v) => { setPhone(v); setSaved(false); setPhoneError(''); }}
-                disabled={saving}
-              />
-              {isContractor && phoneError && (
-                <p className="text-destructive text-xs">{phoneError}</p>
-              )}
-            </div>
+        {/* Phone row — all users (tenants, contractors, and role=null during onboarding) */}
+        <div className="flex items-start gap-6 py-4">
+          <p className="text-muted-foreground w-28 shrink-0 pt-2 text-sm">
+            Phone{!isTenant && <span className="text-destructive ml-0.5">*</span>}
+          </p>
+          <div className="max-w-xs flex-1 space-y-1">
+            <PhoneInput
+              value={phone}
+              onChange={(v) => { setPhone(v); setSaved(false); setPhoneError(''); }}
+              disabled={saving}
+            />
+            {!isTenant && phoneError && (
+              <p className="text-destructive text-xs">{phoneError}</p>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Emergency Contact — tenants only */}
         {isTenant && (
@@ -238,8 +236,8 @@ export function SettingsClient({
           </>
         )}
 
-        {/* Professional details — contractors only */}
-        {isContractor && (
+        {/* Professional details — contractors, or anyone who already has company/trade data (role=null during onboarding) */}
+        {(isContractor || !!initialCompanyName || !!initialTrade) && (
           <>
             <div className="py-3">
               <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-widest">
