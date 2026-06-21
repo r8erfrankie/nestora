@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { sendContractorInvitation } from '@/app/actions/email';
 import { validateEnv } from '@/lib/env';
 
 validateEnv();
@@ -100,10 +101,14 @@ export async function createContractor(data: {
   //   • an email address was provided, AND
   //   • the contractor has no linked account yet (user_id is still null)
   if (normalizedEmail && !linkedUserId && inviteToken) {
-    // TODO: Send contractor invitation email here
-    // Use the existing email infrastructure in app/actions/email.ts
-    // Include a link like:
-    //   `${process.env.NEXT_PUBLIC_APP_URL}/accept-invite?token=${inviteToken}`
+    try {
+      await sendContractorInvitation({
+        contractorEmail: normalizedEmail,
+        inviteToken,
+      });
+    } catch (emailError) {
+      console.error('[createContractor] invitation email failed (non-fatal):', emailError);
+    }
   }
 
   return {

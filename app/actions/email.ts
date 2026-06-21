@@ -79,3 +79,36 @@ Nestora Team`,
   });
   if (error) console.error('[notifyLandlordStatusChange] Resend error:', error.message);
 }
+
+export async function sendContractorInvitation(data: {
+  contractorEmail: string;
+  inviteToken: string;
+  landlordName?: string | null;
+}) {
+  const resend = await getResendClient();
+  if (!data.contractorEmail) return;
+
+  const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/accept-invite?token=${data.inviteToken}`;
+  const from = data.landlordName ? `${data.landlordName} via Nestora` : 'Nestora';
+
+  const { error } = await resend.emails.send({
+    from: 'Nestora <noreply@gonestora.app>',
+    to: data.contractorEmail,
+    subject: `You've been invited to join as a contractor on Nestora`,
+    text: `Hello,
+
+${from} has added you as a contractor on Nestora, a property management platform.
+
+To accept the invitation and create your account, click the link below:
+
+${inviteUrl}
+
+Once you've signed up, you'll be able to view and manage work orders assigned to you.
+
+If you weren't expecting this invitation, you can safely ignore this email.
+
+Best regards,
+Nestora Team`,
+  });
+  if (error) console.error('[sendContractorInvitation] Resend error:', error.message);
+}
