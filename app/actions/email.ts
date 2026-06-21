@@ -103,3 +103,42 @@ export async function sendContractorInvitation(data: {
   });
   if (error) console.error('[sendContractorInvitation] Resend error:', error.message);
 }
+
+// Sent to contractors who are invited AND already have a work order waiting for them.
+// Combines the invitation message with work order context so they understand why they're receiving this.
+export async function sendContractorWorkOrderInvitation(data: {
+  contractorEmail: string;
+  landlordName?: string | null;
+  workOrder: {
+    title: string;
+    priority: string;
+    due_date?: string | null;
+    propertyName?: string | null;
+  };
+}) {
+  const resend = await getResendClient();
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://gonestora.app').replace(/\/$/, '');
+
+  const landlord = data.landlordName || 'A property manager';
+  const welcomeUrl = `${appUrl}/contractor/welcome?email=${encodeURIComponent(data.contractorEmail)}`;
+  const { title, priority, due_date, propertyName } = data.workOrder;
+
+  const { error } = await resend.emails.send({
+    from: 'Nestora <noreply@gonestora.app>',
+    to: data.contractorEmail,
+    subject: `${landlord} added you as a contractor and assigned you a work order`,
+    html: `
+      <p>${landlord} added you as a contractor on Nestora and assigned you a new work order.</p>
+      <table style="border-collapse:collapse;margin:16px 0;">
+        <tr><td style="padding:4px 12px 4px 0;color:#666;font-size:14px;">Work order</td><td style="padding:4px 0;font-size:14px;font-weight:600;">${title}</td></tr>
+        <tr><td style="padding:4px 12px 4px 0;color:#666;font-size:14px;">Property</td><td style="padding:4px 0;font-size:14px;">${propertyName || 'N/A'}</td></tr>
+        <tr><td style="padding:4px 12px 4px 0;color:#666;font-size:14px;">Priority</td><td style="padding:4px 0;font-size:14px;">${priority}</td></tr>
+        <tr><td style="padding:4px 12px 4px 0;color:#666;font-size:14px;">Due date</td><td style="padding:4px 0;font-size:14px;">${due_date || 'Not specified'}</td></tr>
+      </table>
+      <p>Create your account to view the full details and accept the work order:</p>
+      <p><a href="${welcomeUrl}" style="color:#000;text-decoration:underline;">Get started on Nestora</a></p>
+      <p style="color:#666;font-size:14px;">If you weren't expecting this, you can safely ignore this email.</p>
+    `,
+  });
+  if (error) console.error('[sendContractorWorkOrderInvitation] Resend error:', error.message);
+}

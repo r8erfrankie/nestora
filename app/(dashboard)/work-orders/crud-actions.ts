@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { validateEnv } from '@/lib/env';
 
 validateEnv();
@@ -294,21 +294,63 @@ export async function updateContractorAssignment(
     } catch { /* non-fatal */ }
   }
 
-  // Notify contractor when email is added for the first time or changed to a new address.
+  // Notify/invite contractor when email is added for the first time or changed.
   // Skip when email is unchanged (name/trade-only edit) to avoid duplicate notifications.
-  if (data.assigned_contractor_email && data.assigned_contractor_email !== previousEmail) {
+  const newEmail = data.assigned_contractor_email?.trim().toLowerCase();
+  if (newEmail && newEmail !== previousEmail) {
     try {
-      const { notifyContractorNewWorkOrder } = await import('@/app/actions/email');
-      await notifyContractorNewWorkOrder({
-        title: wo.title,
-        description: wo.description,
-        priority: wo.priority,
-        due_date: wo.due_date,
-        propertyName: wo.properties?.name || null,
-        assigned_contractor_email: data.assigned_contractor_email,
-      });
-    } catch {
-      // non-fatal — update already committed
+      const admin = createAdminClient();
+
+      const [contractorProfile, landlordProfile] = await Promise.all([
+        admin.from('profiles').select('id').eq('email', newEmail).maybeSingle(),
+        admin.from('profiles').select('full_name').eq('id', user.id).single(),
+      ]);
+
+      const landlordName = (landlordProfile.data?.full_name as string | null) ?? undefined;
+
+      if (contractorProfile.data) {
+        const { notifyContractorNewWorkOrder } = await import('@/app/actions/email');
+        await notifyContractorNewWorkOrder({
+          title: wo.title,
+          description: wo.description,
+          priority: wo.priority,
+          due_date: wo.due_date,
+          propertyName: wo.properties?.name || null,
+          assigned_contractor_email: newEmail,
+        });
+      } else {
+        // Unregistered — ensure a directory entry exists then send combined invite.
+        const { data: existingEntry } = await admin
+          .from('contractors')
+          .select('id')
+          .eq('landlord_id', user.id)
+          .eq('email', newEmail)
+          .maybeSingle();
+
+        if (!existingEntry) {
+          await admin.from('contractors').insert({
+            landlord_id: user.id,
+            name: data.assigned_contractor?.trim() || newEmail,
+            email: newEmail,
+            phone: data.assigned_contractor_phone?.trim() || null,
+            trade: data.trade || null,
+          });
+        }
+
+        const { sendContractorWorkOrderInvitation } = await import('@/app/actions/email');
+        await sendContractorWorkOrderInvitation({
+          contractorEmail: newEmail,
+          landlordName,
+          workOrder: {
+            title: wo.title,
+            priority: wo.priority,
+            due_date: wo.due_date,
+            propertyName: wo.properties?.name || null,
+          },
+        });
+      }
+    } catch (err) {
+      console.error('[updateContractorAssignment] contractor notification failed (non-fatal):', err);
     }
   }
 }
@@ -366,20 +408,75 @@ export async function createWorkOrder(data: {
     } catch { /* non-fatal */ }
   }
 
-  // Send notification to contractor via Resend if email provided (Server Action only, dynamic import for isolation)
-  if (data.assigned_contractor_email) {
+  // Notify or invite the assigned contractor (non-fatal — work order is already created).
+  //
+  // Two paths depending on whether the contractor has a Nestora account:
+  //   Registered   → send the standard "new work order" notification.
+  //   Unregistered → auto-create a contractor directory entry (idempotent) and send
+  //                  a combined invitation + work order email so they understand both
+  //                  why they're being contacted and what action is waiting for them.
+  //
+  // Work orders are already visible to contractors by email match via RLS
+  // (lower(assigned_contractor_email) = lower(auth.jwt() ->> 'email')), so no
+  // explicit linking step is required after they sign up.
+  const contractorEmail = data.assigned_contractor_email?.trim().toLowerCase();
+  if (contractorEmail) {
     try {
-      const { notifyContractorNewWorkOrder } = await import('@/app/actions/email');
-      await notifyContractorNewWorkOrder({
-        title: inserted.title,
-        description: inserted.description,
-        priority: inserted.priority,
-        due_date: inserted.due_date,
-        propertyName: data.propertyName,
-        assigned_contractor_email: data.assigned_contractor_email,
-      });
-    } catch (emailErr) {
-      // non-fatal
+      const admin = createAdminClient();
+
+      // Parallel: check if contractor is registered + fetch landlord display name.
+      const [contractorProfile, landlordProfile] = await Promise.all([
+        admin.from('profiles').select('id').eq('email', contractorEmail).maybeSingle(),
+        admin.from('profiles').select('full_name').eq('id', user.id).single(),
+      ]);
+
+      const landlordName = (landlordProfile.data?.full_name as string | null) ?? undefined;
+
+      if (contractorProfile.data) {
+        // Already a Nestora user — notify them about the new work order.
+        const { notifyContractorNewWorkOrder } = await import('@/app/actions/email');
+        await notifyContractorNewWorkOrder({
+          title: inserted.title,
+          description: inserted.description,
+          priority: inserted.priority,
+          due_date: inserted.due_date,
+          propertyName: data.propertyName,
+          assigned_contractor_email: contractorEmail,
+        });
+      } else {
+        // Not yet a Nestora user — auto-create a directory entry under this landlord
+        // (only if one doesn't already exist for this email) then send the combined email.
+        const { data: existingEntry } = await admin
+          .from('contractors')
+          .select('id')
+          .eq('landlord_id', user.id)
+          .eq('email', contractorEmail)
+          .maybeSingle();
+
+        if (!existingEntry) {
+          await admin.from('contractors').insert({
+            landlord_id: user.id,
+            name: data.assigned_contractor?.trim() || contractorEmail,
+            email: contractorEmail,
+            phone: data.assigned_contractor_phone?.trim() || null,
+            trade: data.trade || null,
+          });
+        }
+
+        const { sendContractorWorkOrderInvitation } = await import('@/app/actions/email');
+        await sendContractorWorkOrderInvitation({
+          contractorEmail,
+          landlordName,
+          workOrder: {
+            title: inserted.title,
+            priority: inserted.priority,
+            due_date: inserted.due_date,
+            propertyName: data.propertyName,
+          },
+        });
+      }
+    } catch (err) {
+      console.error('[createWorkOrder] contractor notification failed (non-fatal):', err);
     }
   }
 
