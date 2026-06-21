@@ -4,10 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, User } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { isValidPhoneNumber } from 'libphonenumber-js';
 import type { Value } from 'react-phone-number-input';
 import { PhoneInput } from '@/components/ui/phone-input';
@@ -91,109 +90,98 @@ export function SettingsClient({ email, role, fullName, phone: initialPhone, ecN
         <p className="text-muted-foreground mt-1 text-sm">Manage your account and preferences.</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <User className="h-4 w-4" /> Profile
-          </CardTitle>
-          <CardDescription>
-            {isTenant ? 'Your personal and contact information.' : 'Your name and display information.'}
-          </CardDescription>
-        </CardHeader>
-        <Separator />
-        <CardContent className="p-0">
+      <div className="divide-y rounded-none border-y">
 
-          {/* Name row */}
-          <div className="flex items-center gap-6 border-b px-6 py-4">
-            <p className="text-muted-foreground w-28 shrink-0 text-sm">Full name</p>
-            <Input
-              value={name}
-              onChange={(e) => { setName(e.target.value); setSaved(false); }}
-              placeholder="Your name"
-              disabled={saving}
-              className="max-w-xs"
-            />
-          </div>
+        {/* Name row */}
+        <div className="flex items-center gap-6 py-4">
+          <p className="text-muted-foreground w-28 shrink-0 text-sm">Full name</p>
+          <Input
+            value={name}
+            onChange={(e) => { setName(e.target.value); setSaved(false); }}
+            placeholder="Your name"
+            disabled={saving}
+            className="max-w-xs"
+          />
+        </div>
 
-          {/* Contact Information section header */}
-          <div className="border-b px-6 py-3">
-            <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-widest">
-              Contact Information
+        {/* Contact Information section header */}
+        <div className="py-3">
+          <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-widest">
+            Contact Information
+          </p>
+        </div>
+
+        {/* Email row */}
+        <div className="flex items-start gap-6 py-4">
+          <p className="text-muted-foreground w-28 shrink-0 pt-0.5 text-sm">Email</p>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm">{email}</span>
+              <Badge variant="secondary" className="text-xs">verified</Badge>
+            </div>
+            <p className="text-muted-foreground mt-0.5 text-xs">
+              Managed by magic link — cannot be changed here.
             </p>
           </div>
+        </div>
 
-          {/* Email row */}
-          <div className="flex items-start gap-6 border-b px-6 py-4">
-            <p className="text-muted-foreground w-28 shrink-0 pt-0.5 text-sm">Email</p>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm">{email}</span>
-                <Badge variant="secondary" className="text-xs">verified</Badge>
-              </div>
-              <p className="text-muted-foreground mt-0.5 text-xs">
-                Managed by magic link — cannot be changed here.
-              </p>
+        {/* Phone row — tenants only */}
+        {isTenant && (
+          <div className="flex items-center gap-6 py-4">
+            <p className="text-muted-foreground w-28 shrink-0 text-sm">Phone</p>
+            <div className="max-w-xs flex-1">
+              <PhoneInput
+                value={phone}
+                onChange={(v) => { setPhone(v); setSaved(false); setPhoneError(''); }}
+                disabled={saving}
+              />
             </div>
           </div>
+        )}
 
-          {/* Phone row — tenants only */}
-          {isTenant && (
-            <div className="flex items-center gap-6 border-b px-6 py-4">
+        {/* Emergency Contact — tenants only */}
+        {isTenant && (
+          <>
+            <div className="py-3">
+              <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-widest">
+                Emergency Contact
+              </p>
+              <p className="text-muted-foreground mt-0.5 text-xs">
+                Shared with your landlord if needed. Optional.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-6 py-4">
+              <p className="text-muted-foreground w-28 shrink-0 text-sm">Name</p>
+              <Input
+                value={ecName}
+                onChange={(e) => { setEcName(e.target.value); setSaved(false); }}
+                placeholder="Contact name"
+                disabled={saving}
+                className="max-w-xs"
+              />
+            </div>
+
+            <div className="flex items-center gap-6 py-4">
               <p className="text-muted-foreground w-28 shrink-0 text-sm">Phone</p>
               <div className="max-w-xs flex-1">
                 <PhoneInput
-                  value={phone}
-                  onChange={(v) => { setPhone(v); setSaved(false); setPhoneError(''); }}
+                  value={ecPhone}
+                  onChange={(v) => { setEcPhone(v); setSaved(false); setPhoneError(''); }}
                   disabled={saving}
                 />
               </div>
             </div>
-          )}
 
-          {/* Emergency Contact — tenants only */}
-          {isTenant && (
-            <>
-              <div className="border-b px-6 py-3">
-                <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-widest">
-                  Emergency Contact
-                </p>
-                <p className="text-muted-foreground mt-0.5 text-xs">
-                  Shared with your landlord if needed. Optional.
-                </p>
+            {phoneError && (
+              <div className="py-3">
+                <p className="text-destructive text-xs">{phoneError}</p>
               </div>
+            )}
+          </>
+        )}
 
-              <div className="flex items-center gap-6 border-b px-6 py-4">
-                <p className="text-muted-foreground w-28 shrink-0 text-sm">Name</p>
-                <Input
-                  value={ecName}
-                  onChange={(e) => { setEcName(e.target.value); setSaved(false); }}
-                  placeholder="Contact name"
-                  disabled={saving}
-                  className="max-w-xs"
-                />
-              </div>
-
-              <div className="flex items-center gap-6 px-6 py-4">
-                <p className="text-muted-foreground w-28 shrink-0 text-sm">Phone</p>
-                <div className="max-w-xs flex-1">
-                  <PhoneInput
-                    value={ecPhone}
-                    onChange={(v) => { setEcPhone(v); setSaved(false); setPhoneError(''); }}
-                    disabled={saving}
-                  />
-                </div>
-              </div>
-
-              {phoneError && (
-                <div className="border-t px-6 py-3">
-                  <p className="text-destructive text-xs">{phoneError}</p>
-                </div>
-              )}
-            </>
-          )}
-
-        </CardContent>
-      </Card>
+      </div>
 
       <div className="flex items-center gap-3">
         <Button onClick={handleSave} disabled={saving || !isDirty}>
@@ -217,8 +205,7 @@ export function SettingsClient({ email, role, fullName, phone: initialPhone, ecN
           <div>
             <p className="text-sm font-medium">Delete account</p>
             <p className="text-muted-foreground text-sm">
-              Remove your account permanently. Useful for testing — you can re-register with the
-              same email immediately.
+              Remove your account permanently. This action cannot be undone.
             </p>
           </div>
           <DeleteAccountButton />
