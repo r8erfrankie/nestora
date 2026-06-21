@@ -58,7 +58,9 @@ export default async function WorkOrdersPage({
   // Map: "propertyId::email" → unit
   const unitByPropertyEmail = new Map<string, string | null>();
   for (const link of tenantLinks ?? []) {
-    const key = `${link.property_id}::${(link.tenant_email as string).toLowerCase()}`;
+    const tenantEmail = (link.tenant_email as string | null)?.toLowerCase();
+    if (!tenantEmail) continue;
+    const key = `${link.property_id}::${tenantEmail}`;
     unitByPropertyEmail.set(key, link.unit as string | null);
   }
 

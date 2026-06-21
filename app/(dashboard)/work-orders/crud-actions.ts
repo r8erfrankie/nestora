@@ -133,7 +133,7 @@ export async function deleteProperty(id: string) {
   }
 
   const { error } = await supabase.from('properties').delete().eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Failed to delete property');
 }
 
 export async function updateWorkOrderBudget(id: string, cost: number | null) {
@@ -147,7 +147,7 @@ export async function updateWorkOrderBudget(id: string, cost: number | null) {
     .eq('id', id)
     .eq('user_id', user.id);
 
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Failed to update budget');
 
   if (user.email) {
     try {
@@ -197,7 +197,7 @@ export async function updateWorkOrderStatus(id: string, newStatus: string) {
     .update({ status: newStatus })
     .eq('id', id);
 
-  if (updateErr) throw updateErr;
+  if (updateErr) throw new Error(updateErr.message || 'Failed to update status');
 
   if (user.email) {
     try {
@@ -275,7 +275,7 @@ export async function updateContractorAssignment(
     })
     .eq('id', id);
 
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Failed to update contractor assignment');
 
   if (user.email) {
     try {
@@ -394,7 +394,7 @@ export async function createWorkOrder(data: {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Failed to create work order');
 
   if (user.email) {
     try {
