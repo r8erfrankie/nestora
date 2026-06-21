@@ -530,7 +530,9 @@ export function WorkOrdersClient({
         closeDetail();
       }
     } catch (err) {
-      alert('Failed to delete work order.');
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[deleteWorkOrder]', msg);
+      alert(`Failed to delete work order.\n\n${msg}`);
     } finally {
       setDeleting(false);
       setDeleteTarget(null);

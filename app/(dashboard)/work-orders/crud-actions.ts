@@ -10,7 +10,7 @@ export async function deleteWorkOrder(id: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  // Explicit ownership check (defense in depth, RLS is primary)
+  // Ownership check (defense in depth — RLS is the primary guard)
   const { data: wo, error: fetchErr } = await supabase
     .from('work_orders')
     .select('user_id')
@@ -21,8 +21,50 @@ export async function deleteWorkOrder(id: string) {
     throw new Error('Not authorized to delete this work order');
   }
 
-  const { error } = await supabase.from('work_orders').delete().eq('id', id);
-  if (error) throw error;
+  // Fetch photo URLs before deletion so we can clean up storage objects too
+  const { data: photos } = await supabase
+    .from('work_order_photos')
+    .select('url')
+    .eq('work_order_id', id);
+
+  // Null out any maintenance_requests that reference this work order.
+  // The FK was originally defined without ON DELETE, which defaults to RESTRICT
+  // and blocks the delete. Running fix-maintenance-request-work-order-fk.sql
+  // changes it to ON DELETE SET NULL, but this explicit step handles older installs.
+  await supabase
+    .from('maintenance_requests')
+    .update({ converted_to_work_order_id: null })
+    .eq('converted_to_work_order_id', id);
+
+  // Delete the work order (cascades to work_order_photos rows, notes, archives)
+  const { error: deleteErr } = await supabase
+    .from('work_orders')
+    .delete()
+    .eq('id', id);
+
+  if (deleteErr) {
+    throw new Error(`Failed to delete work order: ${deleteErr.message}`);
+  }
+
+  // Best-effort: remove the actual storage objects for any attached photos.
+  // The DB rows are already gone via cascade; this just frees storage space.
+  if (photos && photos.length > 0) {
+    const paths = photos
+      .map((p) => {
+        const marker = '/work-order-photos/';
+        const idx = (p.url as string).indexOf(marker);
+        return idx !== -1 ? (p.url as string).substring(idx + marker.length).split('?')[0] : null;
+      })
+      .filter((path): path is string => path !== null);
+
+    if (paths.length > 0) {
+      try {
+        await supabase.storage.from('work-order-photos').remove(paths);
+      } catch {
+        // Non-fatal: DB row is already gone; storage will be orphaned but won't break anything
+      }
+    }
+  }
 }
 
 export async function deleteProperty(id: string) {
