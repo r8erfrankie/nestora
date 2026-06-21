@@ -158,21 +158,54 @@ export async function updateContractor(
   if (error) throw error;
 }
 
-export async function deleteContractor(id: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+export async function deleteContractor(
+  id: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Not authenticated' };
 
-  const { data: existing, error: fetchErr } = await supabase
-    .from('contractors')
-    .select('landlord_id')
-    .eq('id', id)
-    .single();
+    // Admin client required: RLS on contractors is scoped to landlord_id = auth.uid(),
+    // which blocks a regular client from reading or deleting rows it doesn't own.
+    const admin = createAdminClient();
 
-  if (fetchErr || !existing || existing.landlord_id !== user.id) {
-    throw new Error('Not authorized to delete this contractor');
+    const { data: contractor, error: fetchErr } = await admin
+      .from('contractors')
+      .select('id, landlord_id')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !contractor) {
+      console.error('[deleteContractor] fetch failed:', fetchErr?.message);
+      return { success: false, error: 'Contractor not found' };
+    }
+
+    if (contractor.landlord_id !== user.id) {
+      return { success: false, error: 'Not authorized to delete this contractor' };
+    }
+
+    const { error: deleteErr } = await admin
+      .from('contractors')
+      .delete()
+      .eq('id', id);
+
+    if (deleteErr) {
+      console.error('[deleteContractor] delete failed:', deleteErr.message, deleteErr.code);
+
+      if (deleteErr.code === '23503') {
+        return {
+          success: false,
+          error: 'Cannot delete this contractor — they still have work orders assigned. Reassign or complete those work orders first.',
+        };
+      }
+
+      return { success: false, error: `Failed to delete contractor: ${deleteErr.message}` };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('[deleteContractor] unexpected error:', err);
+    return { success: false, error: 'An unexpected error occurred' };
   }
-
-  const { error } = await supabase.from('contractors').delete().eq('id', id);
-  if (error) throw error;
 }

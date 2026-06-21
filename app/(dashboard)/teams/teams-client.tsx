@@ -169,11 +169,15 @@ export function TeamsClient({ initialContractors }: { initialContractors: Contra
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await deleteContractor(deleteTarget.id);
+      const result = await deleteContractor(deleteTarget.id);
+      if (!result.success) {
+        alert(result.error);
+        return;
+      }
       setContractors((prev) => prev.filter((c) => c.id !== deleteTarget.id));
       setDeleteTarget(null);
-    } catch {
-      alert('Failed to delete contractor.');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete contractor.');
     } finally {
       setDeleting(false);
     }
