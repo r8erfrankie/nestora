@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 
 // Contractors may only move status forward along this chain.
 // Landlords control Open→Archived and have full edit access via crud-actions.ts.
@@ -46,6 +46,19 @@ export async function acceptOrCompleteWorkOrder(workOrderId: string) {
       content: `Status changed from ${wo.status} to ${nextStatus}`,
     });
   } catch { /* non-fatal */ }
+
+  // When the contractor marks a work order Completed, resolve the linked maintenance
+  // request so the tenant sees the correct final status. Contractor RLS can't update
+  // maintenance_requests, so the admin client is required here.
+  if (nextStatus === 'Completed') {
+    try {
+      const admin = createAdminClient();
+      await admin
+        .from('maintenance_requests')
+        .update({ status: 'Resolved' })
+        .eq('converted_to_work_order_id', workOrderId);
+    } catch { /* non-fatal — work order status is already updated */ }
+  }
 
   return { newStatus: nextStatus };
 }

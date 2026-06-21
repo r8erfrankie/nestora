@@ -7,7 +7,7 @@ import Counter from 'yet-another-react-lightbox/plugins/counter';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { deleteWorkOrder, createWorkOrder, updateWorkOrderStatus, updateContractorAssignment, updateWorkOrderBudget } from './crud-actions';
+import { deleteWorkOrder, createWorkOrder, updateWorkOrderStatus, updateContractorAssignment, updateWorkOrderBudget, toggleWorkOrderPaid } from './crud-actions';
 import { createContractor } from '../teams/contractor-actions';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
@@ -48,7 +48,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Eye, Upload, Loader2, ClipboardList, Archive, ArchiveRestore, Trash2, X, Pencil, Phone, ChevronDown } from 'lucide-react';
+import { Plus, Eye, Upload, Loader2, ClipboardList, Archive, ArchiveRestore, Trash2, X, Pencil, Phone, ChevronDown, CheckCircle2 } from 'lucide-react';
 import { archiveWorkOrderForUser, unarchiveWorkOrderForUser } from '@/app/actions/archive-actions';
 import { WorkOrderNotes } from '@/app/components/work-order-notes';
 
@@ -69,6 +69,7 @@ interface WorkOrder {
   notes?: string | null;
   cost?: number | null;
   contractor_quote?: number | null;
+  paid?: boolean | null;
   maintenance_request_id?: string | null;
   created_at: string;
   updated_at: string;
@@ -203,6 +204,7 @@ export function WorkOrdersClient({
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetDraft, setBudgetDraft] = useState('');
   const [savingBudget, setSavingBudget] = useState(false);
+  const [savingPaid, setSavingPaid] = useState(false);
 
   // Contractor re-assignment state (detail view)
   const [editingContractor, setEditingContractor] = useState(false);
@@ -474,6 +476,22 @@ export function WorkOrdersClient({
       alert('Failed to update budget.');
     } finally {
       setSavingBudget(false);
+    }
+  };
+
+  const handleTogglePaid = async () => {
+    if (!selectedWorkOrder) return;
+    setSavingPaid(true);
+    const newPaid = !selectedWorkOrder.paid;
+    try {
+      await toggleWorkOrderPaid(selectedWorkOrder.id, newPaid);
+      const updated: WorkOrder = { ...selectedWorkOrder, paid: newPaid };
+      setSelectedWorkOrder(updated);
+      setWorkOrders((prev) => prev.map((w) => (w.id === updated.id ? updated : w)));
+    } catch {
+      alert('Failed to update paid status.');
+    } finally {
+      setSavingPaid(false);
     }
   };
 
@@ -1751,10 +1769,27 @@ export function WorkOrdersClient({
                   </div>
                   <div>
                     <div className="text-muted-foreground mb-1 text-xs">CONTRACTOR QUOTE</div>
-                    <div className="font-mono">
-                      {selectedWorkOrder.contractor_quote != null
-                        ? `$${Number(selectedWorkOrder.contractor_quote).toFixed(2)}`
-                        : <span className="text-muted-foreground font-sans text-sm">No quote submitted yet</span>}
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <div className="font-mono">
+                        {selectedWorkOrder.contractor_quote != null
+                          ? `$${Number(selectedWorkOrder.contractor_quote).toFixed(2)}`
+                          : <span className="text-muted-foreground font-sans text-sm">No quote submitted yet</span>}
+                      </div>
+                      <button
+                        onClick={handleTogglePaid}
+                        disabled={savingPaid}
+                        className={cn(
+                          'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium transition-colors',
+                          selectedWorkOrder.paid
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                            : 'border-border text-muted-foreground hover:border-input hover:text-foreground'
+                        )}
+                      >
+                        {savingPaid
+                          ? <Loader2 className="h-3 w-3 animate-spin" />
+                          : <CheckCircle2 className="h-3 w-3" />}
+                        {selectedWorkOrder.paid ? 'Paid' : 'Mark paid'}
+                      </button>
                     </div>
                   </div>
                   <div className="sm:col-span-2">

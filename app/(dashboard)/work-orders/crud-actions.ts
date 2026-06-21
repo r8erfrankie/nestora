@@ -352,6 +352,20 @@ export async function updateContractorAssignment(
   }
 }
 
+export async function toggleWorkOrderPaid(id: string, paid: boolean) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { error } = await supabase
+    .from('work_orders')
+    .update({ paid })
+    .eq('id', id)
+    .eq('user_id', user.id);
+
+  if (error) throw new Error(error.message || 'Failed to update paid status');
+}
+
 export async function createWorkOrder(data: {
   title: string;
   description?: string | null;
