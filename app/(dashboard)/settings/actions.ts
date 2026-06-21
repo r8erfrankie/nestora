@@ -34,6 +34,26 @@ export async function updateProfile(data: {
   revalidatePath('/settings');
 }
 
+export async function requestEmailChange(newEmail: string): Promise<{ error?: string }> {
+  const trimmed = newEmail.trim().toLowerCase();
+  if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+    return { error: 'Please enter a valid email address.' };
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Not authenticated.' };
+
+  if (trimmed === user.email?.toLowerCase()) {
+    return { error: 'That is already your current email address.' };
+  }
+
+  const { error } = await supabase.auth.updateUser({ email: trimmed });
+  if (error) return { error: error.message };
+
+  return {};
+}
+
 export async function deleteAccount() {
   const supabase = await createClient();
   const {

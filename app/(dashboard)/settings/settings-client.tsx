@@ -16,7 +16,7 @@ import {
 import { Loader2 } from 'lucide-react';
 import { isValidPhoneNumber } from '@/lib/phone';
 import { PhoneInput } from '@/components/ui/phone-input';
-import { updateProfile } from './actions';
+import { updateProfile, requestEmailChange } from './actions';
 import { DeleteAccountButton } from './delete-account-button';
 
 const CONTRACTOR_TRADES = [
@@ -62,6 +62,12 @@ export function SettingsClient({
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const [phoneError, setPhoneError] = useState('');
+
+  const [emailChanging, setEmailChanging] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailError, setEmailError] = useState('');
 
   const router = useRouter();
   const isTenant = role === 'tenant';
@@ -161,14 +167,70 @@ export function SettingsClient({
         {/* Email row */}
         <div className="flex items-start gap-6 py-4">
           <p className="text-muted-foreground w-28 shrink-0 pt-0.5 text-sm">Email</p>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm">{email}</span>
-              <Badge variant="secondary" className="text-xs">verified</Badge>
-            </div>
-            <p className="text-muted-foreground mt-0.5 text-xs">
-              Managed by magic link — cannot be changed here.
-            </p>
+          <div className="flex-1">
+            {!emailChanging ? (
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">{email}</span>
+                  <Badge variant="secondary" className="text-xs">verified</Badge>
+                  <button
+                    onClick={() => { setEmailChanging(true); setNewEmail(''); setEmailError(''); setEmailSent(false); }}
+                    className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline transition-colors"
+                  >
+                    Change
+                  </button>
+                </div>
+                {emailSent && (
+                  <p className="mt-1 text-xs text-emerald-600">
+                    Check your new email inbox for a confirmation link to complete the change.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => { setNewEmail(e.target.value); setEmailError(''); }}
+                  placeholder="New email address"
+                  disabled={emailSaving}
+                  className="max-w-xs"
+                  autoFocus
+                />
+                {emailError && (
+                  <p className="text-destructive text-xs">{emailError}</p>
+                )}
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    disabled={emailSaving || !newEmail.trim()}
+                    onClick={async () => {
+                      setEmailSaving(true);
+                      setEmailError('');
+                      const result = await requestEmailChange(newEmail);
+                      setEmailSaving(false);
+                      if (result.error) {
+                        setEmailError(result.error);
+                      } else {
+                        setEmailChanging(false);
+                        setEmailSent(true);
+                      }
+                    }}
+                  >
+                    {emailSaving && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
+                    {emailSaving ? 'Sending…' : 'Send confirmation'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={emailSaving}
+                    onClick={() => { setEmailChanging(false); setEmailError(''); }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
