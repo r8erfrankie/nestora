@@ -4,7 +4,6 @@ import { Separator } from '@/components/ui/separator';
 import { Bell, ChevronDown, LogOut } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { DevRoleSwitcher } from '@/components/dev-role-switcher';
 import { DevOnboardingReset } from '@/components/dev-onboarding-reset';
 import { UserRole } from '@/lib/supabase/server';
 
@@ -38,10 +37,8 @@ export async function Navbar({
 
   return (
     <header className="border-border bg-background/95 supports-[backdrop-filter]:bg-background/60 z-40 flex h-14 items-center justify-between border-b px-6 backdrop-blur">
-      {/* Left section */}
-      <div className="flex items-center gap-4">
-        <span className="text-foreground/90 text-sm font-semibold tracking-tight">Nestora</span>
-        <DevRoleSwitcher isDevelopment={isDevelopment} currentRole={role} />
+      {/* Left: dev-only tools (invisible in prod) */}
+      <div className="flex items-center gap-2">
         <DevOnboardingReset isDevelopment={isDevelopment} />
       </div>
 
