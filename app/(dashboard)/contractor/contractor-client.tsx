@@ -516,6 +516,9 @@ export function ContractorClient({
                       <div className="text-muted-foreground mb-1 flex items-center gap-1 text-xs">
                         <Building2 className="h-3 w-3 shrink-0" />
                         <span className="truncate">{wo.properties.name}</span>
+                        {wo.unit && (
+                          <span className="font-medium text-foreground/70">{' · '}Unit {wo.unit}</span>
+                        )}
                         {wo.properties.address && (
                           <span className="truncate text-muted-foreground/70">
                             {' · '}
@@ -643,6 +646,9 @@ export function ContractorClient({
                                 <div className="text-muted-foreground mb-1 flex items-center gap-1 text-xs">
                                   <Building2 className="h-3 w-3 shrink-0" />
                                   <span className="truncate">{wo.properties.name}</span>
+                                  {wo.unit && (
+                                    <span className="font-medium text-foreground/70">{' · '}Unit {wo.unit}</span>
+                                  )}
                                 </div>
                               )}
                               <div className="truncate font-semibold leading-snug">{wo.title}</div>
