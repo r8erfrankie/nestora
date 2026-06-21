@@ -1,5 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
-import { getCurrentUserRole } from '@/lib/supabase/server';
+import { createClient, createAdminClient, getCurrentUserRole } from '@/lib/supabase/server';
 import { TeamsClient, type Contractor } from './teams-client';
 import { Users } from 'lucide-react';
 
@@ -25,6 +24,50 @@ export default async function TeamsPage() {
     .select('id, name, email, phone, trade, notes')
     .order('name');
 
+  // Enrich with self-reported profile data (phone, company_name, trade) for contractors
+  // who have registered accounts. Joined via email using the admin client.
+  type ProfileData = { company_name: string | null; trade: string | null; phone: string | null };
+  let profileByEmail: Record<string, ProfileData> = {};
+
+  const contractorEmails = (contractors ?? [])
+    .map((c) => (c.email as string | null)?.toLowerCase())
+    .filter((e): e is string => Boolean(e));
+
+  if (contractorEmails.length > 0) {
+    const admin = createAdminClient();
+    const { data: { users } } = await admin.auth.admin.listUsers({ perPage: 1000 });
+    const matched = users.filter((u) => u.email && contractorEmails.includes(u.email.toLowerCase()));
+
+    if (matched.length > 0) {
+      const { data: profiles } = await admin
+        .from('profiles')
+        .select('id, company_name, trade, phone')
+        .in('id', matched.map((u) => u.id));
+
+      const idToEmail = new Map(matched.map((u) => [u.id, u.email!.toLowerCase()]));
+      for (const p of profiles ?? []) {
+        const email = idToEmail.get(p.id as string);
+        if (email) {
+          profileByEmail[email] = {
+            company_name: (p.company_name as string | null) ?? null,
+            trade: (p.trade as string | null) ?? null,
+            phone: (p.phone as string | null) ?? null,
+          };
+        }
+      }
+    }
+  }
+
+  const enrichedContractors = (contractors ?? []).map((c) => {
+    const prof = profileByEmail[(c.email as string | null)?.toLowerCase() ?? ''] ?? null;
+    return {
+      ...c,
+      profile_phone: prof?.phone ?? null,
+      profile_company_name: prof?.company_name ?? null,
+      profile_trade: prof?.trade ?? null,
+    };
+  });
+
   return (
     <div className="space-y-5 p-4 sm:space-y-6 sm:p-6">
       <div>
@@ -46,7 +89,7 @@ export default async function TeamsPage() {
           enable the Teams feature.
         </div>
       ) : (
-        <TeamsClient initialContractors={(contractors as Contractor[]) || []} />
+        <TeamsClient initialContractors={(enrichedContractors as Contractor[]) || []} />
       )}
     </div>
   );

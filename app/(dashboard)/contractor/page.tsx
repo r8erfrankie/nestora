@@ -41,6 +41,7 @@ export default async function ContractorDashboardPage() {
         status,
         priority,
         due_date,
+        unit,
         trade,
         notes,
         cost,

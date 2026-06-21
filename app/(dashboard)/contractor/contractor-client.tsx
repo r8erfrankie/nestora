@@ -42,6 +42,7 @@ export interface ContractorWorkOrder {
   status: string;
   priority: string;
   due_date: string | null;
+  unit: string | null;
   trade: string | null;
   notes: string | null;
   cost: number | null;
@@ -692,6 +693,7 @@ export function ContractorClient({
                     <DialogDescription className="mt-1 flex items-center gap-1">
                       <Building2 className="h-3.5 w-3.5 shrink-0" />
                       {selected.properties.name}
+                      {selected.unit && ` · Unit ${selected.unit}`}
                       {selected.properties.address && ` · ${selected.properties.address}`}
                     </DialogDescription>
                   )}

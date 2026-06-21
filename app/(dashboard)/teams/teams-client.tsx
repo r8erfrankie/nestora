@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Users, Plus, Pencil, Trash2, Loader2, Mail, Phone } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, Loader2, Mail, Phone, Building2, Wrench } from 'lucide-react';
 import { createContractor, updateContractor, deleteContractor } from './contractor-actions';
 
 export interface Contractor {
@@ -43,6 +43,10 @@ export interface Contractor {
   phone: string | null;
   trade: string | null;
   notes: string | null;
+  // Self-reported via contractor's own Settings page
+  profile_phone?: string | null;
+  profile_company_name?: string | null;
+  profile_trade?: string | null;
 }
 
 const TRADES = [
@@ -225,6 +229,31 @@ export function TeamsClient({ initialContractors }: { initialContractors: Contra
                     )}
                     {c.notes && (
                       <p className="text-muted-foreground mt-1.5 line-clamp-2 text-xs">{c.notes}</p>
+                    )}
+                    {(c.profile_company_name || c.profile_trade || c.profile_phone) && (
+                      <div className="mt-2 border-t pt-2">
+                        <p className="text-muted-foreground mb-1 text-[10px] font-semibold uppercase tracking-widest">
+                          Registered
+                        </p>
+                        {c.profile_company_name && (
+                          <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
+                            <Building2 className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{c.profile_company_name}</span>
+                          </div>
+                        )}
+                        {c.profile_trade && (
+                          <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
+                            <Wrench className="h-3 w-3 shrink-0" />
+                            <span>{c.profile_trade}</span>
+                          </div>
+                        )}
+                        {c.profile_phone && (
+                          <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
+                            <Phone className="h-3 w-3 shrink-0" />
+                            <span>{formatPhone(c.profile_phone) ?? c.profile_phone}</span>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                   <div className="flex shrink-0 gap-0.5">
