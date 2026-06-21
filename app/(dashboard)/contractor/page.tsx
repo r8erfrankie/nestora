@@ -56,7 +56,7 @@ export default async function ContractorDashboardPage() {
     supabase
       .from('work_order_user_archives')
       .select('work_order_id')
-      .eq('user_email', userEmail),
+      .eq('user_id', user?.id ?? ''),
   ]);
 
   if (workOrdersError) {

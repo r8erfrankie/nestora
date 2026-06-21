@@ -12,13 +12,13 @@ export default async function WorkOrdersPage({
   const prefillPropertyId = typeof params.prefill_property === 'string' ? params.prefill_property : undefined;
   const prefillUnit = typeof params.prefill_unit === 'string' ? params.prefill_unit : undefined;
 
-  // Fetch the current user's email before the parallel queries so we can
+  // Fetch the current user's ID before the parallel queries so we can
   // filter work_order_user_archives to this user only.
   // (Unauthenticated users are redirected by proxy before reaching here.)
-  let userEmail = '';
+  let userId = '';
   try {
     const { data } = await supabase.auth.getUser();
-    userEmail = (data?.user?.email ?? '').toLowerCase();
+    userId = data?.user?.id ?? '';
   } catch {
     // Non-fatal — archives filter falls back to empty string (no archived IDs returned)
   }
@@ -57,7 +57,7 @@ export default async function WorkOrdersPage({
       supabase
         .from('work_order_user_archives')
         .select('work_order_id')
-        .eq('user_email', userEmail),
+        .eq('user_id', userId),
       // Derive which work orders originated from a maintenance request.
       // Fetches tenant_email + property_id so we can look up the unit number below.
       supabase
