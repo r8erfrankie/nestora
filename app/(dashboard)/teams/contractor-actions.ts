@@ -6,7 +6,7 @@ import { validateEnv } from '@/lib/env';
 validateEnv();
 
 export type CreateContractorResult =
-  | { success: true; contractor: Record<string, unknown>; linked: boolean; message?: string }
+  | { success: true; contractor: Record<string, unknown>; linked: boolean; inviteToken?: string; message?: string }
   | { success: false; error: string };
 
 export async function createContractor(data: {
@@ -94,7 +94,24 @@ export async function createContractor(data: {
     return { success: false, error: `Failed to create contractor: ${insertError.message}` };
   }
 
-  return { success: true, contractor: inserted, linked: !!linkedUserId };
+  const inviteToken = (inserted as any).invite_token as string | undefined;
+
+  // Send an invitation email only when:
+  //   • an email address was provided, AND
+  //   • the contractor has no linked account yet (user_id is still null)
+  if (normalizedEmail && !linkedUserId && inviteToken) {
+    // TODO: Send contractor invitation email here
+    // Use the existing email infrastructure in app/actions/email.ts
+    // Include a link like:
+    //   `${process.env.NEXT_PUBLIC_APP_URL}/accept-invite?token=${inviteToken}`
+  }
+
+  return {
+    success: true,
+    contractor: inserted,
+    linked: !!linkedUserId,
+    inviteToken,
+  };
 }
 
 export async function updateContractor(
