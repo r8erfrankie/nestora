@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 
+export type ClaimContractorRoleState = { error?: string };
+
 const ROLE_COOKIE_OPTIONS = {
   httpOnly: true,
   sameSite: 'lax' as const,
@@ -95,4 +97,89 @@ export async function setUserRoleAction(formData: FormData) {
   }
 
   redirect(role === 'contractor' ? '/contractor-onboarding' : '/landlord-onboarding');
+}
+
+// Called from the /contractor/welcome page via useActionState.
+// Sets role=contractor, stamps the session cookie, auto-links any pending
+// contractor directory entries, then redirects to onboarding.
+// Returns { error } on failure so the client can display it; calls redirect() on success.
+export async function claimContractorRole(
+  _prevState: ClaimContractorRoleState,
+  _formData: FormData,
+): Promise<ClaimContractorRoleState> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: 'You must be signed in to continue. Please sign in and try again.' };
+  }
+
+  // Fetch current role
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  // Already a contractor — skip straight to onboarding
+  if (profile?.role === 'contractor') {
+    redirect('/contractor-onboarding');
+  }
+
+  // Conflict: account already belongs to a different role
+  if (profile?.role) {
+    return {
+      error: `This account is already registered as a ${profile.role}. Sign out and use a different account to accept this invitation.`,
+    };
+  }
+
+  // Set role
+  const { error: updateError } = await supabase
+    .from('profiles')
+    .update({ role: 'contractor' })
+    .eq('id', user.id);
+
+  if (updateError) {
+    console.error('[claimContractorRole] profile update failed:', updateError.message);
+    return { error: 'Failed to set up your account. Please try again.' };
+  }
+
+  // Stamp the role cookie so the proxy picks it up immediately
+  const cookieStore = await cookies();
+  cookieStore.set('nestora_role', 'contractor', ROLE_COOKIE_OPTIONS);
+
+  // Auto-link any pending contractor directory entries that match this email.
+  // Requires admin client — the contractor can't update rows owned by landlords via RLS.
+  if (user.email) {
+    try {
+      const admin = createAdminClient();
+      const normalizedEmail = user.email.toLowerCase();
+
+      const { data: profileData } = await admin
+        .from('profiles')
+        .select('full_name, phone, trade')
+        .eq('id', user.id)
+        .single();
+
+      const { data: pending } = await admin
+        .from('contractors')
+        .select('id, name, phone, trade')
+        .eq('email', normalizedEmail)
+        .is('user_id', null);
+
+      if (pending && pending.length > 0) {
+        for (const row of pending) {
+          const updates: Record<string, string> = { user_id: user.id };
+          if (!row.name && profileData?.full_name) updates.name = profileData.full_name;
+          if (!row.phone && profileData?.phone)     updates.phone = profileData.phone;
+          if (!row.trade && profileData?.trade)     updates.trade = profileData.trade;
+          await admin.from('contractors').update(updates).eq('id', row.id);
+        }
+      }
+    } catch (linkError) {
+      console.error('[claimContractorRole] auto-link failed (non-fatal):', linkError);
+    }
+  }
+
+  redirect('/contractor-onboarding');
 }

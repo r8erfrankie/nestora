@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
 import { useFormStatus } from 'react-dom';
-import { Building2, HardHat, Home, Loader2 } from 'lucide-react';
+import { Building2, HardHat, Home } from 'lucide-react';
 import { setUserRoleAction } from '@/app/actions/role-actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -54,31 +53,6 @@ interface SelectRoleClientProps {
 
 export function SelectRoleClient({ hint, join }: SelectRoleClientProps) {
   const isTenantHint = hint === 'tenant';
-  const isContractorHint = hint === 'contractor';
-
-  // When arriving from a contractor invitation email, skip the role picker entirely.
-  // Auto-submit the hidden contractor form so setUserRoleAction runs immediately,
-  // stamps the cookie, auto-links directory entries, and redirects to onboarding.
-  const contractorFormRef = useRef<HTMLFormElement>(null);
-  useEffect(() => {
-    if (isContractorHint) {
-      contractorFormRef.current?.requestSubmit();
-    }
-  }, [isContractorHint]);
-
-  if (isContractorHint) {
-    return (
-      <div className="flex min-h-screen items-center justify-center p-6">
-        <div className="space-y-4 text-center">
-          <Loader2 className="text-muted-foreground mx-auto h-8 w-8 animate-spin" />
-          <p className="text-muted-foreground text-sm">Setting up your contractor account…</p>
-        </div>
-        <form ref={contractorFormRef} action={setUserRoleAction} className="hidden">
-          <input type="hidden" name="role" value="contractor" />
-        </form>
-      </div>
-    );
-  }
 
   return (
     <div className="flex min-h-screen items-center justify-center p-6">
