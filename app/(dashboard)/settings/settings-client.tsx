@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, User, Mail } from 'lucide-react';
+import { Loader2, User } from 'lucide-react';
 import { isValidPhoneNumber } from 'libphonenumber-js';
 import type { Value } from 'react-phone-number-input';
 import { PhoneInput } from '@/components/ui/phone-input';
@@ -97,122 +97,101 @@ export function SettingsClient({ email, role, fullName, phone: initialPhone, ecN
             <User className="h-4 w-4" /> Profile
           </CardTitle>
           <CardDescription>
-            {isTenant ? 'Your name, contact, and emergency information.' : 'Your name and display information.'}
+            {isTenant ? 'Your personal and contact information.' : 'Your name and display information.'}
           </CardDescription>
         </CardHeader>
         <Separator />
-        <CardContent className="pt-5 space-y-6">
-          {/* Full name */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Full name</label>
+        <CardContent className="p-0">
+
+          {/* Name row */}
+          <div className="flex items-center gap-6 border-b px-6 py-4">
+            <p className="text-muted-foreground w-28 shrink-0 text-sm">Full name</p>
             <Input
               value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                setSaved(false);
-              }}
+              onChange={(e) => { setName(e.target.value); setSaved(false); }}
               placeholder="Your name"
               disabled={saving}
-              className="max-w-sm"
+              className="max-w-xs"
             />
           </div>
 
-          {isTenant ? (
-            <div className="space-y-5 border-t pt-5">
-              {/* Section heading */}
-              <div>
-                <h3 className="text-sm font-semibold">Contact Information</h3>
+          {/* Contact Information section header */}
+          <div className="border-b px-6 py-3">
+            <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-widest">
+              Contact Information
+            </p>
+          </div>
+
+          {/* Email row */}
+          <div className="flex items-start gap-6 border-b px-6 py-4">
+            <p className="text-muted-foreground w-28 shrink-0 pt-0.5 text-sm">Email</p>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm">{email}</span>
+                <Badge variant="secondary" className="text-xs">verified</Badge>
+              </div>
+              <p className="text-muted-foreground mt-0.5 text-xs">
+                Managed by magic link — cannot be changed here.
+              </p>
+            </div>
+          </div>
+
+          {/* Phone row — tenants only */}
+          {isTenant && (
+            <div className="flex items-center gap-6 border-b px-6 py-4">
+              <p className="text-muted-foreground w-28 shrink-0 text-sm">Phone</p>
+              <div className="max-w-xs flex-1">
+                <PhoneInput
+                  value={phone}
+                  onChange={(v) => { setPhone(v); setSaved(false); setPhoneError(''); }}
+                  disabled={saving}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Emergency Contact — tenants only */}
+          {isTenant && (
+            <>
+              <div className="border-b px-6 py-3">
+                <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-widest">
+                  Emergency Contact
+                </p>
                 <p className="text-muted-foreground mt-0.5 text-xs">
-                  How landlords and the platform can reach you.
+                  Shared with your landlord if needed. Optional.
                 </p>
               </div>
 
-              {/* Email (read-only) */}
-              <div className="space-y-1.5">
-                <label className="text-muted-foreground text-sm font-medium">Email</label>
-                <div className="flex items-center gap-2">
-                  <Mail className="text-muted-foreground h-4 w-4" />
-                  <span className="text-sm">{email}</span>
-                  <Badge variant="secondary" className="text-xs">verified</Badge>
-                </div>
-                <p className="text-muted-foreground text-xs">
-                  Managed by magic link login — cannot be changed here.
-                </p>
+              <div className="flex items-center gap-6 border-b px-6 py-4">
+                <p className="text-muted-foreground w-28 shrink-0 text-sm">Name</p>
+                <Input
+                  value={ecName}
+                  onChange={(e) => { setEcName(e.target.value); setSaved(false); }}
+                  placeholder="Contact name"
+                  disabled={saving}
+                  className="max-w-xs"
+                />
               </div>
 
-              {/* Phone */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">
-                  Phone <span className="text-muted-foreground font-normal">(optional)</span>
-                </label>
-                <div className="max-w-sm">
+              <div className="flex items-center gap-6 px-6 py-4">
+                <p className="text-muted-foreground w-28 shrink-0 text-sm">Phone</p>
+                <div className="max-w-xs flex-1">
                   <PhoneInput
-                    value={phone}
-                    onChange={(v) => {
-                      setPhone(v);
-                      setSaved(false);
-                      setPhoneError('');
-                    }}
+                    value={ecPhone}
+                    onChange={(v) => { setEcPhone(v); setSaved(false); setPhoneError(''); }}
                     disabled={saving}
                   />
-                </div>
-              </div>
-
-              {/* Emergency Contact */}
-              <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
-                <div>
-                  <h3 className="text-sm font-semibold">Emergency Contact</h3>
-                  <p className="text-muted-foreground mt-0.5 text-xs">
-                    Shared with your landlord if needed. Optional.
-                  </p>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Name</label>
-                  <Input
-                    value={ecName}
-                    onChange={(e) => {
-                      setEcName(e.target.value);
-                      setSaved(false);
-                    }}
-                    placeholder="Contact name"
-                    disabled={saving}
-                    className="max-w-sm"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Phone</label>
-                  <div className="max-w-sm">
-                    <PhoneInput
-                      value={ecPhone}
-                      onChange={(v) => {
-                        setEcPhone(v);
-                        setSaved(false);
-                        setPhoneError('');
-                      }}
-                      disabled={saving}
-                    />
-                  </div>
                 </div>
               </div>
 
               {phoneError && (
-                <p className="text-destructive text-xs">{phoneError}</p>
+                <div className="border-t px-6 py-3">
+                  <p className="text-destructive text-xs">{phoneError}</p>
+                </div>
               )}
-            </div>
-          ) : (
-            /* Non-tenant: email only */
-            <div className="space-y-1.5 border-t pt-5">
-              <label className="text-muted-foreground text-sm font-medium">Email</label>
-              <div className="flex items-center gap-2">
-                <Mail className="text-muted-foreground h-4 w-4" />
-                <span className="text-sm">{email}</span>
-                <Badge variant="secondary" className="text-xs">verified</Badge>
-              </div>
-              <p className="text-muted-foreground text-xs">
-                Email is managed by your magic link login and cannot be changed here.
-              </p>
-            </div>
+            </>
           )}
+
         </CardContent>
       </Card>
 
