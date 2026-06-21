@@ -16,13 +16,28 @@ export async function createContractor(data: {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  // If an email is provided, try to link this directory entry to an existing Nestora account.
-  // profiles.email is populated by the handle_new_user() trigger on signup.
+  if (!data.name?.trim()) throw new Error('Name is required');
+
+  const normalizedEmail = data.email?.trim().toLowerCase() || null;
+
+  // 1. Prevent duplicates: return the existing record if this landlord already has
+  //    a contractor with this email rather than creating a second entry.
+  if (normalizedEmail) {
+    const { data: existing } = await supabase
+      .from('contractors')
+      .select('id, name, email, phone, trade, notes, user_id, landlord_id')
+      .eq('landlord_id', user.id)
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+
+    if (existing) return existing;
+  }
+
+  // 2. Look up a matching Nestora profile by email to auto-link the account.
+  //    profiles.email is populated by the handle_new_user() trigger on signup.
   let linkedUserId: string | null = null;
 
-  if (data.email) {
-    const normalizedEmail = data.email.trim().toLowerCase();
-
+  if (normalizedEmail) {
     const { data: existingProfile } = await supabase
       .from('profiles')
       .select('id, role')
@@ -48,13 +63,14 @@ export async function createContractor(data: {
     }
   }
 
+  // 3. Create the contractor directory entry.
   const { data: inserted, error } = await supabase
     .from('contractors')
     .insert({
-      landlord_id: user.id,         // ownership — used by RLS
-      user_id: linkedUserId,        // nullable link to the contractor's Nestora profile
+      landlord_id: user.id,    // ownership — used by RLS
+      user_id: linkedUserId,   // nullable link to the contractor's Nestora profile
       name: data.name.trim(),
-      email: data.email?.trim().toLowerCase() || null,
+      email: normalizedEmail,
       phone: data.phone?.trim() || null,
       trade: data.trade || null,
       notes: data.notes?.trim() || null,
@@ -62,7 +78,10 @@ export async function createContractor(data: {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error('[createContractor]', error.message);
+    throw new Error(`Failed to create contractor: ${error.message}`);
+  }
 
   return inserted;
 }
