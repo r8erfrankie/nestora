@@ -1,7 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 
 export async function saveOnboardingProfile(data: {
@@ -108,6 +108,27 @@ export async function saveContractorOnboarding(data: {
     .eq('id', user.id);
 
   if (error) throw error;
+
+  // Sync accurate contractor data back to any linked directory entries.
+  // Uses admin client because the contractors RLS policy is landlord_id = auth.uid()
+  // — the contractor themselves cannot update those rows via a regular client.
+  // A contractor can appear in multiple landlords' directories, so we update all
+  // matching rows. Notes are intentionally excluded (landlord-managed field).
+  try {
+    const updates: Record<string, string> = {};
+    if (data.full_name.trim()) updates.name  = data.full_name.trim();
+    if (data.phone?.trim())     updates.phone = data.phone.trim();
+    if (data.trade?.trim())     updates.trade = data.trade.trim();
+
+    if (Object.keys(updates).length > 0) {
+      await createAdminClient()
+        .from('contractors')
+        .update(updates)
+        .eq('user_id', user.id);
+    }
+  } catch (dirError) {
+    console.error('[saveContractorOnboarding] directory sync failed (non-fatal):', dirError);
+  }
 
   redirect('/contractor');
 }
