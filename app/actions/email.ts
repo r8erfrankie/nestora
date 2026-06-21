@@ -88,7 +88,8 @@ export async function sendContractorInvitation(data: {
   const resend = await getResendClient();
   if (!data.contractorEmail) return;
 
-  const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/accept-invite?token=${data.inviteToken}`;
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://gonestora.app').replace(/\/$/, '');
+  const inviteUrl = `${appUrl}/accept-invite?token=${data.inviteToken}`;
   const from = data.landlordName ? `${data.landlordName} via Nestora` : 'Nestora';
 
   const { error } = await resend.emails.send({
