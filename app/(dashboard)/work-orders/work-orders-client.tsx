@@ -1136,7 +1136,7 @@ export function WorkOrdersClient({
                 <TableHead>Due Date</TableHead>
                 <TableHead className="text-right">Cost</TableHead>
                 <TableHead>Assigned To</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="w-px whitespace-nowrap px-3 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1203,7 +1203,7 @@ export function WorkOrdersClient({
                           <TableHead>Due Date</TableHead>
                           <TableHead className="text-right">Cost</TableHead>
                           {groupBy !== 'contractor' && <TableHead>Assigned To</TableHead>}
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead className="w-px whitespace-nowrap px-3 text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -2312,11 +2312,12 @@ function WorkOrderRow({
           )}
         </TableCell>
       )}
-      <TableCell className="text-right">
-        <div className="flex items-center justify-end gap-1">
+      <TableCell className="whitespace-nowrap px-3 text-right">
+        <div className="flex items-center justify-end gap-0.5">
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
+            className="h-8 w-8"
             onClick={(e) => { e.stopPropagation(); onQuickPhoto(wo.id); }}
             title="Add Photos"
           >
@@ -2324,7 +2325,8 @@ function WorkOrderRow({
           </Button>
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
+            className="h-8 w-8"
             onClick={(e) => { e.stopPropagation(); onOpen(wo); }}
             title="View"
           >
@@ -2333,7 +2335,8 @@ function WorkOrderRow({
           {view === 'archived' ? (
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
+              className="h-8 w-8"
               onClick={(e) => { e.stopPropagation(); onUnarchive(wo); }}
               title="Unarchive"
             >
@@ -2342,7 +2345,8 @@ function WorkOrderRow({
           ) : (
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
+              className="h-8 w-8"
               onClick={(e) => { e.stopPropagation(); onArchive(wo); }}
               title="Archive"
             >
@@ -2351,10 +2355,10 @@ function WorkOrderRow({
           )}
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
+            className="h-8 w-8 text-destructive hover:text-destructive"
             onClick={(e) => { e.stopPropagation(); onDelete(wo); }}
             title="Delete"
-            className="text-destructive hover:text-destructive"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
