@@ -61,7 +61,7 @@ export function SettingsClient({
     initialEcPhone ? (initialEcPhone as Value) : undefined
   );
   const [companyName, setCompanyName] = useState(initialCompanyName ?? '');
-  const [trade, setTrade] = useState(initialTrade ?? '');
+  const [trade, setTrade] = useState<string | null>(initialTrade ?? null);
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -82,7 +82,7 @@ export function SettingsClient({
     (isContractor && (
       (phone ?? '') !== (initialPhone ?? '') ||
       companyName !== (initialCompanyName ?? '') ||
-      trade !== (initialTrade ?? '')
+      trade !== (initialTrade ?? null)
     ));
 
   const handleSave = async () => {
@@ -250,7 +250,7 @@ export function SettingsClient({
             <div className="flex items-center gap-6 py-4">
               <p className="text-muted-foreground w-28 shrink-0 text-sm">Trade</p>
               <Select
-                value={trade}
+                value={trade ?? ''}
                 onValueChange={(v) => { setTrade(v); setSaved(false); }}
                 disabled={saving}
               >
