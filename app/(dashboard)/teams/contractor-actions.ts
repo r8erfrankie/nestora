@@ -7,7 +7,7 @@ import { validateEnv } from '@/lib/env';
 validateEnv();
 
 export type CreateContractorResult =
-  | { success: true; contractor: Record<string, unknown>; linked: boolean; inviteToken?: string; message?: string }
+  | { success: true; contractor: Record<string, unknown>; linked: boolean; message?: string }
   | { success: false; error: string };
 
 export async function createContractor(data: {
@@ -95,17 +95,12 @@ export async function createContractor(data: {
     return { success: false, error: `Failed to create contractor: ${insertError.message}` };
   }
 
-  const inviteToken = (inserted as any).invite_token as string | undefined;
-
   // Send an invitation email only when:
   //   • an email address was provided, AND
   //   • the contractor has no linked account yet (user_id is still null)
-  if (normalizedEmail && !linkedUserId && inviteToken) {
+  if (normalizedEmail && !linkedUserId) {
     try {
-      await sendContractorInvitation({
-        contractorEmail: normalizedEmail,
-        inviteToken,
-      });
+      await sendContractorInvitation({ contractorEmail: normalizedEmail });
     } catch (emailError) {
       console.error('[createContractor] invitation email failed (non-fatal):', emailError);
     }
@@ -115,7 +110,6 @@ export async function createContractor(data: {
     success: true,
     contractor: inserted,
     linked: !!linkedUserId,
-    inviteToken,
   };
 }
 
