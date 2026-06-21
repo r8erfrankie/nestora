@@ -221,7 +221,7 @@ export function TeamsClient({ initialContractors }: { initialContractors: Contra
                         <span className="truncate">{c.email}</span>
                       </div>
                     )}
-                    {c.phone && (
+                    {c.phone && !c.profile_phone && (
                       <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
                         <Phone className="h-3 w-3 shrink-0" />
                         <span>{formatPhone(c.phone) ?? c.phone}</span>

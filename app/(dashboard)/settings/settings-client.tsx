@@ -97,9 +97,15 @@ export function SettingsClient({
         return;
       }
     }
-    if (isContractor && phone && !isValidPhoneNumber(phone)) {
-      setPhoneError('Please enter a valid phone number.');
-      return;
+    if (isContractor) {
+      if (!phone) {
+        setPhoneError('Phone is required.');
+        return;
+      }
+      if (!isValidPhoneNumber(phone)) {
+        setPhoneError('Please enter a valid phone number.');
+        return;
+      }
     }
 
     setSaving(true);
@@ -173,14 +179,19 @@ export function SettingsClient({
 
         {/* Phone row — tenants and contractors */}
         {(isTenant || isContractor) && (
-          <div className="flex items-center gap-6 py-4">
-            <p className="text-muted-foreground w-28 shrink-0 text-sm">Phone</p>
-            <div className="max-w-xs flex-1">
+          <div className="flex items-start gap-6 py-4">
+            <p className="text-muted-foreground w-28 shrink-0 pt-2 text-sm">
+              Phone{isContractor && <span className="text-destructive ml-0.5">*</span>}
+            </p>
+            <div className="max-w-xs flex-1 space-y-1">
               <PhoneInput
                 value={phone}
                 onChange={(v) => { setPhone(v); setSaved(false); setPhoneError(''); }}
                 disabled={saving}
               />
+              {isContractor && phoneError && (
+                <p className="text-destructive text-xs">{phoneError}</p>
+              )}
             </div>
           </div>
         )}
@@ -265,11 +276,6 @@ export function SettingsClient({
               </Select>
             </div>
 
-            {phoneError && (
-              <div className="py-3">
-                <p className="text-destructive text-xs">{phoneError}</p>
-              </div>
-            )}
           </>
         )}
 
