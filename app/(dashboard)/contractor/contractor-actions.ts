@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { insertNotification } from '@/lib/notifications';
 
 // Contractors may only move status forward along this chain.
 // Landlords control Open→Archived and have full edit access via crud-actions.ts.
@@ -18,7 +19,7 @@ export async function acceptOrCompleteWorkOrder(workOrderId: string) {
 
   const { data: wo, error: fetchErr } = await supabase
     .from('work_orders')
-    .select('assigned_contractor_email, status')
+    .select('assigned_contractor_email, status, user_id, title')
     .eq('id', workOrderId)
     .single();
 
@@ -47,16 +48,43 @@ export async function acceptOrCompleteWorkOrder(workOrderId: string) {
     });
   } catch { /* non-fatal */ }
 
-  // When the contractor marks a work order Completed, resolve the linked maintenance
-  // request so the tenant sees the correct final status. Contractor RLS can't update
-  // maintenance_requests, so the admin client is required here.
+  // When the contractor marks a work order Completed:
+  // 1. Resolve the linked maintenance request (contractor RLS can't do this directly).
+  // 2. Notify the landlord.
+  // 3. Notify the tenant if there was a linked maintenance request.
   if (nextStatus === 'Completed') {
     try {
       const admin = createAdminClient();
-      await admin
+
+      // Resolve the maintenance request and retrieve tenant info for notification.
+      const { data: resolved } = await admin
         .from('maintenance_requests')
         .update({ status: 'Resolved' })
-        .eq('converted_to_work_order_id', workOrderId);
+        .eq('converted_to_work_order_id', workOrderId)
+        .select('id, tenant_id');
+
+      // Notify landlord
+      if (wo.user_id) {
+        await insertNotification({
+          userId: wo.user_id as string,
+          type: 'work_order_completed',
+          title: 'Work order completed',
+          message: `"${wo.title}" has been marked as completed by the contractor.`,
+          link: '/work-orders',
+        });
+      }
+
+      // Notify tenant (only when the work order originated from a maintenance request)
+      const linkedRequest = resolved?.[0];
+      if (linkedRequest?.tenant_id) {
+        await insertNotification({
+          userId: linkedRequest.tenant_id as string,
+          type: 'work_order_completed',
+          title: 'Your maintenance request has been completed',
+          message: `"${wo.title}" has been completed.`,
+          link: `/tenant/requests/${linkedRequest.id}`,
+        });
+      }
     } catch { /* non-fatal — work order status is already updated */ }
   }
 
@@ -77,7 +105,7 @@ export async function saveContractorQuote(workOrderId: string, quoteRaw: string)
 
   const { data: wo, error: fetchErr } = await supabase
     .from('work_orders')
-    .select('assigned_contractor_email')
+    .select('assigned_contractor_email, user_id, title')
     .eq('id', workOrderId)
     .single();
 
@@ -100,6 +128,17 @@ export async function saveContractorQuote(workOrderId: string, quoteRaw: string)
       content: `Quote of $${quote.toFixed(2)} submitted`,
     });
   } catch { /* non-fatal */ }
+
+  // Notify the landlord who owns the work order
+  if (wo.user_id) {
+    await insertNotification({
+      userId: wo.user_id as string,
+      type: 'quote_submitted',
+      title: 'New quote received',
+      message: `A quote of $${quote.toFixed(2)} was submitted for "${wo.title}".`,
+      link: '/work-orders',
+    });
+  }
 
   return { quote };
 }
