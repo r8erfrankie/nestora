@@ -1,5 +1,10 @@
 import { formatNumber } from 'libphonenumber-js';
-export { isValidPhoneNumber } from 'libphonenumber-js';
+
+// Accepts any phone string; passes if it contains at least 10 digits.
+export function isValidPhoneNumber(phone: string | null | undefined): boolean {
+  if (!phone) return false;
+  return phone.replace(/\D/g, '').length >= 10;
+}
 
 /**
  * Formats an E.164 phone number for human display.

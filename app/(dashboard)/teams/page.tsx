@@ -26,7 +26,7 @@ export default async function TeamsPage() {
 
   // Enrich with self-reported profile data (phone, company_name, trade) for contractors
   // who have registered accounts. Joined via email using the admin client.
-  type ProfileData = { company_name: string | null; trade: string | null; phone: string | null };
+  type ProfileData = { full_name: string | null; company_name: string | null; trade: string | null; phone: string | null };
   let profileByEmail: Record<string, ProfileData> = {};
 
   const contractorEmails = (contractors ?? [])
@@ -41,7 +41,7 @@ export default async function TeamsPage() {
     if (matched.length > 0) {
       const { data: profiles } = await admin
         .from('profiles')
-        .select('id, company_name, trade, phone')
+        .select('id, full_name, company_name, trade, phone')
         .in('id', matched.map((u) => u.id));
 
       const idToEmail = new Map(matched.map((u) => [u.id, u.email!.toLowerCase()]));
@@ -49,6 +49,7 @@ export default async function TeamsPage() {
         const email = idToEmail.get(p.id as string);
         if (email) {
           profileByEmail[email] = {
+            full_name: (p.full_name as string | null) ?? null,
             company_name: (p.company_name as string | null) ?? null,
             trade: (p.trade as string | null) ?? null,
             phone: (p.phone as string | null) ?? null,
@@ -62,6 +63,8 @@ export default async function TeamsPage() {
     const prof = profileByEmail[(c.email as string | null)?.toLowerCase() ?? ''] ?? null;
     return {
       ...c,
+      is_registered: prof !== null,
+      profile_name: prof?.full_name ?? null,
       profile_phone: prof?.phone ?? null,
       profile_company_name: prof?.company_name ?? null,
       profile_trade: prof?.trade ?? null,

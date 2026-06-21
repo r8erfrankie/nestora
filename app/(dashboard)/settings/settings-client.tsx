@@ -14,8 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
-import { isValidPhoneNumber } from 'libphonenumber-js';
-import type { Value } from 'react-phone-number-input';
+import { isValidPhoneNumber } from '@/lib/phone';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { updateProfile } from './actions';
 import { DeleteAccountButton } from './delete-account-button';
@@ -53,13 +52,9 @@ export function SettingsClient({
   trade: initialTrade,
 }: SettingsClientProps) {
   const [name, setName] = useState(fullName ?? '');
-  const [phone, setPhone] = useState<Value | undefined>(
-    initialPhone ? (initialPhone as Value) : undefined
-  );
+  const [phone, setPhone] = useState<string | undefined>(initialPhone ?? undefined);
   const [ecName, setEcName] = useState(initialEcName ?? '');
-  const [ecPhone, setEcPhone] = useState<Value | undefined>(
-    initialEcPhone ? (initialEcPhone as Value) : undefined
-  );
+  const [ecPhone, setEcPhone] = useState<string | undefined>(initialEcPhone ?? undefined);
   const [companyName, setCompanyName] = useState(initialCompanyName ?? '');
   const [trade, setTrade] = useState<string | null>(initialTrade ?? null);
 

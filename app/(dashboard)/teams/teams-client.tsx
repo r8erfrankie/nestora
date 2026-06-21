@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Users, Plus, Pencil, Trash2, Loader2, Mail, Phone, Building2, Wrench } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, Loader2, Mail, Phone, Building2, Wrench, ShieldCheck } from 'lucide-react';
 import { createContractor, updateContractor, deleteContractor } from './contractor-actions';
 
 export interface Contractor {
@@ -43,7 +43,9 @@ export interface Contractor {
   phone: string | null;
   trade: string | null;
   notes: string | null;
-  // Self-reported via contractor's own Settings page
+  // Set when the contractor has a registered Nestora account
+  is_registered?: boolean;
+  profile_name?: string | null;
   profile_phone?: string | null;
   profile_company_name?: string | null;
   profile_trade?: string | null;
@@ -125,31 +127,60 @@ export function TeamsClient({ initialContractors }: { initialContractors: Contra
   const effectiveTrade = (f: ContractorForm) =>
     f.trade === 'Other' ? f.customTrade.trim() || null : f.trade || null;
 
+  const isRegisteredEdit = !!(editTarget?.is_registered);
+
   const handleSave = async () => {
-    if (!form.name.trim()) {
-      setFormError('Contractor name is required.');
-      return;
-    }
-    if (form.phone && !isValidPhoneNumber(form.phone)) {
-      setFormError('Please enter a valid phone number or leave it blank.');
-      return;
-    }
     setSaving(true);
     try {
-      const payload = {
-        name: form.name.trim(),
-        email: form.email.trim() || null,
-        phone: form.phone || null,
-        trade: effectiveTrade(form),
-        notes: form.notes.trim() || null,
-      };
-
       if (editTarget) {
-        await updateContractor(editTarget.id, payload);
-        setContractors((prev) =>
-          prev.map((c) => (c.id === editTarget.id ? { ...c, ...payload } : c))
-        );
+        if (isRegisteredEdit) {
+          // Registered contractors own their identity — landlord can only update notes.
+          await updateContractor(editTarget.id, {
+            name: editTarget.name,
+            notes: form.notes.trim() || null,
+          });
+          setContractors((prev) =>
+            prev.map((c) =>
+              c.id === editTarget.id ? { ...c, notes: form.notes.trim() || null } : c
+            )
+          );
+        } else {
+          if (!form.name.trim()) {
+            setFormError('Contractor name is required.');
+            return;
+          }
+          if (form.phone && !isValidPhoneNumber(form.phone)) {
+            setFormError('Please enter a valid phone number or leave it blank.');
+            return;
+          }
+          const payload = {
+            name: form.name.trim(),
+            email: form.email.trim() || null,
+            phone: form.phone || null,
+            trade: effectiveTrade(form),
+            notes: form.notes.trim() || null,
+          };
+          await updateContractor(editTarget.id, payload);
+          setContractors((prev) =>
+            prev.map((c) => (c.id === editTarget.id ? { ...c, ...payload } : c))
+          );
+        }
       } else {
+        if (!form.name.trim()) {
+          setFormError('Contractor name is required.');
+          return;
+        }
+        if (form.phone && !isValidPhoneNumber(form.phone)) {
+          setFormError('Please enter a valid phone number or leave it blank.');
+          return;
+        }
+        const payload = {
+          name: form.name.trim(),
+          email: form.email.trim() || null,
+          phone: form.phone || null,
+          trade: effectiveTrade(form),
+          notes: form.notes.trim() || null,
+        };
         const result = await createContractor(payload);
         if (!result.success) throw new Error(result.error);
         const inserted = result.contractor as unknown as Contractor;
@@ -214,10 +245,18 @@ export function TeamsClient({ initialContractors }: { initialContractors: Contra
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold leading-snug">{c.name}</span>
-                      {c.trade && (
-                        <Badge variant="secondary" className="text-xs">
-                          {c.trade}
+                      <span className="font-semibold leading-snug">
+                        {c.is_registered ? (c.profile_name || c.name) : c.name}
+                      </span>
+                      {c.is_registered && (
+                        <Badge variant="secondary" className="gap-1 text-xs">
+                          <ShieldCheck className="h-3 w-3" />
+                          Registered
+                        </Badge>
+                      )}
+                      {(c.is_registered ? c.profile_trade : c.trade) && (
+                        <Badge variant="outline" className="text-xs">
+                          {c.is_registered ? c.profile_trade : c.trade}
                         </Badge>
                       )}
                     </div>
@@ -227,39 +266,21 @@ export function TeamsClient({ initialContractors }: { initialContractors: Contra
                         <span className="truncate">{c.email}</span>
                       </div>
                     )}
-                    {c.phone && !c.profile_phone && (
+                    {/* Show profile phone for registered contractors, fallback to directory phone */}
+                    {(c.is_registered ? c.profile_phone : c.phone) && (
                       <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
                         <Phone className="h-3 w-3 shrink-0" />
-                        <span>{formatPhone(c.phone) ?? c.phone}</span>
+                        <span>{formatPhone(c.is_registered ? c.profile_phone : c.phone) ?? (c.is_registered ? c.profile_phone : c.phone)}</span>
+                      </div>
+                    )}
+                    {c.is_registered && c.profile_company_name && (
+                      <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
+                        <Building2 className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{c.profile_company_name}</span>
                       </div>
                     )}
                     {c.notes && (
-                      <p className="text-muted-foreground mt-1.5 line-clamp-2 text-xs">{c.notes}</p>
-                    )}
-                    {(c.profile_company_name || c.profile_trade || c.profile_phone) && (
-                      <div className="mt-2 border-t pt-2">
-                        <p className="text-muted-foreground mb-1 text-[10px] font-semibold uppercase tracking-widest">
-                          Registered
-                        </p>
-                        {c.profile_company_name && (
-                          <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
-                            <Building2 className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{c.profile_company_name}</span>
-                          </div>
-                        )}
-                        {c.profile_trade && (
-                          <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
-                            <Wrench className="h-3 w-3 shrink-0" />
-                            <span>{c.profile_trade}</span>
-                          </div>
-                        )}
-                        {c.profile_phone && (
-                          <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
-                            <Phone className="h-3 w-3 shrink-0" />
-                            <span>{formatPhone(c.profile_phone) ?? c.profile_phone}</span>
-                          </div>
-                        )}
-                      </div>
+                      <p className="text-muted-foreground mt-1.5 line-clamp-2 text-xs italic">{c.notes}</p>
                     )}
                   </div>
                   <div className="flex shrink-0 gap-0.5">
@@ -293,79 +314,133 @@ export function TeamsClient({ initialContractors }: { initialContractors: Contra
           <DialogHeader>
             <DialogTitle>{editTarget ? 'Edit Contractor' : 'Add Contractor'}</DialogTitle>
             <DialogDescription>
-              {editTarget
+              {isRegisteredEdit
+                ? `${editTarget?.profile_name || editTarget?.name} manages their own profile. You can add private notes below.`
+                : editTarget
                 ? `Update details for ${editTarget.name}.`
                 : 'Add a contractor to your team directory.'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3 pt-1 sm:space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">
-                Name <span className="text-destructive">*</span>
-              </label>
-              <Input
-                value={form.name}
-                onChange={(e) => update('name', e.target.value)}
-                placeholder="e.g. ACME Plumbing"
-                className="!h-11 sm:!h-8"
-              />
-            </div>
+            {isRegisteredEdit ? (
+              /* Registered contractor — show read-only profile info + editable notes only */
+              <>
+                <div className="bg-muted/40 rounded-lg border px-4 py-3 space-y-2">
+                  <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wider mb-2">
+                    Profile (managed by contractor)
+                  </p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                    <span className="text-muted-foreground">Name</span>
+                    <span className="font-medium">{editTarget?.profile_name || '—'}</span>
+                    {editTarget?.profile_company_name && (
+                      <>
+                        <span className="text-muted-foreground">Company</span>
+                        <span>{editTarget.profile_company_name}</span>
+                      </>
+                    )}
+                    {editTarget?.profile_trade && (
+                      <>
+                        <span className="text-muted-foreground">Trade</span>
+                        <span>{editTarget.profile_trade}</span>
+                      </>
+                    )}
+                    {editTarget?.profile_phone && (
+                      <>
+                        <span className="text-muted-foreground">Phone</span>
+                        <span>{formatPhone(editTarget.profile_phone) ?? editTarget.profile_phone}</span>
+                      </>
+                    )}
+                    {editTarget?.email && (
+                      <>
+                        <span className="text-muted-foreground">Email</span>
+                        <span className="truncate">{editTarget.email}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Trade</label>
-              <Select value={form.trade} onValueChange={(v) => update('trade', v ?? '')}>
-                <SelectTrigger className="!h-11 sm:!h-8">
-                  <SelectValue placeholder="Select trade (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TRADES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="Other">Other / Custom</SelectItem>
-                </SelectContent>
-              </Select>
-              {form.trade === 'Other' && (
-                <Input
-                  value={form.customTrade}
-                  onChange={(e) => update('customTrade', e.target.value)}
-                  placeholder="Enter trade name"
-                  className="!h-11 sm:!h-8"
-                />
-              )}
-            </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Private notes</label>
+                  <Textarea
+                    value={form.notes}
+                    onChange={(e) => update('notes', e.target.value)}
+                    placeholder="Internal notes about rates, availability, etc. Only visible to you."
+                    rows={3}
+                  />
+                </div>
+              </>
+            ) : (
+              /* Unregistered contractor — fully editable */
+              <>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">
+                    Name <span className="text-destructive">*</span>
+                  </label>
+                  <Input
+                    value={form.name}
+                    onChange={(e) => update('name', e.target.value)}
+                    placeholder="e.g. ACME Plumbing"
+                    className="!h-11 sm:!h-8"
+                  />
+                </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Email</label>
-                <Input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => update('email', e.target.value)}
-                  placeholder="contractor@example.com"
-                  className="!h-11 sm:!h-8"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Phone</label>
-                <PhoneInput
-                  value={form.phone || undefined}
-                  onChange={(v) => update('phone', v ?? '')}
-                />
-              </div>
-            </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Trade</label>
+                  <Select value={form.trade} onValueChange={(v) => update('trade', v ?? '')}>
+                    <SelectTrigger className="!h-11 sm:!h-8">
+                      <SelectValue placeholder="Select trade (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TRADES.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="Other">Other / Custom</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {form.trade === 'Other' && (
+                    <Input
+                      value={form.customTrade}
+                      onChange={(e) => update('customTrade', e.target.value)}
+                      placeholder="Enter trade name"
+                      className="!h-11 sm:!h-8"
+                    />
+                  )}
+                </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Notes</label>
-              <Textarea
-                value={form.notes}
-                onChange={(e) => update('notes', e.target.value)}
-                placeholder="Rates, availability, specialties, etc."
-                rows={3}
-              />
-            </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Email</label>
+                    <Input
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => update('email', e.target.value)}
+                      placeholder="contractor@example.com"
+                      className="!h-11 sm:!h-8"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Phone</label>
+                    <PhoneInput
+                      value={form.phone || undefined}
+                      onChange={(v) => update('phone', v ?? '')}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Notes</label>
+                  <Textarea
+                    value={form.notes}
+                    onChange={(e) => update('notes', e.target.value)}
+                    placeholder="Rates, availability, specialties, etc."
+                    rows={3}
+                  />
+                </div>
+              </>
+            )}
 
             {formError && <p className="text-destructive text-sm">{formError}</p>}
           </div>
@@ -376,7 +451,7 @@ export function TeamsClient({ initialContractors }: { initialContractors: Contra
             </Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {editTarget ? 'Save Changes' : 'Add Contractor'}
+              {isRegisteredEdit ? 'Save Notes' : editTarget ? 'Save Changes' : 'Add Contractor'}
             </Button>
           </DialogFooter>
         </DialogContent>

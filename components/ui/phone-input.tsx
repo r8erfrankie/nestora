@@ -1,24 +1,15 @@
 'use client';
 
-import { forwardRef, useState } from 'react';
-import RawPhoneInput, { type Value, type Country } from 'react-phone-number-input';
-import { cn } from '@/lib/utils';
+import { useState } from 'react';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
-// Forwarded-ref wrapper so react-phone-number-input can attach its internal ref.
-// rounded-l-none! strips the left border-radius so the number field connects
-// flush to the country selector.
-const PhoneNumberInput = forwardRef<HTMLInputElement, React.ComponentProps<'input'>>(
-  ({ className, ...props }, ref) => (
-    <Input {...props} ref={ref} className={cn('rounded-l-none!', className)} />
-  )
-);
-PhoneNumberInput.displayName = 'PhoneNumberInput';
+// Simple US phone input — no country selector, no flag, no E.164 transformation.
+// Stores whatever the user types (e.g. "(555) 123-4567" or "555-123-4567").
 
 interface PhoneInputProps {
-  value?: Value;
-  onChange: (value: Value | undefined) => void;
-  defaultCountry?: Country;
+  value?: string;
+  onChange: (value: string | undefined) => void;
   disabled?: boolean;
   required?: boolean;
   id?: string;
@@ -26,31 +17,25 @@ interface PhoneInputProps {
   'aria-invalid'?: boolean;
 }
 
-/**
- * Controlled phone input with country selector.
- * value / onChange use E.164 format (e.g. "+15551234567").
- * onChange fires undefined while the number is incomplete.
- */
 export function PhoneInput({
   value,
   onChange,
-  defaultCountry = 'US',
   disabled,
   id,
   className,
   'aria-invalid': ariaInvalid,
 }: PhoneInputProps) {
   return (
-    <RawPhoneInput
-      international
-      defaultCountry={defaultCountry}
-      value={value}
-      onChange={onChange}
-      inputComponent={PhoneNumberInput}
+    <Input
+      type="tel"
+      value={value ?? ''}
+      onChange={(e) => onChange(e.target.value || undefined)}
       disabled={disabled}
       id={id}
+      className={cn(className)}
       aria-invalid={ariaInvalid}
-      className={cn('phone-input', className)}
+      placeholder="(555) 123-4567"
+      autoComplete="tel"
     />
   );
 }
@@ -64,11 +49,8 @@ interface PhoneInputFieldProps {
   className?: string;
 }
 
-/**
- * Form-field wrapper for use inside Server Component <form action={serverAction}> forms.
- * Stores the E.164 value in a hidden <input name={name}> so server actions can
- * read it from formData via formData.get(name).
- */
+// Form-field wrapper for <form action={serverAction}> forms.
+// Stores the value in a hidden <input> so server actions can read it from formData.
 export function PhoneInputField({
   name,
   defaultValue,
@@ -76,13 +58,16 @@ export function PhoneInputField({
   id,
   className,
 }: PhoneInputFieldProps) {
-  const [value, setValue] = useState<Value | undefined>(
-    defaultValue ? (defaultValue as Value) : undefined
-  );
+  const [value, setValue] = useState(defaultValue ?? '');
   return (
     <div className={className}>
-      <input type="hidden" name={name} value={value ?? ''} />
-      <PhoneInput value={value} onChange={setValue} disabled={disabled} id={id ?? name} />
+      <input type="hidden" name={name} value={value} />
+      <PhoneInput
+        value={value || undefined}
+        onChange={(v) => setValue(v ?? '')}
+        disabled={disabled}
+        id={id ?? name}
+      />
     </div>
   );
 }
