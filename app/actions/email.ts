@@ -88,7 +88,7 @@ export async function sendContractorInvitation(data: {
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://gonestora.app').replace(/\/$/, '');
 
   const landlord = data.landlordName || 'A landlord';
-  const loginUrl = `${appUrl}/login?email=${encodeURIComponent(data.contractorEmail)}`;
+  const loginUrl = `${appUrl}/login?email=${encodeURIComponent(data.contractorEmail)}&redirectTo=${encodeURIComponent('/select-role?hint=contractor')}`;
 
   const { error } = await resend.emails.send({
     from: 'Nestora <noreply@gonestora.app>',
