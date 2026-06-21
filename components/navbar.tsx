@@ -33,7 +33,7 @@ export async function Navbar({
   }
 
   return (
-    <header className="border-border bg-background/95 supports-[backdrop-filter]:bg-background/60 z-40 flex h-14 items-center justify-between border-b px-6 backdrop-blur">
+    <header className="border-border bg-background/95 supports-[backdrop-filter]:bg-background/60 z-40 flex h-14 items-center justify-end border-b px-6 backdrop-blur">
       {/* Right actions */}
       <div className="flex items-center gap-1.5">
         <Button
