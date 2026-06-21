@@ -30,6 +30,7 @@ import {
   Upload,
   Loader2,
   X,
+  MapPin,
 } from 'lucide-react';
 import { acceptOrCompleteWorkOrder, saveContractorQuote } from './contractor-actions';
 import { archiveWorkOrderForUser, unarchiveWorkOrderForUser } from '@/app/actions/archive-actions';
@@ -702,6 +703,29 @@ export function ContractorClient({
             </DialogHeader>
 
             <div className="space-y-5 pt-1">
+              {/* Location — property + unit, prominent so contractor knows where to go */}
+              {(selected.properties || selected.unit) && (
+                <div>
+                  <div className="text-muted-foreground mb-1 text-xs font-medium uppercase tracking-wider">
+                    Location
+                  </div>
+                  <div className="flex items-start gap-1.5 text-sm font-medium">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      {selected.properties?.name}
+                      {selected.unit && (
+                        <span className="ml-1 font-semibold">· Unit {selected.unit}</span>
+                      )}
+                      {selected.properties?.address && (
+                        <div className="text-muted-foreground mt-0.5 text-xs font-normal">
+                          {selected.properties.address}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Status + Priority + Trade badges */}
               <div className="flex flex-wrap gap-2">
                 <span

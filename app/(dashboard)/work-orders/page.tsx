@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { WorkOrdersClient } from './work-orders-client';
 
 export default async function WorkOrdersPage({
@@ -73,7 +73,57 @@ export default async function WorkOrdersPage({
     workOrders = workOrdersData;
     workOrdersError = workOrdersErr;
     properties = propertiesData ?? [];
-    contractors = contractorsData ?? [];
+    const rawContractors = contractorsData ?? [];
+
+    // Enrich registered contractors with their self-reported profile data (name, phone).
+    // Profiles have strict RLS (own-row only), so we need the admin client.
+    // Non-fatal: if enrichment fails the page still renders with directory-only data.
+    try {
+      const contractorEmails = rawContractors
+        .map((c) => (c.email as string | null)?.toLowerCase())
+        .filter((e): e is string => Boolean(e));
+
+      if (contractorEmails.length > 0) {
+        const admin = createAdminClient();
+        const { data: { users } } = await admin.auth.admin.listUsers({ perPage: 1000 });
+        const matched = users.filter(
+          (u) => u.email && contractorEmails.includes(u.email.toLowerCase())
+        );
+
+        if (matched.length > 0) {
+          const { data: profiles } = await admin
+            .from('profiles')
+            .select('id, full_name, phone')
+            .in('id', matched.map((u) => u.id));
+
+          const profileByUserId = new Map(
+            (profiles ?? []).map((p) => [p.id as string, p])
+          );
+          const userIdByEmail = new Map(
+            matched.map((u) => [u.email!.toLowerCase(), u.id])
+          );
+
+          contractors = rawContractors.map((c) => {
+            const email = (c.email as string | null)?.toLowerCase() ?? '';
+            const userId = userIdByEmail.get(email);
+            const prof = userId ? profileByUserId.get(userId) : null;
+            return {
+              ...c,
+              is_registered: !!prof,
+              profile_name: (prof?.full_name as string | null) ?? null,
+              profile_phone: (prof?.phone as string | null) ?? null,
+            };
+          });
+        } else {
+          contractors = rawContractors;
+        }
+      } else {
+        contractors = rawContractors;
+      }
+    } catch {
+      // Enrichment failed — fall back to directory-only data
+      contractors = rawContractors;
+    }
     archivedWorkOrderIds = (archivedEntries ?? []).map((e) => e.work_order_id as string);
 
     // Map: "propertyId::email" → unit

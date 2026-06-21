@@ -80,6 +80,10 @@ interface Contractor {
   email: string | null;
   phone: string | null;
   trade: string | null;
+  // Populated for registered contractors (from profiles table via admin client)
+  is_registered?: boolean;
+  profile_name?: string | null;
+  profile_phone?: string | null;
 }
 
 interface Property {
@@ -1881,20 +1885,33 @@ export function WorkOrdersClient({
                           </Button>
                         </div>
                       </div>
-                    ) : (
+                    ) : (() => {
+                        // Prefer the contractor's own profile data for registered contractors.
+                        const matchedContractor = localContractors.find(
+                          (lc) =>
+                            lc.email?.toLowerCase() ===
+                            (selectedWorkOrder.assigned_contractor_email ?? '').toLowerCase()
+                        );
+                        const displayName =
+                          matchedContractor?.profile_name ||
+                          selectedWorkOrder.assigned_contractor;
+                        const displayPhone =
+                          matchedContractor?.profile_phone ||
+                          selectedWorkOrder.assigned_contractor_phone;
+                        return (
                       <div className="flex flex-wrap items-center gap-2">
                         <span>
-                          {selectedWorkOrder.assigned_contractor || 'Not assigned'}
+                          {displayName || 'Not assigned'}
                         </span>
                         {selectedWorkOrder.assigned_contractor_email && (
                           <span className="text-muted-foreground text-xs">
                             ({selectedWorkOrder.assigned_contractor_email})
                           </span>
                         )}
-                        {selectedWorkOrder.assigned_contractor_phone && (
+                        {displayPhone && (
                           <span className="text-muted-foreground flex items-center gap-1 text-xs">
                             <Phone className="h-3 w-3" />
-                            {formatPhone(selectedWorkOrder.assigned_contractor_phone) ?? selectedWorkOrder.assigned_contractor_phone}
+                            {formatPhone(displayPhone) ?? displayPhone}
                           </span>
                         )}
                         {selectedWorkOrder.trade && (
@@ -1930,7 +1947,8 @@ export function WorkOrdersClient({
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
                       </div>
-                    )}
+                        );
+                      })()}
                   </div>
                 </div>
 
