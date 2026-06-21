@@ -9,6 +9,8 @@ export async function updateProfile(data: {
   phone?: string | null;
   emergency_contact_name?: string | null;
   emergency_contact_phone?: string | null;
+  company_name?: string | null;
+  trade?: string | null;
 }) {
   const supabase = await createClient();
   const {
@@ -23,6 +25,8 @@ export async function updateProfile(data: {
   if ('phone' in data) updates.phone = data.phone?.trim() || null;
   if ('emergency_contact_name' in data) updates.emergency_contact_name = data.emergency_contact_name?.trim() || null;
   if ('emergency_contact_phone' in data) updates.emergency_contact_phone = data.emergency_contact_phone?.trim() || null;
+  if ('company_name' in data) updates.company_name = data.company_name?.trim() || null;
+  if ('trade' in data) updates.trade = data.trade?.trim() || null;
 
   const { error } = await supabase.from('profiles').update(updates).eq('id', user.id);
   if (error) throw error;

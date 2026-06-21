@@ -14,7 +14,7 @@ export default async function SettingsPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, full_name, phone, emergency_contact_name, emergency_contact_phone')
+    .select('role, full_name, phone, emergency_contact_name, emergency_contact_phone, company_name, trade')
     .eq('id', user.id)
     .single();
 
@@ -27,6 +27,8 @@ export default async function SettingsPage() {
         phone={(profile?.phone as string | null) ?? null}
         ecName={(profile?.emergency_contact_name as string | null) ?? null}
         ecPhone={(profile?.emergency_contact_phone as string | null) ?? null}
+        companyName={(profile?.company_name as string | null) ?? null}
+        trade={(profile?.trade as string | null) ?? null}
       />
     </div>
   );

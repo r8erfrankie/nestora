@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Lightbox from 'yet-another-react-lightbox';
 import Counter from 'yet-another-react-lightbox/plugins/counter';
@@ -48,7 +48,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Eye, Upload, Loader2, ClipboardList, Archive, ArchiveRestore, Trash2, X, Pencil, Phone } from 'lucide-react';
+import { Plus, Eye, Upload, Loader2, ClipboardList, Archive, ArchiveRestore, Trash2, X, Pencil, Phone, ChevronDown } from 'lucide-react';
 import { archiveWorkOrderForUser, unarchiveWorkOrderForUser } from '@/app/actions/archive-actions';
 import { WorkOrderNotes } from '@/app/components/work-order-notes';
 
@@ -113,6 +113,9 @@ const TRADES = [
   'Locksmith',
 ] as const;
 const TRADES_SET = new Set<string>(TRADES as unknown as string[]);
+
+const PRIORITY_ORDER = ['Urgent', 'High', 'Medium', 'Low'] as const;
+type GroupBy = 'property' | 'priority' | 'contractor' | 'tenant' | 'none';
 
 export function WorkOrdersClient({
   initialWorkOrders,
@@ -219,6 +222,20 @@ export function WorkOrdersClient({
   const [sortColumn, setSortColumn] = useState<'property' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
+  // Grouping
+  const [groupBy, setGroupBy] = useState<GroupBy>('property');
+  const [collapsedByGroup, setCollapsedByGroup] = useState<Record<string, string[]>>({});
+
+  useEffect(() => {
+    try {
+      const gb = localStorage.getItem('wo-groupby') as GroupBy | null;
+      const VALID: GroupBy[] = ['property', 'priority', 'contractor', 'tenant', 'none'];
+      if (gb && VALID.includes(gb)) setGroupBy(gb);
+      const collapsed = localStorage.getItem('wo-collapsed-groups');
+      if (collapsed) setCollapsedByGroup(JSON.parse(collapsed));
+    } catch {}
+  }, []);
+
   // Photos selected during create (before we have a work_order_id)
   const [pendingPhotoFiles, setPendingPhotoFiles] = useState<File[]>([]);
   const [pendingPhotoPreviews, setPendingPhotoPreviews] = useState<string[]>([]);
@@ -275,6 +292,74 @@ export function WorkOrdersClient({
       setSortColumn(column);
       setSortDirection('asc');
     }
+  };
+
+  // Grouped work orders for the current view
+  const groupedOrders = useMemo(() => {
+    const list = sortedWorkOrders;
+    if (groupBy === 'none') return [{ key: 'all', label: 'All', orders: list }];
+
+    const groups = new Map<string, WorkOrder[]>();
+    for (const wo of list) {
+      let key: string;
+      switch (groupBy) {
+        case 'property':
+          key = wo.properties?.name || properties.find((p) => p.id === wo.property_id)?.name || 'Unknown Property';
+          break;
+        case 'priority':
+          key = wo.priority || 'None';
+          break;
+        case 'contractor':
+          key = wo.assigned_contractor || 'Unassigned';
+          break;
+        case 'tenant':
+          key = linkedSet.has(wo.id) ? 'From Tenant Request' : 'Created Directly';
+          break;
+        default:
+          key = 'all';
+      }
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(wo);
+    }
+
+    const entries = [...groups.entries()].map(([key, orders]) => ({ key, label: key, orders }));
+
+    if (groupBy === 'priority') {
+      entries.sort((a, b) => {
+        const ai = PRIORITY_ORDER.indexOf(a.key as typeof PRIORITY_ORDER[number]);
+        const bi = PRIORITY_ORDER.indexOf(b.key as typeof PRIORITY_ORDER[number]);
+        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+      });
+    } else {
+      entries.sort((a, b) => {
+        if (groupBy === 'contractor' && a.key === 'Unassigned') return 1;
+        if (groupBy === 'contractor' && b.key === 'Unassigned') return -1;
+        return a.key.localeCompare(b.key);
+      });
+    }
+
+    return entries;
+  }, [sortedWorkOrders, groupBy, properties, linkedSet]);
+
+  const collapsedGroups = useMemo(
+    () => new Set(collapsedByGroup[groupBy] ?? []),
+    [collapsedByGroup, groupBy]
+  );
+
+  const toggleGroup = (key: string) => {
+    setCollapsedByGroup((prev) => {
+      const current = [...(prev[groupBy] ?? [])];
+      const idx = current.indexOf(key);
+      if (idx >= 0) current.splice(idx, 1); else current.push(key);
+      const next = { ...prev, [groupBy]: current };
+      try { localStorage.setItem('wo-collapsed-groups', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
+  const handleSetGroupBy = (val: GroupBy) => {
+    setGroupBy(val);
+    try { localStorage.setItem('wo-groupby', val); } catch {}
   };
 
   // Open create dialog (optionally pre-fill property and unit)
@@ -943,30 +1028,47 @@ export function WorkOrdersClient({
         )}
       </div>
 
-      {/* View tabs */}
-      <div className="flex gap-1 border-b">
-        <button
-          onClick={() => setView('active')}
-          className={cn(
-            'border-b-2 px-4 py-2 text-sm font-medium transition-colors',
-            view === 'active'
-              ? 'border-primary text-foreground'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          )}
-        >
-          Active{activeWorkOrders.length > 0 ? ` (${activeWorkOrders.length})` : ''}
-        </button>
-        <button
-          onClick={() => setView('archived')}
-          className={cn(
-            'border-b-2 px-4 py-2 text-sm font-medium transition-colors',
-            view === 'archived'
-              ? 'border-primary text-foreground'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          )}
-        >
-          Archived{archivedWorkOrders.length > 0 ? ` (${archivedWorkOrders.length})` : ''}
-        </button>
+      {/* View tabs + Group by */}
+      <div className="flex items-end justify-between border-b">
+        <div className="flex gap-1">
+          <button
+            onClick={() => setView('active')}
+            className={cn(
+              'border-b-2 px-4 py-2 text-sm font-medium transition-colors',
+              view === 'active'
+                ? 'border-primary text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            )}
+          >
+            Active{activeWorkOrders.length > 0 ? ` (${activeWorkOrders.length})` : ''}
+          </button>
+          <button
+            onClick={() => setView('archived')}
+            className={cn(
+              'border-b-2 px-4 py-2 text-sm font-medium transition-colors',
+              view === 'archived'
+                ? 'border-primary text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            )}
+          >
+            Archived{archivedWorkOrders.length > 0 ? ` (${archivedWorkOrders.length})` : ''}
+          </button>
+        </div>
+        <div className="flex items-center gap-2 pb-1.5">
+          <span className="text-muted-foreground text-xs">Group by</span>
+          <Select value={groupBy} onValueChange={(v) => handleSetGroupBy(v as GroupBy)}>
+            <SelectTrigger className="h-7 w-[140px] text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="property">Property</SelectItem>
+              <SelectItem value="priority">Priority</SelectItem>
+              <SelectItem value="contractor">Contractor</SelectItem>
+              <SelectItem value="tenant">Tenant Request</SelectItem>
+              <SelectItem value="none">None</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Load error banner */}
@@ -1016,7 +1118,8 @@ export function WorkOrdersClient({
             )}
           </CardContent>
         </Card>
-      ) : (
+      ) : groupBy === 'none' ? (
+        /* Flat table (no grouping) */
         <div className="overflow-x-auto rounded-md border">
           <Table>
             <TableHeader>
@@ -1038,134 +1141,97 @@ export function WorkOrdersClient({
             </TableHeader>
             <TableBody>
               {sortedWorkOrders.map((wo) => (
-                <TableRow
+                <WorkOrderRow
                   key={wo.id}
-                  onClick={() => openDetail(wo)}
-                  className="hover:bg-muted/50 cursor-pointer"
-                >
-                  <TableCell className="max-w-[160px] font-medium" title={wo.title}>
-                    <span className="flex min-w-0 items-center gap-1.5">
-                      <span className="truncate">{wo.title}</span>
-                      {linkedSet.has(wo.id) && (
-                        <span title="Converted from a maintenance request">
-                          <ClipboardList className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
-                        </span>
-                      )}
-                    </span>
-                  </TableCell>
-                  <TableCell className="max-w-[160px]">
-                    {(() => {
-                      const name = wo.properties?.name || properties.find((p) => p.id === wo.property_id)?.name || wo.property_id || '—';
-                      const unit = wo.unit || linkedWorkOrderMap[wo.id]?.unit;
-                      return unit ? (
-                        <span className="block truncate" title={`${name} • Unit ${unit}`}>
-                          {name} <span className="text-muted-foreground">• Unit {unit}</span>
-                        </span>
-                      ) : (
-                        <span className="block truncate" title={name}>{name}</span>
-                      );
-                    })()}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getPriorityBadge(wo.priority)}>{wo.priority}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getStatusBadge(wo.status)}>{wo.status}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    {wo.due_date ? new Date(wo.due_date).toLocaleDateString() : '—'}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {wo.contractor_quote != null ? (
-                      <>
-                        <div className="font-mono text-sm font-semibold">
-                          ${Number(wo.contractor_quote).toFixed(2)}
-                        </div>
-                        <div className="text-muted-foreground mt-0.5 font-sans text-[11px]">
-                          Budget: {wo.cost ? `$${Number(wo.cost).toFixed(2)}` : '—'}
-                        </div>
-                      </>
-                    ) : (
-                      <span className="font-mono text-sm">
-                        {wo.cost ? `$${Number(wo.cost).toFixed(2)}` : '—'}
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {wo.assigned_contractor || '—'}
-                    {wo.assigned_contractor_email && (
-                      <span className="text-muted-foreground ml-1 text-[10px]">
-                        ({wo.assigned_contractor_email})
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleQuickPhotoAdd(wo.id);
-                        }}
-                        title="Add Photos"
-                      >
-                        <Upload className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openDetail(wo);
-                        }}
-                        title="View"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      {view === 'archived' ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleUnarchive(wo);
-                          }}
-                          title="Unarchive"
-                        >
-                          <ArchiveRestore className="h-4 w-4" />
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleArchive(wo);
-                          }}
-                          title="Archive"
-                        >
-                          <Archive className="h-4 w-4" />
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          requestDelete(wo);
-                        }}
-                        title="Delete"
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                  wo={wo}
+                  groupBy={groupBy}
+                  linkedSet={linkedSet}
+                  linkedWorkOrderMap={linkedWorkOrderMap}
+                  properties={properties}
+                  view={view}
+                  getPriorityBadge={getPriorityBadge}
+                  getStatusBadge={getStatusBadge}
+                  onOpen={openDetail}
+                  onQuickPhoto={handleQuickPhotoAdd}
+                  onArchive={handleArchive}
+                  onUnarchive={handleUnarchive}
+                  onDelete={requestDelete}
+                />
               ))}
             </TableBody>
           </Table>
+        </div>
+      ) : (
+        /* Grouped sections */
+        <div className="space-y-2">
+          {groupedOrders.map(({ key, label, orders }) => {
+            const isCollapsed = collapsedGroups.has(key);
+            return (
+              <div key={key} className="overflow-hidden rounded-md border">
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(key)}
+                  className="flex w-full items-center gap-3 bg-muted/30 px-4 py-2.5 text-left transition-colors hover:bg-muted/50"
+                >
+                  <ChevronDown
+                    className={cn(
+                      'h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200',
+                      isCollapsed && '-rotate-90'
+                    )}
+                  />
+                  <span className="text-sm font-medium">{label}</span>
+                  <span className="text-muted-foreground ml-auto text-xs tabular-nums">
+                    {orders.length} {orders.length === 1 ? 'order' : 'orders'}
+                  </span>
+                </button>
+                {!isCollapsed && (
+                  <div className="overflow-x-auto border-t">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Title</TableHead>
+                          {groupBy !== 'property' && (
+                            <TableHead
+                              className="hover:bg-muted/50 cursor-pointer select-none"
+                              onClick={() => toggleSort('property')}
+                            >
+                              Property {sortColumn === 'property' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
+                            </TableHead>
+                          )}
+                          {groupBy !== 'priority' && <TableHead>Priority</TableHead>}
+                          <TableHead>Status</TableHead>
+                          <TableHead>Due Date</TableHead>
+                          <TableHead className="text-right">Cost</TableHead>
+                          {groupBy !== 'contractor' && <TableHead>Assigned To</TableHead>}
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {orders.map((wo) => (
+                          <WorkOrderRow
+                            key={wo.id}
+                            wo={wo}
+                            groupBy={groupBy}
+                            linkedSet={linkedSet}
+                            linkedWorkOrderMap={linkedWorkOrderMap}
+                            properties={properties}
+                            view={view}
+                            getPriorityBadge={getPriorityBadge}
+                            getStatusBadge={getStatusBadge}
+                            onOpen={openDetail}
+                            onQuickPhoto={handleQuickPhotoAdd}
+                            onArchive={handleArchive}
+                            onUnarchive={handleUnarchive}
+                            onDelete={requestDelete}
+                          />
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -2151,5 +2217,149 @@ export function WorkOrdersClient({
         onChange={handleQuickPhotoSelect}
       />
     </div>
+  );
+}
+
+function WorkOrderRow({
+  wo,
+  groupBy,
+  linkedSet,
+  linkedWorkOrderMap,
+  properties,
+  view,
+  getPriorityBadge,
+  getStatusBadge,
+  onOpen,
+  onQuickPhoto,
+  onArchive,
+  onUnarchive,
+  onDelete,
+}: {
+  wo: WorkOrder;
+  groupBy: GroupBy;
+  linkedSet: Set<string>;
+  linkedWorkOrderMap: Record<string, { requestId: string; unit: string | null }>;
+  properties: Property[];
+  view: 'active' | 'archived';
+  getPriorityBadge: (p: string) => string;
+  getStatusBadge: (s: string) => string;
+  onOpen: (wo: WorkOrder) => void;
+  onQuickPhoto: (id: string) => void;
+  onArchive: (wo: WorkOrder) => void;
+  onUnarchive: (wo: WorkOrder) => void;
+  onDelete: (wo: WorkOrder) => void;
+}) {
+  const propName = wo.properties?.name || properties.find((p) => p.id === wo.property_id)?.name || wo.property_id || '—';
+  const unit = wo.unit || linkedWorkOrderMap[wo.id]?.unit;
+
+  return (
+    <TableRow onClick={() => onOpen(wo)} className="hover:bg-muted/50 cursor-pointer">
+      <TableCell className="max-w-[160px] font-medium" title={wo.title}>
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="truncate">{wo.title}</span>
+          {linkedSet.has(wo.id) && (
+            <span title="Converted from a maintenance request">
+              <ClipboardList className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
+            </span>
+          )}
+        </span>
+      </TableCell>
+      {groupBy !== 'property' && (
+        <TableCell className="max-w-[160px]">
+          {unit ? (
+            <span className="block truncate" title={`${propName} • Unit ${unit}`}>
+              {propName} <span className="text-muted-foreground">• Unit {unit}</span>
+            </span>
+          ) : (
+            <span className="block truncate" title={propName}>{propName}</span>
+          )}
+        </TableCell>
+      )}
+      {groupBy !== 'priority' && (
+        <TableCell>
+          <Badge className={getPriorityBadge(wo.priority)}>{wo.priority}</Badge>
+        </TableCell>
+      )}
+      <TableCell>
+        <Badge className={getStatusBadge(wo.status)}>{wo.status}</Badge>
+      </TableCell>
+      <TableCell>
+        {wo.due_date ? new Date(wo.due_date).toLocaleDateString() : '—'}
+      </TableCell>
+      <TableCell className="text-right">
+        {wo.contractor_quote != null ? (
+          <>
+            <div className="font-mono text-sm font-semibold">
+              ${Number(wo.contractor_quote).toFixed(2)}
+            </div>
+            <div className="text-muted-foreground mt-0.5 font-sans text-[11px]">
+              Budget: {wo.cost ? `$${Number(wo.cost).toFixed(2)}` : '—'}
+            </div>
+          </>
+        ) : (
+          <span className="font-mono text-sm">
+            {wo.cost ? `$${Number(wo.cost).toFixed(2)}` : '—'}
+          </span>
+        )}
+      </TableCell>
+      {groupBy !== 'contractor' && (
+        <TableCell>
+          {wo.assigned_contractor || '—'}
+          {wo.assigned_contractor_email && (
+            <span className="text-muted-foreground ml-1 text-[10px]">
+              ({wo.assigned_contractor_email})
+            </span>
+          )}
+        </TableCell>
+      )}
+      <TableCell className="text-right">
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => { e.stopPropagation(); onQuickPhoto(wo.id); }}
+            title="Add Photos"
+          >
+            <Upload className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => { e.stopPropagation(); onOpen(wo); }}
+            title="View"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          {view === 'archived' ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); onUnarchive(wo); }}
+              title="Unarchive"
+            >
+              <ArchiveRestore className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); onArchive(wo); }}
+              title="Archive"
+            >
+              <Archive className="h-4 w-4" />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => { e.stopPropagation(); onDelete(wo); }}
+            title="Delete"
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
   );
 }

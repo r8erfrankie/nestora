@@ -6,12 +6,30 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import { isValidPhoneNumber } from 'libphonenumber-js';
 import type { Value } from 'react-phone-number-input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { updateProfile } from './actions';
 import { DeleteAccountButton } from './delete-account-button';
+
+const CONTRACTOR_TRADES = [
+  'Plumbing',
+  'Electrical',
+  'HVAC',
+  'Roofing',
+  'General Handyman',
+  'Painting',
+  'Flooring',
+  'Other',
+] as const;
 
 interface SettingsClientProps {
   email: string;
@@ -20,9 +38,20 @@ interface SettingsClientProps {
   phone: string | null;
   ecName: string | null;
   ecPhone: string | null;
+  companyName: string | null;
+  trade: string | null;
 }
 
-export function SettingsClient({ email, role, fullName, phone: initialPhone, ecName: initialEcName, ecPhone: initialEcPhone }: SettingsClientProps) {
+export function SettingsClient({
+  email,
+  role,
+  fullName,
+  phone: initialPhone,
+  ecName: initialEcName,
+  ecPhone: initialEcPhone,
+  companyName: initialCompanyName,
+  trade: initialTrade,
+}: SettingsClientProps) {
   const [name, setName] = useState(fullName ?? '');
   const [phone, setPhone] = useState<Value | undefined>(
     initialPhone ? (initialPhone as Value) : undefined
@@ -31,6 +60,8 @@ export function SettingsClient({ email, role, fullName, phone: initialPhone, ecN
   const [ecPhone, setEcPhone] = useState<Value | undefined>(
     initialEcPhone ? (initialEcPhone as Value) : undefined
   );
+  const [companyName, setCompanyName] = useState(initialCompanyName ?? '');
+  const [trade, setTrade] = useState(initialTrade ?? '');
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -39,6 +70,7 @@ export function SettingsClient({ email, role, fullName, phone: initialPhone, ecN
 
   const router = useRouter();
   const isTenant = role === 'tenant';
+  const isContractor = role === 'contractor';
 
   const isDirty =
     name !== (fullName ?? '') ||
@@ -46,6 +78,11 @@ export function SettingsClient({ email, role, fullName, phone: initialPhone, ecN
       (phone ?? '') !== (initialPhone ?? '') ||
       ecName !== (initialEcName ?? '') ||
       (ecPhone ?? '') !== (initialEcPhone ?? '')
+    )) ||
+    (isContractor && (
+      (phone ?? '') !== (initialPhone ?? '') ||
+      companyName !== (initialCompanyName ?? '') ||
+      trade !== (initialTrade ?? '')
     ));
 
   const handleSave = async () => {
@@ -60,6 +97,10 @@ export function SettingsClient({ email, role, fullName, phone: initialPhone, ecN
         return;
       }
     }
+    if (isContractor && phone && !isValidPhoneNumber(phone)) {
+      setPhoneError('Please enter a valid phone number.');
+      return;
+    }
 
     setSaving(true);
     setSaved(false);
@@ -71,6 +112,11 @@ export function SettingsClient({ email, role, fullName, phone: initialPhone, ecN
           phone: phone ?? null,
           emergency_contact_name: ecName.trim() || null,
           emergency_contact_phone: ecPhone ?? null,
+        }),
+        ...(isContractor && {
+          phone: phone ?? null,
+          company_name: companyName.trim() || null,
+          trade: trade || null,
         }),
       });
       setSaved(true);
@@ -125,8 +171,8 @@ export function SettingsClient({ email, role, fullName, phone: initialPhone, ecN
           </div>
         </div>
 
-        {/* Phone row — tenants only */}
-        {isTenant && (
+        {/* Phone row — tenants and contractors */}
+        {(isTenant || isContractor) && (
           <div className="flex items-center gap-6 py-4">
             <p className="text-muted-foreground w-28 shrink-0 text-sm">Phone</p>
             <div className="max-w-xs flex-1">
@@ -171,6 +217,52 @@ export function SettingsClient({ email, role, fullName, phone: initialPhone, ecN
                   disabled={saving}
                 />
               </div>
+            </div>
+
+            {phoneError && (
+              <div className="py-3">
+                <p className="text-destructive text-xs">{phoneError}</p>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Professional details — contractors only */}
+        {isContractor && (
+          <>
+            <div className="py-3">
+              <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-widest">
+                Professional Details
+              </p>
+            </div>
+
+            <div className="flex items-center gap-6 py-4">
+              <p className="text-muted-foreground w-28 shrink-0 text-sm">Company</p>
+              <Input
+                value={companyName}
+                onChange={(e) => { setCompanyName(e.target.value); setSaved(false); }}
+                placeholder="Company name (optional)"
+                disabled={saving}
+                className="max-w-xs"
+              />
+            </div>
+
+            <div className="flex items-center gap-6 py-4">
+              <p className="text-muted-foreground w-28 shrink-0 text-sm">Trade</p>
+              <Select
+                value={trade}
+                onValueChange={(v) => { setTrade(v); setSaved(false); }}
+                disabled={saving}
+              >
+                <SelectTrigger className="max-w-xs">
+                  <SelectValue placeholder="Select trade…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CONTRACTOR_TRADES.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {phoneError && (
