@@ -5,23 +5,27 @@ import { validateEnv } from '@/lib/env';
 
 validateEnv();
 
+export type CreateContractorResult =
+  | { success: true; contractor: Record<string, unknown>; linked: boolean; message?: string }
+  | { success: false; error: string };
+
 export async function createContractor(data: {
   name: string;
   email?: string | null;
   phone?: string | null;
   trade?: string | null;
   notes?: string | null;
-}) {
+}): Promise<CreateContractorResult> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-  if (!data.name?.trim()) throw new Error('Name is required');
+  if (userError || !user) return { success: false, error: 'Not authenticated' };
+  if (!data.name?.trim()) return { success: false, error: 'Name is required' };
 
   const normalizedEmail = data.email?.trim().toLowerCase() || null;
 
-  // 1. Prevent duplicates: return the existing record if this landlord already has
-  //    a contractor with this email rather than creating a second entry.
+  // 1. Prevent duplicates: if this landlord already has a contractor with this email,
+  //    return the existing record rather than creating a second entry.
   if (normalizedEmail) {
     const { data: existing } = await supabase
       .from('contractors')
@@ -30,10 +34,17 @@ export async function createContractor(data: {
       .eq('email', normalizedEmail)
       .maybeSingle();
 
-    if (existing) return existing;
+    if (existing) {
+      return {
+        success: true,
+        contractor: existing,
+        linked: !!(existing as any).user_id,
+        message: 'Contractor already exists in your directory',
+      };
+    }
   }
 
-  // 2. Look up a matching Nestora profile by email to auto-link the account.
+  // 2. Look up a matching Nestora profile by email to auto-link the contractor account.
   //    profiles.email is populated by the handle_new_user() trigger on signup.
   let linkedUserId: string | null = null;
 
@@ -64,11 +75,11 @@ export async function createContractor(data: {
   }
 
   // 3. Create the contractor directory entry.
-  const { data: inserted, error } = await supabase
+  const { data: inserted, error: insertError } = await supabase
     .from('contractors')
     .insert({
-      landlord_id: user.id,    // ownership — used by RLS
-      user_id: linkedUserId,   // nullable link to the contractor's Nestora profile
+      landlord_id: user.id,   // ownership — enforced by RLS
+      user_id: linkedUserId,  // nullable link to the contractor's Nestora profile
       name: data.name.trim(),
       email: normalizedEmail,
       phone: data.phone?.trim() || null,
@@ -78,12 +89,12 @@ export async function createContractor(data: {
     .select()
     .single();
 
-  if (error) {
-    console.error('[createContractor]', error.message);
-    throw new Error(`Failed to create contractor: ${error.message}`);
+  if (insertError) {
+    console.error('[createContractor]', insertError.message);
+    return { success: false, error: `Failed to create contractor: ${insertError.message}` };
   }
 
-  return inserted;
+  return { success: true, contractor: inserted, linked: !!linkedUserId };
 }
 
 export async function updateContractor(

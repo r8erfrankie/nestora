@@ -150,7 +150,9 @@ export function TeamsClient({ initialContractors }: { initialContractors: Contra
           prev.map((c) => (c.id === editTarget.id ? { ...c, ...payload } : c))
         );
       } else {
-        const inserted = (await createContractor(payload)) as Contractor;
+        const result = await createContractor(payload);
+        if (!result.success) throw new Error(result.error);
+        const inserted = result.contractor as unknown as Contractor;
         setContractors((prev) =>
           [...prev, inserted].sort((a, b) => a.name.localeCompare(b.name))
         );

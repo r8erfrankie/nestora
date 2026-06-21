@@ -482,12 +482,14 @@ export function WorkOrdersClient({
         addContractorForm.trade === 'Other'
           ? addContractorForm.customTrade.trim() || null
           : addContractorForm.trade || null;
-      const inserted = (await createContractor({
+      const result = await createContractor({
         name: addContractorForm.name.trim(),
         email: addContractorForm.email.trim() || null,
         phone: addContractorForm.phone || null,
         trade,
-      })) as Contractor;
+      });
+      if (!result.success) throw new Error(result.error);
+      const inserted = result.contractor as unknown as Contractor;
       setLocalContractors((prev) =>
         [...prev, inserted].sort((a, b) => a.name.localeCompare(b.name))
       );
