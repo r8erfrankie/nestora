@@ -16,12 +16,45 @@ export async function createContractor(data: {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
+  // If an email is provided, try to link this directory entry to an existing Nestora account.
+  // profiles.email is populated by the handle_new_user() trigger on signup.
+  let linkedUserId: string | null = null;
+
+  if (data.email) {
+    const normalizedEmail = data.email.trim().toLowerCase();
+
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id, role')
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+
+    if (existingProfile) {
+      linkedUserId = existingProfile.id as string;
+
+      // Best-effort: stamp the role as 'contractor' if the account has no role yet.
+      // Admin client required — RLS prevents a landlord from writing another user's profile.
+      if (!existingProfile.role) {
+        try {
+          await createAdminClient()
+            .from('profiles')
+            .update({ role: 'contractor' })
+            .eq('id', existingProfile.id);
+        } catch {
+          // Non-fatal: SUPABASE_SERVICE_ROLE_KEY may not be configured, or
+          // the profile row may have been updated concurrently.
+        }
+      }
+    }
+  }
+
   const { data: inserted, error } = await supabase
     .from('contractors')
     .insert({
-      user_id: user.id,
+      landlord_id: user.id,         // ownership — used by RLS
+      user_id: linkedUserId,        // nullable link to the contractor's Nestora profile
       name: data.name.trim(),
-      email: data.email?.trim() || null,
+      email: data.email?.trim().toLowerCase() || null,
       phone: data.phone?.trim() || null,
       trade: data.trade || null,
       notes: data.notes?.trim() || null,
@@ -30,22 +63,6 @@ export async function createContractor(data: {
     .single();
 
   if (error) throw error;
-
-  // If the contractor has an existing account with no role yet, set it to 'contractor'.
-  // Uses the admin client because RLS prevents a landlord from updating another user's profile.
-  if (data.email) {
-    try {
-      const adminClient = createAdminClient();
-      await adminClient
-        .from('profiles')
-        .update({ role: 'contractor' })
-        .eq('email', data.email.trim().toLowerCase())
-        .is('role', null);
-    } catch {
-      // Non-fatal: the contractor may not have a Nestora account yet, or
-      // SUPABASE_SERVICE_ROLE_KEY may not be configured in this environment.
-    }
-  }
 
   return inserted;
 }
@@ -66,11 +83,11 @@ export async function updateContractor(
 
   const { data: existing, error: fetchErr } = await supabase
     .from('contractors')
-    .select('user_id')
+    .select('landlord_id')
     .eq('id', id)
     .single();
 
-  if (fetchErr || !existing || existing.user_id !== user.id) {
+  if (fetchErr || !existing || existing.landlord_id !== user.id) {
     throw new Error('Not authorized to update this contractor');
   }
 
@@ -78,7 +95,7 @@ export async function updateContractor(
     .from('contractors')
     .update({
       name: data.name.trim(),
-      email: data.email?.trim() || null,
+      email: data.email?.trim().toLowerCase() || null,
       phone: data.phone?.trim() || null,
       trade: data.trade || null,
       notes: data.notes?.trim() || null,
@@ -96,11 +113,11 @@ export async function deleteContractor(id: string) {
 
   const { data: existing, error: fetchErr } = await supabase
     .from('contractors')
-    .select('user_id')
+    .select('landlord_id')
     .eq('id', id)
     .single();
 
-  if (fetchErr || !existing || existing.user_id !== user.id) {
+  if (fetchErr || !existing || existing.landlord_id !== user.id) {
     throw new Error('Not authorized to delete this contractor');
   }
 
