@@ -24,10 +24,10 @@ export function ContractorWelcomeClient({ email, isAuthenticated, loginUrl }: Pr
   const submitted = useRef(false);
 
   useEffect(() => {
-    if (isAuthenticated && !submitted.current) {
-      submitted.current = true;
-      formRef.current?.requestSubmit();
-    }
+    if (!isAuthenticated || submitted.current) return;
+    submitted.current = true;
+    const t = setTimeout(() => formRef.current?.requestSubmit(), 350);
+    return () => clearTimeout(t);
   }, [isAuthenticated]);
 
   // ── Authenticated path ───────────────────────────────────────────────────────
@@ -45,10 +45,15 @@ export function ContractorWelcomeClient({ email, isAuthenticated, loginUrl }: Pr
                 </div>
               </div>
               <div>
-                <p className="text-sm font-medium">Something went wrong</p>
+                <p className="font-medium">Something went wrong</p>
                 <p className="text-muted-foreground mt-1 text-sm">{state.error}</p>
               </div>
-              {/* Re-attach the form so the retry button has something to submit */}
+              {email && (
+                <div className="bg-muted rounded-lg px-4 py-2 text-center">
+                  <p className="text-muted-foreground text-xs">Account</p>
+                  <p className="mt-0.5 text-sm font-medium">{email}</p>
+                </div>
+              )}
               <form action={formAction}>
                 <Button type="submit" className="w-full" disabled={isPending}>
                   {isPending ? (
