@@ -18,36 +18,38 @@ export async function deleteWorkOrder(id: string) {
     .single();
 
   if (fetchErr || !wo || wo.user_id !== user.id) {
+    const reason = fetchErr ? fetchErr.message : 'not found or not owned by current user';
+    console.error(`[deleteWorkOrder] ownership check failed for ${id}: ${reason}`);
     throw new Error('Not authorized to delete this work order');
   }
 
-  // Fetch photo URLs before deletion so we can clean up storage objects too
-  const { data: photos } = await supabase
-    .from('work_order_photos')
-    .select('url')
-    .eq('work_order_id', id);
-
-  // Null out any maintenance_requests that reference this work order.
-  // The FK was originally defined without ON DELETE, which defaults to RESTRICT
-  // and blocks the delete. Running fix-maintenance-request-work-order-fk.sql
-  // changes it to ON DELETE SET NULL, but this explicit step handles older installs.
-  await supabase
+  // 1. Null out maintenance_requests.converted_to_work_order_id.
+  //    The FK originally had no ON DELETE clause (defaults to RESTRICT), which blocks
+  //    the delete for any work order converted from a tenant request. Explicit NULL here
+  //    handles un-migrated installs; fix-maintenance-request-work-order-fk.sql makes it
+  //    permanent via ON DELETE SET NULL.
+  const { error: unlinkErr } = await supabase
     .from('maintenance_requests')
     .update({ converted_to_work_order_id: null })
     .eq('converted_to_work_order_id', id);
 
-  // Delete the work order (cascades to work_order_photos rows, notes, archives)
-  const { error: deleteErr } = await supabase
-    .from('work_orders')
-    .delete()
-    .eq('id', id);
-
-  if (deleteErr) {
-    throw new Error(`Failed to delete work order: ${deleteErr.message}`);
+  if (unlinkErr) {
+    console.error(`[deleteWorkOrder] failed to unlink maintenance_requests for ${id}:`, unlinkErr.message);
+    throw new Error(`Failed to unlink maintenance requests: ${unlinkErr.message}`);
   }
 
-  // Best-effort: remove the actual storage objects for any attached photos.
-  // The DB rows are already gone via cascade; this just frees storage space.
+  // 2. Fetch photo records so we can remove the storage objects before the rows are gone.
+  const { data: photos, error: photosErr } = await supabase
+    .from('work_order_photos')
+    .select('id, url')
+    .eq('work_order_id', id);
+
+  if (photosErr) {
+    console.error(`[deleteWorkOrder] failed to fetch photos for ${id}:`, photosErr.message);
+    throw new Error(`Failed to fetch photos: ${photosErr.message}`);
+  }
+
+  // 3. Delete storage objects (best-effort — log failures but don't abort the delete).
   if (photos && photos.length > 0) {
     const paths = photos
       .map((p) => {
@@ -58,12 +60,33 @@ export async function deleteWorkOrder(id: string) {
       .filter((path): path is string => path !== null);
 
     if (paths.length > 0) {
-      try {
-        await supabase.storage.from('work-order-photos').remove(paths);
-      } catch {
-        // Non-fatal: DB row is already gone; storage will be orphaned but won't break anything
+      const { error: storageErr } = await supabase.storage.from('work-order-photos').remove(paths);
+      if (storageErr) {
+        console.error(`[deleteWorkOrder] storage removal partial failure for ${id}:`, storageErr.message);
       }
     }
+
+    // 4. Delete photo rows explicitly (cascade would handle this, but be explicit).
+    const { error: photoRowErr } = await supabase
+      .from('work_order_photos')
+      .delete()
+      .eq('work_order_id', id);
+
+    if (photoRowErr) {
+      console.error(`[deleteWorkOrder] failed to delete photo rows for ${id}:`, photoRowErr.message);
+      throw new Error(`Failed to delete photo records: ${photoRowErr.message}`);
+    }
+  }
+
+  // 5. Delete the work order (cascade handles notes and archives).
+  const { error: deleteErr } = await supabase
+    .from('work_orders')
+    .delete()
+    .eq('id', id);
+
+  if (deleteErr) {
+    console.error(`[deleteWorkOrder] final delete failed for ${id}:`, deleteErr.message);
+    throw new Error(`Failed to delete work order: ${deleteErr.message}`);
   }
 }
 
