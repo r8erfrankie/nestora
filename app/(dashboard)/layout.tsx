@@ -4,7 +4,12 @@ import { BottomNav } from '@/components/bottom-nav';
 import { getCurrentUserRole } from '@/lib/supabase/server';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const role = await getCurrentUserRole();
+  let role = null;
+  try {
+    role = await getCurrentUserRole();
+  } catch {
+    // Non-fatal — fall back to landlord for nav rendering below
+  }
 
   // Fall back to 'landlord' for nav rendering — any null-role user will be
   // redirected by the page before the layout content is ever seen.

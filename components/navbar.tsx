@@ -16,12 +16,17 @@ export async function Navbar({
   role?: UserRole;
   isDevelopment?: boolean;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const email = user?.email ?? '';
+  // Wrapped in try/catch so that if supabase.auth.getUser() throws during an
+  // automatic RSC re-render (triggered by a session cookie rotation in a Server
+  // Action), the Navbar renders in a degraded state instead of crashing the page.
+  let email = '';
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getUser();
+    email = data?.user?.email ?? '';
+  } catch {
+    // Non-fatal — render with empty email
+  }
   const displayName = email.split('@')[0] || 'User';
   const initials = displayName.slice(0, 2).toUpperCase() || 'U';
 

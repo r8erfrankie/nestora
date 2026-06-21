@@ -15,8 +15,13 @@ export default async function WorkOrdersPage({
   // Fetch the current user's email before the parallel queries so we can
   // filter work_order_user_archives to this user only.
   // (Unauthenticated users are redirected by proxy before reaching here.)
-  const { data: { user } } = await supabase.auth.getUser();
-  const userEmail = (user?.email ?? '').toLowerCase();
+  let userEmail = '';
+  try {
+    const { data } = await supabase.auth.getUser();
+    userEmail = (data?.user?.email ?? '').toLowerCase();
+  } catch {
+    // Non-fatal — archives filter falls back to empty string (no archived IDs returned)
+  }
 
   // All data fetching is wrapped in try/catch so that if Next.js triggers an
   // automatic RSC re-render (e.g. after a Server Action sets a session cookie),
