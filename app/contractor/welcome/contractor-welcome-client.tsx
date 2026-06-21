@@ -1,8 +1,8 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Layers, HardHat, Loader2 } from 'lucide-react';
+import { Layers, HardHat, Loader2, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { claimContractorRole, type ClaimContractorRoleState } from '@/app/actions/role-actions';
@@ -18,10 +18,69 @@ const initialState: ClaimContractorRoleState = {};
 export function ContractorWelcomeClient({ email, isAuthenticated, loginUrl }: Props) {
   const [state, formAction, isPending] = useActionState(claimContractorRole, initialState);
 
+  // Refs for the auto-submit path (authenticated users only).
+  // formRef targets the hidden form; submitted guards against double-firing.
+  const formRef = useRef<HTMLFormElement>(null);
+  const submitted = useRef(false);
+
+  useEffect(() => {
+    if (isAuthenticated && !submitted.current) {
+      submitted.current = true;
+      formRef.current?.requestSubmit();
+    }
+  }, [isAuthenticated]);
+
+  // ── Authenticated path ───────────────────────────────────────────────────────
+  // Show a minimal screen — the welcome card was already seen before sign-in.
+  // The hidden form auto-submits on mount; on error we surface a retry button.
+  if (isAuthenticated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-6">
+        <div className="w-full max-w-xs space-y-6 text-center">
+          {state?.error ? (
+            <>
+              <div className="flex justify-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+                  <AlertCircle className="h-6 w-6 text-destructive" />
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Something went wrong</p>
+                <p className="text-muted-foreground mt-1 text-sm">{state.error}</p>
+              </div>
+              {/* Re-attach the form so the retry button has something to submit */}
+              <form action={formAction}>
+                <Button type="submit" className="w-full" disabled={isPending}>
+                  {isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Trying again…
+                    </>
+                  ) : (
+                    'Try again'
+                  )}
+                </Button>
+              </form>
+            </>
+          ) : (
+            <>
+              <Loader2 className="text-muted-foreground mx-auto h-8 w-8 animate-spin" />
+              <p className="text-muted-foreground text-sm">Setting up your contractor account…</p>
+            </>
+          )}
+
+          {/* Hidden form that fires on mount via formRef.current.requestSubmit() */}
+          <form ref={formRef} action={formAction} className="hidden" aria-hidden />
+        </div>
+      </div>
+    );
+  }
+
+  // ── Unauthenticated path ─────────────────────────────────────────────────────
+  // Full welcome card shown only once, before the user signs in.
   return (
     <div className="flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-sm space-y-6">
-        {/* Nestora logo mark */}
         <div className="flex justify-center">
           <div className="bg-primary text-primary-foreground flex h-12 w-12 items-center justify-center rounded-xl">
             <Layers className="h-6 w-6" />
@@ -50,32 +109,9 @@ export function ContractorWelcomeClient({ email, isAuthenticated, loginUrl }: Pr
               </div>
             )}
 
-            {state?.error && (
-              <div className="border-destructive/20 bg-destructive/10 text-destructive rounded-md border px-3 py-2 text-sm">
-                {state.error}
-              </div>
-            )}
-
-            {isAuthenticated ? (
-              // Authenticated: claim the contractor role and go to onboarding.
-              <form action={formAction}>
-                <Button type="submit" className="w-full" disabled={isPending}>
-                  {isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Setting up your account…
-                    </>
-                  ) : (
-                    'Get Started'
-                  )}
-                </Button>
-              </form>
-            ) : (
-              // Not authenticated: send to login, pre-filling the email and returning here.
-              <Button asChild className="w-full">
-                <Link href={loginUrl}>Sign in to get started</Link>
-              </Button>
-            )}
+            <Button asChild className="w-full">
+              <Link href={loginUrl}>Sign in to get started</Link>
+            </Button>
 
             <p className="text-muted-foreground text-center text-xs">
               Already have an account?{' '}
