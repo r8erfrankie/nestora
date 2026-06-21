@@ -23,19 +23,46 @@ export async function deleteWorkOrder(id: string) {
     throw new Error('Not authorized to delete this work order');
   }
 
-  // 1. Null out maintenance_requests.converted_to_work_order_id.
-  //    The FK originally had no ON DELETE clause (defaults to RESTRICT), which blocks
-  //    the delete for any work order converted from a tenant request. Explicit NULL here
-  //    handles un-migrated installs; fix-maintenance-request-work-order-fk.sql makes it
-  //    permanent via ON DELETE SET NULL.
+  // 1. Find any maintenance requests linked to this work order before we null the FK.
+  //    We need the IDs now so we can write system notes after the unlink.
+  const { data: linkedRequests } = await supabase
+    .from('maintenance_requests')
+    .select('id')
+    .eq('converted_to_work_order_id', id);
+
+  // 2. Null the FK and set status → 'Closed' in a single update.
+  //    - Nulling the FK is required: the original constraint had no ON DELETE clause
+  //      (defaults to RESTRICT), which blocks the delete for any work order converted
+  //      from a tenant request. fix-maintenance-request-work-order-fk.sql changes this
+  //      to ON DELETE SET NULL permanently, but the explicit update handles older installs.
+  //    - 'Closed' status signals to the tenant that the issue was not resolved via this
+  //      work order. Requires add-maintenance-request-closed-status.sql to be applied.
   const { error: unlinkErr } = await supabase
     .from('maintenance_requests')
-    .update({ converted_to_work_order_id: null })
+    .update({ converted_to_work_order_id: null, status: 'Closed' })
     .eq('converted_to_work_order_id', id);
 
   if (unlinkErr) {
     console.error(`[deleteWorkOrder] failed to unlink maintenance_requests for ${id}:`, unlinkErr.message);
     throw new Error(`Failed to unlink maintenance requests: ${unlinkErr.message}`);
+  }
+
+  // 3. Add a system note on each affected maintenance request so the tenant can see why
+  //    the status changed. Best-effort — a note failure must not block the delete.
+  if (linkedRequests && linkedRequests.length > 0 && user.email) {
+    try {
+      await supabase.from('maintenance_request_notes').insert(
+        linkedRequests.map((r) => ({
+          request_id: r.id,
+          author_email: user.email!.toLowerCase(),
+          author_role: 'landlord',
+          note_type: 'system',
+          content: 'The linked work order was deleted by the landlord.',
+        }))
+      );
+    } catch (noteErr) {
+      console.error(`[deleteWorkOrder] failed to insert system notes for ${id}:`, noteErr);
+    }
   }
 
   // 2. Fetch photo records so we can remove the storage objects before the rows are gone.
