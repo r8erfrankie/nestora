@@ -262,15 +262,24 @@ export async function updateContractorAssignment(
   }
 
   const previousEmail = wo.assigned_contractor_email;
+  // Normalise upfront so we can use it in the update payload and the notify block.
+  const newEmail = data.assigned_contractor_email?.trim().toLowerCase() ?? null;
+
+  // Hybrid model: clear assigned_contractor_id whenever the email changes so a stale
+  // ID from a previous contractor never persists. The notify block below re-sets it
+  // when the new contractor already has a Nestora account.
+  const assignmentChanged = newEmail !== previousEmail;
+  const updatePayload: Record<string, unknown> = {
+    assigned_contractor: data.assigned_contractor,
+    assigned_contractor_email: newEmail,
+    assigned_contractor_phone: data.assigned_contractor_phone,
+    trade: data.trade,
+    ...(assignmentChanged && { assigned_contractor_id: null }),
+  };
 
   const { error } = await supabase
     .from('work_orders')
-    .update({
-      assigned_contractor: data.assigned_contractor,
-      assigned_contractor_email: data.assigned_contractor_email?.trim().toLowerCase() ?? null,
-      assigned_contractor_phone: data.assigned_contractor_phone,
-      trade: data.trade,
-    })
+    .update(updatePayload)
     .eq('id', id);
 
   if (error) throw new Error(error.message || 'Failed to update contractor assignment');
@@ -294,7 +303,6 @@ export async function updateContractorAssignment(
 
   // Notify/invite contractor when email is added for the first time or changed.
   // Skip when email is unchanged (name/trade-only edit) to avoid duplicate notifications.
-  const newEmail = data.assigned_contractor_email?.trim().toLowerCase();
   if (newEmail && newEmail !== previousEmail) {
     try {
       const admin = createAdminClient();
@@ -307,6 +315,15 @@ export async function updateContractorAssignment(
       const landlordName = (landlordProfile.data?.full_name as string | null) ?? undefined;
 
       if (contractorProfile.data) {
+        // Contractor is registered — link their ID now so future email changes
+        // don't break the association (hybrid model: ID wins over email long-term).
+        try {
+          await supabase
+            .from('work_orders')
+            .update({ assigned_contractor_id: contractorProfile.data.id as string })
+            .eq('id', id);
+        } catch { /* non-fatal — backfill in role-actions.ts will recover this */ }
+
         const { notifyContractorNewWorkOrder } = await import('@/app/actions/email');
         await notifyContractorNewWorkOrder({
           title: wo.title,
@@ -447,6 +464,14 @@ export async function createWorkOrder(data: {
         const landlordName = (landlordProfile.data?.full_name as string | null) ?? undefined;
 
         if (contractorProfile.data) {
+          // Contractor is registered — link their ID immediately (hybrid model).
+          try {
+            await supabase
+              .from('work_orders')
+              .update({ assigned_contractor_id: contractorProfile.data.id as string })
+              .eq('id', inserted.id);
+          } catch { /* non-fatal */ }
+
           const { notifyContractorNewWorkOrder } = await import('@/app/actions/email');
           await notifyContractorNewWorkOrder({
             title: inserted.title,

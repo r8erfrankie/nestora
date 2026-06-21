@@ -90,6 +90,14 @@ export async function setUserRoleAction(formData: FormData) {
           await admin.from('contractors').update(updates).eq('id', row.id);
         }
       }
+
+      // Hybrid model: backfill assigned_contractor_id on any work orders that were
+      // assigned to this email before the contractor had a Nestora account.
+      await admin
+        .from('work_orders')
+        .update({ assigned_contractor_id: user.id })
+        .eq('assigned_contractor_email', normalizedEmail)
+        .is('assigned_contractor_id', null);
     } catch (linkError) {
       console.error('[setUserRoleAction] contractor auto-link failed:', linkError);
       // Non-fatal — user proceeds to contractor-onboarding regardless.
@@ -176,6 +184,14 @@ export async function claimContractorRole(
           await admin.from('contractors').update(updates).eq('id', row.id);
         }
       }
+
+      // Hybrid model: backfill assigned_contractor_id on any work orders that were
+      // assigned to this email before the contractor had a Nestora account.
+      await admin
+        .from('work_orders')
+        .update({ assigned_contractor_id: user.id })
+        .eq('assigned_contractor_email', normalizedEmail)
+        .is('assigned_contractor_id', null);
     } catch (linkError) {
       console.error('[claimContractorRole] auto-link failed (non-fatal):', linkError);
     }
