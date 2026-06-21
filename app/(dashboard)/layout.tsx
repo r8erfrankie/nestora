@@ -15,8 +15,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // redirected by the page before the layout content is ever seen.
   const navRole = role ?? 'landlord';
 
-  const isDevelopment = process.env.NODE_ENV === 'development';
-
   return (
     <div className="flex h-full overflow-hidden">
       {/* Sidebar: desktop only */}
@@ -24,7 +22,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <Sidebar role={navRole} />
       </div>
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Navbar role={navRole} isDevelopment={isDevelopment} />
+        <Navbar role={navRole} />
         {/* pb-20 on mobile/tablet gives clearance above the bottom nav bar */}
         <main className="bg-background flex-1 overflow-auto p-4 pb-20 lg:p-6 lg:pb-6">
           {children}

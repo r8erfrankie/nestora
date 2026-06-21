@@ -4,15 +4,12 @@ import { Separator } from '@/components/ui/separator';
 import { Bell, ChevronDown, LogOut } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { DevOnboardingReset } from '@/components/dev-onboarding-reset';
 import { UserRole } from '@/lib/supabase/server';
 
 export async function Navbar({
   role = 'landlord',
-  isDevelopment = false,
 }: {
   role?: UserRole;
-  isDevelopment?: boolean;
 }) {
   // Wrapped in try/catch so that if supabase.auth.getUser() throws during an
   // automatic RSC re-render (triggered by a session cookie rotation in a Server
@@ -37,11 +34,6 @@ export async function Navbar({
 
   return (
     <header className="border-border bg-background/95 supports-[backdrop-filter]:bg-background/60 z-40 flex h-14 items-center justify-between border-b px-6 backdrop-blur">
-      {/* Left: dev-only tools (invisible in prod) */}
-      <div className="flex items-center gap-2">
-        <DevOnboardingReset isDevelopment={isDevelopment} />
-      </div>
-
       {/* Right actions */}
       <div className="flex items-center gap-1.5">
         <Button
