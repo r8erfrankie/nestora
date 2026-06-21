@@ -1,8 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { Bell, Plus, Search, ChevronDown, LogOut } from 'lucide-react';
+import { Bell, ChevronDown, LogOut } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { DevRoleSwitcher } from '@/components/dev-role-switcher';
@@ -41,41 +40,13 @@ export async function Navbar({
     <header className="border-border bg-background/95 supports-[backdrop-filter]:bg-background/60 z-40 flex h-14 items-center justify-between border-b px-6 backdrop-blur">
       {/* Left section */}
       <div className="flex items-center gap-4">
-        {/* "Nestora" on mobile (no sidebar branding); "Overview" on desktop */}
-        <span className="text-foreground/90 text-sm font-semibold tracking-tight lg:hidden">Nestora</span>
-        <span className="text-foreground/90 hidden text-sm font-medium lg:block">Overview</span>
-        {/* Temporary dev-only role switcher for easy landlord/contractor testing */}
+        <span className="text-foreground/90 text-sm font-semibold tracking-tight">Nestora</span>
         <DevRoleSwitcher isDevelopment={isDevelopment} currentRole={role} />
-        {/* Dev-only button to force the onboarding flow again (useful for testing) */}
         <DevOnboardingReset isDevelopment={isDevelopment} />
-      </div>
-
-      {/* Center: Global search */}
-      <div className="mx-8 max-w-md flex-1">
-        <div className="relative">
-          <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-          <Input
-            placeholder="Search projects, teams, or files..."
-            className="bg-muted/50 border-border/80 focus-visible:bg-background h-9 w-full pl-9"
-            // Prevent password managers and autofill extensions from interfering
-            // (causes "detectStore" and similar errors + hydration issues on Firefox)
-            data-1p-ignore="true"
-            data-lpignore="true"
-            data-form-type="other"
-            autoComplete="off"
-            autoCorrect="off"
-            spellCheck={false}
-          />
-        </div>
       </div>
 
       {/* Right actions */}
       <div className="flex items-center gap-1.5">
-        <Button variant="default" size="sm" className="hidden h-8 gap-1.5 px-3.5 sm:flex">
-          <Plus className="h-3.5 w-3.5" />
-          New Project
-        </Button>
-
         <Button
           variant="ghost"
           size="icon"
