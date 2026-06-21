@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { insertNotification } from '@/lib/notifications';
 
 export async function deleteWorkOrder(id: string) {
   const supabase = await createClient();
@@ -315,6 +316,13 @@ export async function updateContractorAssignment(
           propertyName: wo.properties?.name || null,
           assigned_contractor_email: newEmail,
         });
+        await insertNotification({
+          userId: contractorProfile.data.id as string,
+          type: 'work_order_assigned',
+          title: 'New work order assigned',
+          message: `"${wo.title}"${wo.properties?.name ? ` at ${wo.properties.name}` : ''}.`,
+          link: '/contractor',
+        });
       } else {
         // Unregistered — ensure a directory entry exists then send combined invite.
         const { data: existingEntry } = await admin
@@ -447,6 +455,13 @@ export async function createWorkOrder(data: {
             due_date: inserted.due_date,
             propertyName: data.propertyName,
             assigned_contractor_email: contractorEmail,
+          });
+          await insertNotification({
+            userId: contractorProfile.data.id as string,
+            type: 'work_order_assigned',
+            title: 'New work order assigned',
+            message: `"${inserted.title as string}"${data.propertyName ? ` at ${data.propertyName}` : ''}.`,
+            link: '/contractor',
           });
         } else {
           const { data: existingEntry } = await admin

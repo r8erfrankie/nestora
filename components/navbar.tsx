@@ -1,27 +1,40 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Bell, ChevronDown, LogOut } from 'lucide-react';
+import { ChevronDown, LogOut } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { UserRole } from '@/lib/supabase/server';
+import { NotificationsBell, type AppNotification } from '@/components/notifications-bell';
 
 export async function Navbar({
   role = 'landlord',
 }: {
   role?: UserRole;
 }) {
-  // Wrapped in try/catch so that if supabase.auth.getUser() throws during an
-  // automatic RSC re-render (triggered by a session cookie rotation in a Server
-  // Action), the Navbar renders in a degraded state instead of crashing the page.
   let email = '';
+  let userId = '';
+  let initialNotifications: AppNotification[] = [];
+
   try {
     const supabase = await createClient();
     const { data } = await supabase.auth.getUser();
     email = data?.user?.email ?? '';
+    userId = data?.user?.id ?? '';
+
+    if (userId) {
+      const { data: notifs } = await supabase
+        .from('notifications')
+        .select('id, type, title, message, link, read, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(30);
+      initialNotifications = (notifs ?? []) as AppNotification[];
+    }
   } catch {
-    // Non-fatal — render with empty email
+    // Non-fatal — render with empty state
   }
+
   const displayName = email.split('@')[0] || 'User';
   const initials = displayName.slice(0, 2).toUpperCase() || 'U';
 
@@ -34,16 +47,9 @@ export async function Navbar({
 
   return (
     <header className="border-border bg-background/95 supports-[backdrop-filter]:bg-background/60 z-40 flex h-14 items-center justify-end border-b px-6 backdrop-blur">
-      {/* Right actions */}
       <div className="flex items-center gap-1.5">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-muted-foreground hover:text-foreground h-8 w-8"
-          aria-label="Notifications"
-        >
-          <Bell className="h-4 w-4" />
-        </Button>
+
+        <NotificationsBell userId={userId} initialNotifications={initialNotifications} />
 
         <Separator orientation="vertical" className="mx-1 h-6" />
 
@@ -62,7 +68,7 @@ export async function Navbar({
           <ChevronDown className="text-muted-foreground ml-0.5 hidden h-3.5 w-3.5 md:block" />
         </Link>
 
-        {/* Logout button using server action */}
+        {/* Logout */}
         <form action={handleSignOut}>
           <Button
             variant="ghost"
@@ -74,6 +80,7 @@ export async function Navbar({
             <LogOut className="h-4 w-4" />
           </Button>
         </form>
+
       </div>
     </header>
   );

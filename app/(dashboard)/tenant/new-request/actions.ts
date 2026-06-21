@@ -1,6 +1,7 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { insertNotification } from '@/lib/notifications';
 
 export async function submitMaintenanceRequest({
   propertyId,
@@ -39,5 +40,25 @@ export async function submitMaintenanceRequest({
     .single();
 
   if (error) throw new Error(error.message);
+
+  // Notify the landlord who owns the property (non-fatal)
+  try {
+    const admin = createAdminClient();
+    const { data: property } = await admin
+      .from('properties')
+      .select('user_id')
+      .eq('id', propertyId)
+      .single();
+    if (property?.user_id) {
+      await insertNotification({
+        userId: property.user_id as string,
+        type: 'new_request',
+        title: 'New maintenance request',
+        message: `"${title.trim()}" was submitted for your property.`,
+        link: '/tenants',
+      });
+    }
+  } catch { /* non-fatal */ }
+
   return { id: data.id };
 }
