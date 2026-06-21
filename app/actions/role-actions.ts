@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 
 const ROLE_COOKIE_OPTIONS = {
   httpOnly: true,
@@ -51,6 +51,47 @@ export async function setUserRoleAction(formData: FormData) {
   if (role === 'tenant') {
     const dest = join ? `/tenant-onboarding?join=${join}` : '/tenant-onboarding';
     redirect(dest);
+  }
+
+  // Auto-link pending contractor directory entries created by landlords before this
+  // user had a Nestora account. The contractors table is RLS-guarded by landlord_id,
+  // so the contractor themselves can't update those rows — admin client required.
+  if (role === 'contractor' && user.email) {
+    try {
+      const admin = createAdminClient();
+      const normalizedEmail = user.email.toLowerCase();
+
+      // Fetch profile so we can fill in missing fields on the directory entries.
+      // phone/trade live in profiles, not in auth user_metadata.
+      const { data: profile } = await admin
+        .from('profiles')
+        .select('full_name, phone, trade')
+        .eq('id', user.id)
+        .single();
+
+      // Find all pending directory entries for this email that haven't been linked yet.
+      const { data: pending } = await admin
+        .from('contractors')
+        .select('id, name, phone, trade')
+        .eq('email', normalizedEmail)
+        .is('user_id', null);
+
+      if (pending && pending.length > 0) {
+        for (const row of pending) {
+          const updates: Record<string, string> = { user_id: user.id };
+
+          // Only fill in missing fields — never overwrite what the landlord entered.
+          if (!row.name && profile?.full_name) updates.name = profile.full_name;
+          if (!row.phone && profile?.phone)     updates.phone = profile.phone;
+          if (!row.trade && profile?.trade)     updates.trade = profile.trade;
+
+          await admin.from('contractors').update(updates).eq('id', row.id);
+        }
+      }
+    } catch (linkError) {
+      console.error('[setUserRoleAction] contractor auto-link failed:', linkError);
+      // Non-fatal — user proceeds to contractor-onboarding regardless.
+    }
   }
 
   redirect(role === 'contractor' ? '/contractor-onboarding' : '/landlord-onboarding');
