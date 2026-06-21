@@ -13,9 +13,11 @@ interface WorkOrderNotesProps {
   workOrderId: string;
   // Optional: bump this to force a reload (e.g. after a parent action logs a system note)
   refreshKey?: number;
+  // Hide budget-related system notes (landlord-only info — never shown to contractors)
+  hideBudgetNotes?: boolean;
 }
 
-export function WorkOrderNotes({ workOrderId, refreshKey = 0 }: WorkOrderNotesProps) {
+export function WorkOrderNotes({ workOrderId, refreshKey = 0, hideBudgetNotes = false }: WorkOrderNotesProps) {
   const supabase = createClient();
 
   const [notes, setNotes] = useState<WorkOrderNote[]>([]);
@@ -154,7 +156,9 @@ export function WorkOrderNotes({ workOrderId, refreshKey = 0 }: WorkOrderNotesPr
         </div>
       ) : (
         <div className="space-y-1.5">
-          {notes.map((note) => {
+          {notes.filter((note) =>
+            !(hideBudgetNotes && note.note_type === 'system' && note.content.startsWith('Budget'))
+          ).map((note) => {
             const isOwn =
               currentUserEmail !== null &&
               note.author_email.toLowerCase() === currentUserEmail;

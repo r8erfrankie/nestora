@@ -962,6 +962,7 @@ export function ContractorClient({
               <WorkOrderNotes
                 workOrderId={selected.id}
                 refreshKey={notesRefreshKey}
+                hideBudgetNotes
               />
 
               {/* Footer meta */}
