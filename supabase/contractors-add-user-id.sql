@@ -38,7 +38,9 @@ ALTER TABLE public.contractors ALTER COLUMN user_id DROP NOT NULL;
 
 -- user_id previously held the landlord's UID; null it out so the column
 -- is ready to hold the contractor's profile id instead.
-UPDATE public.contractors SET user_id = NULL;
+-- Guard: only clears rows where user_id still equals landlord_id (the old pattern).
+-- Running this twice is safe — already-linked contractors (user_id ≠ landlord_id) are untouched.
+UPDATE public.contractors SET user_id = NULL WHERE user_id = landlord_id;
 
 ALTER TABLE public.contractors
   ADD CONSTRAINT contractors_user_id_fkey
