@@ -7,9 +7,9 @@ export const metadata = { title: 'Welcome — Nestora' };
 export default async function ContractorWelcomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ eml?: string }>;
+  searchParams: Promise<{ email?: string }>;
 }) {
-  const { eml } = await searchParams;
+  const { email } = await searchParams;
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -28,12 +28,12 @@ export default async function ContractorWelcomePage({
   }
 
   // Build the login URL so unauthenticated visitors come back here after sign-in.
-  const returnUrl = `/contractor/welcome${eml ? `?eml=${encodeURIComponent(eml)}` : ''}`;
-  const loginUrl = `/login${eml ? `?email=${encodeURIComponent(eml)}&` : '?'}redirectTo=${encodeURIComponent(returnUrl)}`;
+  const returnUrl = `/contractor/welcome${email ? `?email=${encodeURIComponent(email)}` : ''}`;
+  const loginUrl = `/login${email ? `?email=${encodeURIComponent(email)}&` : '?'}redirectTo=${encodeURIComponent(returnUrl)}`;
 
   return (
     <ContractorWelcomeClient
-      email={eml ?? null}
+      email={email ?? null}
       isAuthenticated={!!user}
       loginUrl={loginUrl}
     />
