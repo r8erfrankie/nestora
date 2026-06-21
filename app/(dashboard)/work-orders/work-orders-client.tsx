@@ -851,7 +851,7 @@ export function WorkOrdersClient({
           ? form.customTrade.trim() || null
           : form.trade || null;
 
-      const inserted = await createWorkOrder({
+      const result = await createWorkOrder({
         title: form.title.trim(),
         description: form.description.trim() || null,
         priority: form.priority,
@@ -866,10 +866,16 @@ export function WorkOrdersClient({
         propertyName: prop?.name || null,
       });
 
+      if (result.error) {
+        setFormError(result.error);
+        return;
+      }
+
+      const inserted = result.data;
       if (inserted) {
         // Enrich with property name from local list to avoid join permission issues
         const newWO: WorkOrder = {
-          ...inserted,
+          ...(inserted as unknown as WorkOrder),
           properties: prop ? { id: prop.id, name: prop.name } : null,
         };
         setWorkOrders((prev) => [newWO, ...prev]);
@@ -886,7 +892,7 @@ export function WorkOrdersClient({
         e?.message ||
         e?.details ||
         (e?.code ? `Database error (code: ${e.code})` : null) ||
-        'Failed to create work order. Common causes: work_orders table not created (run supabase/work-orders.sql), RLS blocking the insert, or invalid property_id.';
+        'Failed to create work order. Please try again.';
       setFormError(message);
     } finally {
       setCreating(false);

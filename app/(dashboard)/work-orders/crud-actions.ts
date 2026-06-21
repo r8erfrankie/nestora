@@ -365,117 +365,114 @@ export async function createWorkOrder(data: {
   trade?: string | null;
   cost?: number | null;
   propertyName?: string | null;
-}) {
-  const supabase = await createClient();
+}): Promise<{ data: Record<string, unknown> | null; error: string | null }> {
+  // In Next.js 16, throwing from a Server Action produces a 500 that the
+  // framework treats as a fatal RSC error instead of routing to the caller's
+  // catch block. All error paths therefore return { data: null, error } so the
+  // client receives a normal response it can display as a form error.
+  try {
+    const supabase = await createClient();
+    const { data: authData } = await supabase.auth.getUser();
+    const user = authData?.user;
+    if (!user) return { data: null, error: 'Not authenticated' };
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+    const { data: inserted, error } = await supabase
+      .from('work_orders')
+      .insert({
+        title: data.title,
+        description: data.description || null,
+        priority: data.priority,
+        due_date: data.due_date || null,
+        property_id: data.property_id,
+        unit: data.unit || null,
+        assigned_contractor: data.assigned_contractor || null,
+        assigned_contractor_email: data.assigned_contractor_email?.trim().toLowerCase() || null,
+        assigned_contractor_phone: data.assigned_contractor_phone || null,
+        trade: data.trade || null,
+        cost: data.cost || 0,
+        user_id: user.id,
+        status: 'Open',
+      })
+      .select()
+      .single();
 
-  const { data: inserted, error } = await supabase
-    .from('work_orders')
-    .insert({
-      title: data.title,
-      description: data.description || null,
-      priority: data.priority,
-      due_date: data.due_date || null,
-      property_id: data.property_id,
-      unit: data.unit || null,
-      assigned_contractor: data.assigned_contractor || null,
-      assigned_contractor_email: data.assigned_contractor_email?.trim().toLowerCase() || null,
-      assigned_contractor_phone: data.assigned_contractor_phone || null,
-      trade: data.trade || null,
-      cost: data.cost || 0,
-      user_id: user.id,
-      status: 'Open',
-    })
-    .select()
-    .single();
+    if (error) {
+      console.error('[createWorkOrder] insert failed:', error.message, error.code);
+      return { data: null, error: error.message || 'Failed to create work order' };
+    }
 
-  if (error) throw new Error(error.message || 'Failed to create work order');
-
-  if (user.email) {
-    try {
-      await supabase.from('work_order_notes').insert({
-        work_order_id: inserted.id,
-        author_email: user.email.toLowerCase(),
-        author_role: 'landlord',
-        note_type: 'system',
-        content: 'Work order created',
-      });
-    } catch { /* non-fatal */ }
-  }
-
-  // Notify or invite the assigned contractor (non-fatal — work order is already created).
-  //
-  // Two paths depending on whether the contractor has a Nestora account:
-  //   Registered   → send the standard "new work order" notification.
-  //   Unregistered → auto-create a contractor directory entry (idempotent) and send
-  //                  a combined invitation + work order email so they understand both
-  //                  why they're being contacted and what action is waiting for them.
-  //
-  // Work orders are already visible to contractors by email match via RLS
-  // (lower(assigned_contractor_email) = lower(auth.jwt() ->> 'email')), so no
-  // explicit linking step is required after they sign up.
-  const contractorEmail = data.assigned_contractor_email?.trim().toLowerCase();
-  if (contractorEmail) {
-    try {
-      const admin = createAdminClient();
-
-      // Parallel: check if contractor is registered + fetch landlord display name.
-      const [contractorProfile, landlordProfile] = await Promise.all([
-        admin.from('profiles').select('id').eq('email', contractorEmail).maybeSingle(),
-        admin.from('profiles').select('full_name').eq('id', user.id).single(),
-      ]);
-
-      const landlordName = (landlordProfile.data?.full_name as string | null) ?? undefined;
-
-      if (contractorProfile.data) {
-        // Already a Nestora user — notify them about the new work order.
-        const { notifyContractorNewWorkOrder } = await import('@/app/actions/email');
-        await notifyContractorNewWorkOrder({
-          title: inserted.title,
-          description: inserted.description,
-          priority: inserted.priority,
-          due_date: inserted.due_date,
-          propertyName: data.propertyName,
-          assigned_contractor_email: contractorEmail,
+    if (user.email) {
+      try {
+        await supabase.from('work_order_notes').insert({
+          work_order_id: inserted.id,
+          author_email: user.email.toLowerCase(),
+          author_role: 'landlord',
+          note_type: 'system',
+          content: 'Work order created',
         });
-      } else {
-        // Not yet a Nestora user — auto-create a directory entry under this landlord
-        // (only if one doesn't already exist for this email) then send the combined email.
-        const { data: existingEntry } = await admin
-          .from('contractors')
-          .select('id')
-          .eq('landlord_id', user.id)
-          .eq('email', contractorEmail)
-          .maybeSingle();
+      } catch { /* non-fatal */ }
+    }
 
-        if (!existingEntry) {
-          await admin.from('contractors').insert({
-            landlord_id: user.id,
-            name: data.assigned_contractor?.trim() || contractorEmail,
-            email: contractorEmail,
-            phone: data.assigned_contractor_phone?.trim() || null,
-            trade: data.trade || null,
-          });
-        }
+    // Notify or invite the assigned contractor (non-fatal — work order is already created).
+    const contractorEmail = data.assigned_contractor_email?.trim().toLowerCase();
+    if (contractorEmail) {
+      try {
+        const admin = createAdminClient();
+        const [contractorProfile, landlordProfile] = await Promise.all([
+          admin.from('profiles').select('id').eq('email', contractorEmail).maybeSingle(),
+          admin.from('profiles').select('full_name').eq('id', user.id).single(),
+        ]);
+        const landlordName = (landlordProfile.data?.full_name as string | null) ?? undefined;
 
-        const { sendContractorWorkOrderInvitation } = await import('@/app/actions/email');
-        await sendContractorWorkOrderInvitation({
-          contractorEmail,
-          landlordName,
-          workOrder: {
+        if (contractorProfile.data) {
+          const { notifyContractorNewWorkOrder } = await import('@/app/actions/email');
+          await notifyContractorNewWorkOrder({
             title: inserted.title,
+            description: inserted.description,
             priority: inserted.priority,
             due_date: inserted.due_date,
             propertyName: data.propertyName,
-          },
-        });
-      }
-    } catch (err) {
-      console.error('[createWorkOrder] contractor notification failed (non-fatal):', err);
-    }
-  }
+            assigned_contractor_email: contractorEmail,
+          });
+        } else {
+          const { data: existingEntry } = await admin
+            .from('contractors')
+            .select('id')
+            .eq('landlord_id', user.id)
+            .eq('email', contractorEmail)
+            .maybeSingle();
 
-  return inserted;
+          if (!existingEntry) {
+            await admin.from('contractors').insert({
+              landlord_id: user.id,
+              name: data.assigned_contractor?.trim() || contractorEmail,
+              email: contractorEmail,
+              phone: data.assigned_contractor_phone?.trim() || null,
+              trade: data.trade || null,
+            });
+          }
+
+          const { sendContractorWorkOrderInvitation } = await import('@/app/actions/email');
+          await sendContractorWorkOrderInvitation({
+            contractorEmail,
+            landlordName,
+            workOrder: {
+              title: inserted.title,
+              priority: inserted.priority,
+              due_date: inserted.due_date,
+              propertyName: data.propertyName,
+            },
+          });
+        }
+      } catch (err) {
+        console.error('[createWorkOrder] contractor notification failed (non-fatal):', err);
+      }
+    }
+
+    return { data: inserted as Record<string, unknown>, error: null };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unexpected error creating work order';
+    console.error('[createWorkOrder] unexpected error:', msg);
+    return { data: null, error: msg };
+  }
 }
