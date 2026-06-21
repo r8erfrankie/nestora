@@ -47,6 +47,7 @@ export async function proxy(request: NextRequest) {
   // /join/[code] is public so unauthenticated users can land there from a QR
   // code; the page itself handles auth checking and redirects to /login if needed.
   if (
+    pathname === '/' ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/auth') ||
     pathname.startsWith('/join') ||

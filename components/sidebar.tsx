@@ -24,7 +24,7 @@ interface NavItem {
 }
 
 const landlordNavItems: NavItem[] = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/overview', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/properties', label: 'Properties', icon: Building2 },
   { href: '/tenants', label: 'Tenants', icon: UserCheck },
   { href: '/work-orders', label: 'Work Orders', icon: ClipboardList },
