@@ -66,7 +66,8 @@ export function SettingsClient({
   const [emailChanging, setEmailChanging] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [emailSaving, setEmailSaving] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
+  // Non-empty = a confirmation link has been sent to this address but not yet confirmed.
+  const [pendingEmail, setPendingEmail] = useState('');
   const [emailError, setEmailError] = useState('');
 
   const router = useRouter();
@@ -169,20 +170,25 @@ export function SettingsClient({
           <p className="text-muted-foreground w-28 shrink-0 pt-0.5 text-sm">Email</p>
           <div className="flex-1">
             {!emailChanging ? (
-              <div>
+              <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm">{email}</span>
                   <Badge variant="secondary" className="text-xs">verified</Badge>
                   <button
-                    onClick={() => { setEmailChanging(true); setNewEmail(''); setEmailError(''); setEmailSent(false); }}
+                    onClick={() => {
+                      setEmailChanging(true);
+                      setNewEmail(pendingEmail); // pre-fill if resending
+                      setEmailError('');
+                    }}
                     className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline transition-colors"
                   >
-                    Change
+                    {pendingEmail ? 'Resend' : 'Change'}
                   </button>
                 </div>
-                {emailSent && (
-                  <p className="mt-1 text-xs text-emerald-600">
-                    Check your new email inbox for a confirmation link to complete the change.
+                {pendingEmail && (
+                  <p className="text-xs text-amber-600">
+                    Confirmation link sent to <span className="font-medium">{pendingEmail}</span>.
+                    Check your inbox to complete the change.
                   </p>
                 )}
               </div>
@@ -212,8 +218,8 @@ export function SettingsClient({
                       if (result.error) {
                         setEmailError(result.error);
                       } else {
+                        setPendingEmail(result.pendingEmail ?? '');
                         setEmailChanging(false);
-                        setEmailSent(true);
                       }
                     }}
                   >

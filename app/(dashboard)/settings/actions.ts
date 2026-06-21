@@ -34,7 +34,23 @@ export async function updateProfile(data: {
   revalidatePath('/settings');
 }
 
-export async function requestEmailChange(newEmail: string): Promise<{ error?: string }> {
+function friendlyEmailChangeError(raw: string): string {
+  const m = raw.toLowerCase();
+  if (m.includes('already') || m.includes('in use') || m.includes('taken') || m.includes('registered')) {
+    return 'This email is already in use by another account.';
+  }
+  if (m.includes('rate limit') || m.includes('too many')) {
+    return 'Too many requests. Please wait a few minutes and try again.';
+  }
+  if (m.includes('invalid') || m.includes('format') || m.includes('valid email')) {
+    return 'Please enter a valid email address.';
+  }
+  return 'Something went wrong. Please try again.';
+}
+
+export async function requestEmailChange(
+  newEmail: string,
+): Promise<{ pendingEmail?: string; error?: string }> {
   const trimmed = newEmail.trim().toLowerCase();
   if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
     return { error: 'Please enter a valid email address.' };
@@ -45,13 +61,13 @@ export async function requestEmailChange(newEmail: string): Promise<{ error?: st
   if (!user) return { error: 'Not authenticated.' };
 
   if (trimmed === user.email?.toLowerCase()) {
-    return { error: 'That is already your current email address.' };
+    return { error: 'This is already your current email address.' };
   }
 
   const { error } = await supabase.auth.updateUser({ email: trimmed });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyEmailChangeError(error.message) };
 
-  return {};
+  return { pendingEmail: trimmed };
 }
 
 export async function deleteAccount() {
