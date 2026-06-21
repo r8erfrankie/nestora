@@ -703,25 +703,20 @@ export function ContractorClient({
             </DialogHeader>
 
             <div className="space-y-5 pt-1">
-              {/* Location — property + unit, prominent so contractor knows where to go */}
-              {(selected.properties || selected.unit) && (
+              {/* Unit — shown prominently when set; address is already in the subtitle */}
+              {selected.unit && (
                 <div>
                   <div className="text-muted-foreground mb-1 text-xs font-medium uppercase tracking-wider">
-                    Location
+                    Unit
                   </div>
-                  <div className="flex items-start gap-1.5 text-sm font-medium">
-                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                    <div>
-                      {selected.properties?.name}
-                      {selected.unit && (
-                        <span className="ml-1 font-semibold">· Unit {selected.unit}</span>
-                      )}
-                      {selected.properties?.address && (
-                        <div className="text-muted-foreground mt-0.5 text-xs font-normal">
-                          {selected.properties.address}
-                        </div>
-                      )}
-                    </div>
+                  <div className="flex items-center gap-1.5 text-sm font-semibold">
+                    <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    Unit {selected.unit}
+                    {selected.properties?.name && (
+                      <span className="text-muted-foreground font-normal">
+                        — {selected.properties.name}
+                      </span>
+                    )}
                   </div>
                 </div>
               )}

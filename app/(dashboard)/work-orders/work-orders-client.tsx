@@ -1185,7 +1185,7 @@ export function WorkOrdersClient({
                 <button
                   type="button"
                   onClick={() => toggleGroup(key)}
-                  className="flex w-full items-center gap-3 bg-muted/30 px-4 py-2.5 text-left transition-colors hover:bg-muted/50"
+                  className="flex w-full items-center gap-3 bg-muted px-4 py-2.5 text-left transition-colors hover:bg-muted/80"
                 >
                   <ChevronDown
                     className={cn(
@@ -1892,6 +1892,7 @@ export function WorkOrdersClient({
                             lc.email?.toLowerCase() ===
                             (selectedWorkOrder.assigned_contractor_email ?? '').toLowerCase()
                         );
+                        const isRegistered = !!matchedContractor?.is_registered;
                         const displayName =
                           matchedContractor?.profile_name ||
                           selectedWorkOrder.assigned_contractor;
@@ -1919,33 +1920,36 @@ export function WorkOrdersClient({
                             {selectedWorkOrder.trade}
                           </Badge>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const currentTrade = selectedWorkOrder.trade ?? '';
-                            const isPreset = TRADES_SET.has(currentTrade);
-                            setContractorEdit({
-                              name: selectedWorkOrder.assigned_contractor ?? '',
-                              email: selectedWorkOrder.assigned_contractor_email ?? '',
-                              phone: selectedWorkOrder.assigned_contractor_phone ?? '',
-                              trade: currentTrade
-                                ? isPreset ? currentTrade : 'Other'
-                                : '',
-                              customTrade: isPreset ? '' : currentTrade,
-                            });
-                            const matched = localContractors.find(
-                              (lc) =>
-                                lc.email?.toLowerCase() ===
-                                (selectedWorkOrder.assigned_contractor_email ?? '').toLowerCase()
-                            );
-                            setEditContractorKey(matched?.id ?? '');
-                            setEditingContractor(true);
-                          }}
-                          className="text-muted-foreground hover:text-foreground -ml-0.5 rounded p-1 transition-colors"
-                          aria-label="Edit contractor assignment"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
+                        {/* Registered contractors own their profile — hide edit pencil */}
+                        {!isRegistered && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const currentTrade = selectedWorkOrder.trade ?? '';
+                              const isPreset = TRADES_SET.has(currentTrade);
+                              setContractorEdit({
+                                name: selectedWorkOrder.assigned_contractor ?? '',
+                                email: selectedWorkOrder.assigned_contractor_email ?? '',
+                                phone: selectedWorkOrder.assigned_contractor_phone ?? '',
+                                trade: currentTrade
+                                  ? isPreset ? currentTrade : 'Other'
+                                  : '',
+                                customTrade: isPreset ? '' : currentTrade,
+                              });
+                              const matched = localContractors.find(
+                                (lc) =>
+                                  lc.email?.toLowerCase() ===
+                                  (selectedWorkOrder.assigned_contractor_email ?? '').toLowerCase()
+                              );
+                              setEditContractorKey(matched?.id ?? '');
+                              setEditingContractor(true);
+                            }}
+                            className="text-muted-foreground hover:text-foreground -ml-0.5 rounded p-1 transition-colors"
+                            aria-label="Edit contractor assignment"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       </div>
                         );
                       })()}
