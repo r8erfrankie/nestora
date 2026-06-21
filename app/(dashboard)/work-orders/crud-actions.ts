@@ -1,9 +1,6 @@
 'use server';
 
 import { createClient, createAdminClient } from '@/lib/supabase/server';
-import { validateEnv } from '@/lib/env';
-
-validateEnv();
 
 export async function deleteWorkOrder(id: string) {
   const supabase = await createClient();
