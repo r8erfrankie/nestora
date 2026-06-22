@@ -125,17 +125,29 @@ export async function getNavData(): Promise<{
     const lastSeenTenants    = profile.last_seen_tenants_at    as string | null;
     const lastSeenWorkOrders = profile.last_seen_work_orders_at as string | null;
 
-    // Two conditional count queries — sequential is fine for small badge counts.
+    // Count queries — sequential is fine for small badge counts.
     let tenantsCount = 0;
     let workOrdersCount = 0;
 
     if (lastSeenTenants) {
-      const { count } = await supabase
+      // Sum two sources of "new tenant activity" since last visit:
+      //   1. New tenant_property_links (tenant joined or landlord added one)
+      //   2. New maintenance_requests submitted by tenants
+      //      RLS on maintenance_requests already scopes to the landlord's
+      //      properties (property_id IN (SELECT id FROM properties WHERE user_id = auth.uid())),
+      //      so no extra filter is needed here.
+      const { count: linksCount } = await supabase
         .from('tenant_property_links')
         .select('*', { count: 'exact', head: true })
         .eq('landlord_id', user.id)
         .gt('created_at', lastSeenTenants);
-      tenantsCount = count ?? 0;
+
+      const { count: requestsCount } = await supabase
+        .from('maintenance_requests')
+        .select('*', { count: 'exact', head: true })
+        .gt('created_at', lastSeenTenants);
+
+      tenantsCount = (linksCount ?? 0) + (requestsCount ?? 0);
     }
 
     if (lastSeenWorkOrders) {
