@@ -105,13 +105,16 @@ export async function approveTenantRequest(linkId: string) {
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  // Fetch the link first so we have the email + property name for the notification.
-  const { data: link } = await supabase
-    .from('tenant_property_links')
-    .select('tenant_email, property_id, property:property_id(name)')
-    .eq('id', linkId)
-    .eq('landlord_id', user.id)
-    .single();
+  // Fetch the link + landlord profile in parallel.
+  const [{ data: link }, { data: profile }] = await Promise.all([
+    supabase
+      .from('tenant_property_links')
+      .select('tenant_email, property_id, property:property_id(name)')
+      .eq('id', linkId)
+      .eq('landlord_id', user.id)
+      .single(),
+    supabase.from('profiles').select('full_name').eq('id', user.id).single(),
+  ]);
 
   if (!link) throw new Error('Request not found');
 
@@ -125,7 +128,8 @@ export async function approveTenantRequest(linkId: string) {
 
   // Non-blocking email — approval succeeds even if Resend is down.
   const propertyName = (link.property as unknown as { name: string } | null)?.name ?? 'your property';
-  sendTenantAccessGrantedEmail({ to: link.tenant_email, propertyName }).catch((err) => {
+  const landlordName = (profile?.full_name as string | null) ?? null;
+  sendTenantAccessGrantedEmail({ to: link.tenant_email, propertyName, landlordName }).catch((err) => {
     console.error('Approval email failed:', err);
   });
 
@@ -237,12 +241,15 @@ export async function inviteTenantByEmail(email: string, propertyId: string, uni
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  const { data: property } = await supabase
-    .from('properties')
-    .select('id, name, join_code')
-    .eq('id', propertyId)
-    .eq('user_id', user.id)
-    .single();
+  const [{ data: property }, { data: landlordProfile }] = await Promise.all([
+    supabase
+      .from('properties')
+      .select('id, name, join_code')
+      .eq('id', propertyId)
+      .eq('user_id', user.id)
+      .single(),
+    supabase.from('profiles').select('full_name').eq('id', user.id).single(),
+  ]);
 
   if (!property) throw new Error('Property not found');
 
@@ -291,10 +298,12 @@ export async function inviteTenantByEmail(email: string, propertyId: string, uni
     if (error) throw new Error(error.message);
   }
 
+  const landlordName = (landlordProfile?.full_name as string | null) ?? null;
   sendTenantInviteEmail({
     to: normalizedEmail,
     propertyName: property.name as string,
     joinCode,
+    landlordName,
   }).catch((err) => { console.error('Invite email failed:', err); });
 
   revalidatePath('/tenants');
