@@ -99,15 +99,6 @@ export async function getNavData(): Promise<{
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { role: 'landlord', badges: NO_BADGES };
 
-    // Dev override — badge queries are skipped since it may be a different user.
-    if (process.env.NODE_ENV === 'development') {
-      const cookieStore = await cookies();
-      const devRole = cookieStore.get('dev_role')?.value;
-      if (devRole === 'landlord' || devRole === 'contractor' || devRole === 'tenant') {
-        return { role: devRole as UserRole, badges: NO_BADGES };
-      }
-    }
-
     const { data: profile } = await supabase
       .from('profiles')
       .select('role, last_seen_tenants_at, last_seen_work_orders_at')
@@ -125,37 +116,36 @@ export async function getNavData(): Promise<{
     const lastSeenTenants    = profile.last_seen_tenants_at    as string | null;
     const lastSeenWorkOrders = profile.last_seen_work_orders_at as string | null;
 
-    // Count queries — sequential is fine for small badge counts.
     let tenantsCount = 0;
     let workOrdersCount = 0;
 
+    // === Tenants badge: New tenants + New maintenance requests ===
     if (lastSeenTenants) {
-      // Sum two sources of "new tenant activity" since last visit:
-      //   1. New tenant_property_links (tenant joined or landlord added one)
-      //   2. New maintenance_requests submitted by tenants
-      //      RLS on maintenance_requests already scopes to the landlord's
-      //      properties (property_id IN (SELECT id FROM properties WHERE user_id = auth.uid())),
-      //      so no extra filter is needed here.
-      const { count: linksCount } = await supabase
+      // 1. New tenant links
+      const { count: newTenants } = await supabase
         .from('tenant_property_links')
         .select('*', { count: 'exact', head: true })
         .eq('landlord_id', user.id)
         .gt('created_at', lastSeenTenants);
 
-      const { count: requestsCount } = await supabase
+      // 2. New maintenance requests (only unactioned ones)
+      const { count: newRequests } = await supabase
         .from('maintenance_requests')
         .select('*', { count: 'exact', head: true })
-        .gt('created_at', lastSeenTenants);
+        .gt('created_at', lastSeenTenants)
+        .eq('status', 'Submitted');
 
-      tenantsCount = (linksCount ?? 0) + (requestsCount ?? 0);
+      tenantsCount = (newTenants ?? 0) + (newRequests ?? 0);
     }
 
+    // === Work Orders badge (unchanged) ===
     if (lastSeenWorkOrders) {
       const { count } = await supabase
         .from('work_orders')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .gt('created_at', lastSeenWorkOrders);
+
       workOrdersCount = count ?? 0;
     }
 
