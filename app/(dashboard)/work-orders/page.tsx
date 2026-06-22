@@ -126,6 +126,78 @@ export default async function WorkOrdersPage({
     }
     archivedWorkOrderIds = (archivedEntries ?? []).map((e) => e.work_order_id as string);
 
+    // ── On-demand backfill ──────────────────────────────────────────────────
+    // Find work orders that have assigned_contractor_email but no
+    // assigned_contractor_id. If the email now matches a registered profile,
+    // write the ID back to the DB and patch the in-memory object so the
+    // email-enrichment block below immediately picks it up.
+    // This heals historical rows progressively on every page load.
+    // Complements: SQL backfill-contractor-ids.sql (bulk, run once) and
+    // the signup-time backfill in role-actions.ts.
+    const unlinkedWOs = (workOrders ?? []).filter(
+      (wo: any) => !wo.assigned_contractor_id && wo.assigned_contractor_email
+    );
+    if (unlinkedWOs.length > 0) {
+      const unlinkedEmails = [
+        ...new Set(
+          unlinkedWOs.map((wo: any) =>
+            (wo.assigned_contractor_email as string).toLowerCase()
+          )
+        ),
+      ];
+      try {
+        const admin = createAdminClient();
+        const { data: matchedProfiles } = await admin
+          .from('profiles')
+          .select('id, email')
+          .in('email', unlinkedEmails);
+
+        const profileIdByEmail = new Map<string, string>(
+          (matchedProfiles ?? [])
+            .filter((p: any) => p.email)
+            .map((p: any) => [(p.email as string).toLowerCase(), p.id as string])
+        );
+
+        if (profileIdByEmail.size > 0 && workOrders) {
+          const toWrite: Array<{ id: string; contractorId: string }> = [];
+
+          workOrders = workOrders.map((wo: any) => {
+            if (wo.assigned_contractor_id || !wo.assigned_contractor_email) return wo;
+            const contractorId = profileIdByEmail.get(
+              (wo.assigned_contractor_email as string).toLowerCase()
+            );
+            if (!contractorId) return wo;
+            toWrite.push({ id: wo.id as string, contractorId });
+            return { ...wo, assigned_contractor_id: contractorId };
+          });
+
+          if (toWrite.length > 0) {
+            try {
+              const admin2 = createAdminClient();
+              await Promise.all(
+                toWrite.map(({ id, contractorId }) =>
+                  admin2
+                    .from('work_orders')
+                    .update({ assigned_contractor_id: contractorId })
+                    .eq('id', id)
+                    .is('assigned_contractor_id', null) // skip if a concurrent write beat us
+                )
+              );
+              console.log(
+                `[WorkOrdersPage] on-demand backfill: linked assigned_contractor_id on ${toWrite.length} work order(s)`
+              );
+            } catch (writeErr) {
+              // Non-fatal — in-memory data is already patched for this render
+              console.error('[WorkOrdersPage] backfill write failed (non-fatal):', writeErr);
+            }
+          }
+        }
+      } catch {
+        // Non-fatal — page renders correctly with the data as-is
+      }
+    }
+
+    // ── Email enrichment ────────────────────────────────────────────────────
     // Hybrid contractor model: when a contractor has signed up
     // (assigned_contractor_id is set), their stored assigned_contractor_email
     // may be stale if they later changed their email. Fetch the current email
