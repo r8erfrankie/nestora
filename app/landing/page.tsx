@@ -25,10 +25,10 @@ export default function LandingPage() {
       {/* ── Navbar ── */}
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <span className="text-lg font-bold tracking-tight">Nestora</span>
+          <span className="text-lg font-bold tracking-tight text-teal-700">Nestora</span>
           <Link
             href="/sign-in"
-            className="rounded-lg border border-gray-200 bg-white px-4 py-1.5 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:bg-gray-50"
+            className="rounded-lg border border-teal-200 bg-white px-4 py-1.5 text-sm font-medium text-teal-700 shadow-sm transition-colors hover:bg-teal-50"
           >
             Sign In
           </Link>
@@ -37,14 +37,14 @@ export default function LandingPage() {
 
       {/* ── Hero ── */}
       <section className="mx-auto max-w-4xl px-4 pb-20 pt-16 text-center sm:px-6 sm:pt-24 lg:pt-32">
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3.5 py-1.5 text-xs font-medium text-gray-600">
+        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-3.5 py-1.5 text-xs font-medium text-teal-700">
           Built for landlords with 1–30 properties
         </div>
 
         <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl lg:text-6xl">
           Maintenance made simple
           <br />
-          <span className="text-gray-400">for small landlords.</span>
+          <span className="text-teal-600">for small landlords.</span>
         </h1>
 
         <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-gray-500 sm:text-lg">
@@ -56,7 +56,7 @@ export default function LandingPage() {
         <div className="mt-10 flex flex-col items-center gap-3">
           <Link
             href="/sign-in"
-            className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-7 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-700"
+            className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-7 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-teal-800"
           >
             Sign In to Nestora
             <ArrowRight className="h-4 w-4" />
@@ -68,9 +68,9 @@ export default function LandingPage() {
       </section>
 
       {/* ── What Nestora Does ── */}
-      <section className="bg-gray-50 py-20">
+      <section className="bg-slate-50 py-20">
         <div className="mx-auto max-w-3xl px-4 sm:px-6">
-          <h2 className="mb-8 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+          <h2 className="mb-8 text-2xl font-bold tracking-tight text-teal-700 sm:text-3xl">
             What Nestora does
           </h2>
           <div className="space-y-5 text-base leading-relaxed text-gray-600 sm:text-[17px]">
@@ -104,7 +104,7 @@ export default function LandingPage() {
                 key={p.title}
                 className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"
               >
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-gray-700">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
                   <p.icon className="h-5 w-5" />
                 </div>
                 <h3 className="mb-1.5 font-semibold text-gray-900">{p.title}</h3>
@@ -116,7 +116,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── How It Works ── */}
-      <section className="bg-gray-50 py-20">
+      <section className="bg-slate-50 py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <h2 className="mb-3 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
             How it works
@@ -128,10 +128,10 @@ export default function LandingPage() {
               <div key={step.title} className="relative">
                 {/* Connector line on desktop */}
                 {i < STEPS.length - 1 && (
-                  <div className="absolute left-full top-5 z-10 hidden w-full border-t-2 border-dashed border-gray-200 sm:block" style={{ width: '2rem', left: 'calc(100% + 0.25rem)' }} />
+                  <div className="absolute left-full top-5 z-10 hidden w-full border-t-2 border-dashed border-teal-200 sm:block" style={{ width: '2rem', left: 'calc(100% + 0.25rem)' }} />
                 )}
                 <div className="flex items-start gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-gray-200 bg-white text-sm font-bold text-gray-400">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-700 text-sm font-bold text-white">
                     {i + 1}
                   </div>
                   <div>
@@ -148,7 +148,7 @@ export default function LandingPage() {
       {/* ── See it in action ── */}
       <section className="py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <h2 className="mb-3 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+          <h2 className="mb-3 text-2xl font-bold tracking-tight text-teal-700 sm:text-3xl">
             See it in action
           </h2>
           <p className="mb-12 text-gray-500">
@@ -245,7 +245,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Key Features ── */}
-      <section className="bg-gray-50 py-20">
+      <section className="bg-slate-50 py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <h2 className="mb-3 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
             Everything you need, nothing you don&rsquo;t
@@ -260,7 +260,7 @@ export default function LandingPage() {
                 key={f}
                 className="flex items-start gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm"
               >
-                <CheckCircle2 className="mt-0.5 h-4.5 w-4.5 shrink-0 text-gray-400" />
+                <CheckCircle2 className="mt-0.5 h-4.5 w-4.5 shrink-0 text-teal-500" />
                 <span className="text-sm text-gray-700">{f}</span>
               </div>
             ))}
@@ -269,26 +269,26 @@ export default function LandingPage() {
       </section>
 
       {/* ── Final CTA ── */}
-      <section className="bg-gray-900 py-24">
+      <section className="bg-teal-900 py-24">
         <div className="mx-auto max-w-2xl px-4 text-center sm:px-6">
           <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
             Ready to simplify your maintenance?
           </h2>
-          <p className="mt-4 text-gray-400">
+          <p className="mt-4 text-teal-200">
             Join landlords who manage properties without the chaos.
           </p>
 
           <div className="mt-10 flex flex-col items-center gap-3">
             <Link
               href="/sign-in"
-              className="inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-sm font-semibold text-gray-900 shadow-sm transition-colors hover:bg-gray-100"
+              className="inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-sm font-semibold text-teal-900 shadow-sm transition-colors hover:bg-teal-50"
             >
               Sign In to Nestora
               <ArrowRight className="h-4 w-4" />
             </Link>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-teal-400">
               Already have an account?{' '}
-              <Link href="/sign-in" className="text-gray-400 underline underline-offset-2 hover:text-white">
+              <Link href="/sign-in" className="text-teal-300 underline underline-offset-2 hover:text-white">
                 Sign in here
               </Link>
             </p>
@@ -299,9 +299,9 @@ export default function LandingPage() {
       {/* ── Footer ── */}
       <footer className="border-t border-gray-100 bg-white py-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 text-xs text-gray-400 sm:flex-row sm:px-6">
-          <span className="font-semibold text-gray-700">Nestora</span>
+          <span className="font-semibold text-teal-700">Nestora</span>
           <span>Built for small landlords who value clarity and simplicity.</span>
-          <Link href="/sign-in" className="hover:text-gray-600">
+          <Link href="/sign-in" className="transition-colors hover:text-teal-700">
             Sign In →
           </Link>
         </div>
