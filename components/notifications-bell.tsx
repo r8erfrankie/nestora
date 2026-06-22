@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { cn, timeAgo } from '@/lib/utils';
@@ -28,9 +28,48 @@ export function NotificationsBell({
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Always-current refs so timer callbacks never see stale closures.
+  const notificationsRef = useRef(notifications);
+  useEffect(() => { notificationsRef.current = notifications; }, [notifications]);
+
+  // Tracks IDs currently being persisted to prevent duplicate DB calls.
+  const pendingReadIdsRef = useRef<Set<string>>(new Set());
+
+  // Per-notification hover timers (desktop 400ms).
+  const hoverTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // Mobile panel-open timer (1.5s).
+  const mobileTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  // Subscribe to new notifications via Supabase Realtime
+  // ── Core mark-as-read (stable reference — safe to use inside timer callbacks) ──
+  const markRead = useCallback(async (ids: string[]) => {
+    const toMark = ids.filter((id) => {
+      const n = notificationsRef.current.find((x) => x.id === id);
+      return n && !n.read && !pendingReadIdsRef.current.has(id);
+    });
+    if (toMark.length === 0) return;
+
+    toMark.forEach((id) => pendingReadIdsRef.current.add(id));
+
+    // Optimistic: flip read immediately so the unread count and dot update at once.
+    setNotifications((prev) =>
+      prev.map((n) => (toMark.includes(n.id) ? { ...n, read: true } : n))
+    );
+
+    // Persist in background — fire-and-forget, failure is non-fatal.
+    try {
+      const supabase = createClient();
+      await supabase.from('notifications').update({ read: true }).in('id', toMark);
+    } catch (err) {
+      console.error('[markRead] DB update failed:', err);
+    } finally {
+      toMark.forEach((id) => pendingReadIdsRef.current.delete(id));
+    }
+  }, []); // empty deps — reads from refs, setNotifications is stable
+
+  // ── Subscribe to new notifications via Realtime ──
   useEffect(() => {
     if (!userId) return;
     const supabase = createClient();
@@ -54,7 +93,7 @@ export function NotificationsBell({
     return () => { supabase.removeChannel(channel); };
   }, [userId]);
 
-  // Close on outside click
+  // ── Close on outside click ──
   useEffect(() => {
     if (!open) return;
     function onPointerDown(e: PointerEvent) {
@@ -66,24 +105,73 @@ export function NotificationsBell({
     return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [open]);
 
-  const handleClick = async (n: AppNotification) => {
-    if (!n.read) {
-      const supabase = createClient();
-      await supabase.from('notifications').update({ read: true }).eq('id', n.id);
-      setNotifications((prev) =>
-        prev.map((x) => (x.id === n.id ? { ...x, read: true } : x))
-      );
+  // ── Mobile: mark all unread as read 1.5s after the panel opens ──
+  useEffect(() => {
+    if (!open) {
+      // Panel closed — cancel any pending timer.
+      if (mobileTimerRef.current !== null) {
+        clearTimeout(mobileTimerRef.current);
+        mobileTimerRef.current = null;
+      }
+      return;
     }
+
+    // Only activate on narrow screens (phone/tablet in portrait).
+    if (typeof window === 'undefined' || window.innerWidth >= 768) return;
+
+    mobileTimerRef.current = setTimeout(() => {
+      const unreadIds = notificationsRef.current
+        .filter((n) => !n.read)
+        .map((n) => n.id);
+      if (unreadIds.length > 0) markRead(unreadIds);
+      mobileTimerRef.current = null;
+    }, 1500);
+
+    return () => {
+      if (mobileTimerRef.current !== null) {
+        clearTimeout(mobileTimerRef.current);
+        mobileTimerRef.current = null;
+      }
+    };
+  }, [open, markRead]);
+
+  // ── Cleanup all timers on unmount ──
+  useEffect(() => {
+    return () => {
+      hoverTimersRef.current.forEach(clearTimeout);
+      if (mobileTimerRef.current !== null) clearTimeout(mobileTimerRef.current);
+    };
+  }, []);
+
+  // ── Hover handlers for desktop 400ms auto-read ──
+  const handleMouseEnter = useCallback((n: AppNotification) => {
+    if (n.read || pendingReadIdsRef.current.has(n.id)) return;
+    const timer = setTimeout(() => {
+      markRead([n.id]);
+      hoverTimersRef.current.delete(n.id);
+    }, 400);
+    hoverTimersRef.current.set(n.id, timer);
+  }, [markRead]);
+
+  const handleMouseLeave = useCallback((id: string) => {
+    const timer = hoverTimersRef.current.get(id);
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      hoverTimersRef.current.delete(id);
+    }
+  }, []);
+
+  // ── Click: navigate + mark read ──
+  const handleClick = (n: AppNotification) => {
+    if (!n.read) markRead([n.id]);
     setOpen(false);
     if (n.link) router.push(n.link);
   };
 
-  const markAllRead = async () => {
+  // ── Mark all read (button) ──
+  const markAllRead = () => {
     const ids = notifications.filter((n) => !n.read).map((n) => n.id);
-    if (ids.length === 0) return;
-    const supabase = createClient();
-    await supabase.from('notifications').update({ read: true }).in('id', ids);
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    if (ids.length > 0) markRead(ids);
   };
 
   return (
@@ -133,15 +221,17 @@ export function NotificationsBell({
                 <button
                   key={n.id}
                   onClick={() => handleClick(n)}
+                  onMouseEnter={() => handleMouseEnter(n)}
+                  onMouseLeave={() => handleMouseLeave(n.id)}
                   className={cn(
-                    'w-full px-4 py-3.5 text-left transition-colors hover:bg-muted/50',
+                    'w-full px-4 py-3.5 text-left transition-colors duration-300 hover:bg-muted/50',
                     !n.read && 'bg-blue-50/60 dark:bg-blue-950/20'
                   )}
                 >
                   <div className="flex items-start gap-3">
                     <div
                       className={cn(
-                        'mt-[7px] h-2 w-2 shrink-0 rounded-full',
+                        'mt-[7px] h-2 w-2 shrink-0 rounded-full transition-colors duration-300',
                         n.read ? 'bg-transparent' : 'bg-blue-500'
                       )}
                     />
