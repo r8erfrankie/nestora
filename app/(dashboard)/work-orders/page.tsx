@@ -126,6 +126,47 @@ export default async function WorkOrdersPage({
     }
     archivedWorkOrderIds = (archivedEntries ?? []).map((e) => e.work_order_id as string);
 
+    // Hybrid contractor model: when a contractor has signed up
+    // (assigned_contractor_id is set), their stored assigned_contractor_email
+    // may be stale if they later changed their email. Fetch the current email
+    // from profiles for every registered contractor referenced by these work
+    // orders and replace the stored value before the data reaches the client.
+    // This keeps every display site correct without per-site changes.
+    // Fallback: if the lookup fails or assigned_contractor_id is null, the
+    // original assigned_contractor_email is used unchanged.
+    const contractorProfileIds = [
+      ...new Set(
+        (workOrders ?? [])
+          .map((wo: any) => wo.assigned_contractor_id as string | null)
+          .filter((id): id is string => Boolean(id))
+      ),
+    ];
+    if (contractorProfileIds.length > 0) {
+      try {
+        const admin = createAdminClient();
+        const { data: contractorProfiles } = await admin
+          .from('profiles')
+          .select('id, email')
+          .in('id', contractorProfileIds);
+
+        const currentEmailById = new Map<string, string>(
+          (contractorProfiles ?? [])
+            .filter((p: any) => p.email)
+            .map((p: any) => [p.id as string, (p.email as string).toLowerCase()])
+        );
+
+        if (currentEmailById.size > 0 && workOrders) {
+          workOrders = workOrders.map((wo: any) => {
+            if (!wo.assigned_contractor_id) return wo;
+            const currentEmail = currentEmailById.get(wo.assigned_contractor_id as string);
+            return currentEmail ? { ...wo, assigned_contractor_email: currentEmail } : wo;
+          });
+        }
+      } catch {
+        // Non-fatal — stale assigned_contractor_email is shown as fallback
+      }
+    }
+
     // Map: "propertyId::email" → unit
     const unitByPropertyEmail = new Map<string, string | null>();
     for (const link of tenantLinks ?? []) {
