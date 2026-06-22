@@ -12,8 +12,12 @@ export async function markSectionVisited(section: keyof typeof FIELD) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
 
-  await supabase
+  const { error } = await supabase
     .from('profiles')
     .update({ [FIELD[section]]: new Date().toISOString() })
     .eq('id', user.id);
+
+  if (error) {
+    console.error('Failed to mark section visited:', error);
+  }
 }
