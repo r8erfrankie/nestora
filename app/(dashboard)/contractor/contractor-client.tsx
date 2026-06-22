@@ -4,6 +4,7 @@ import { useOptimistic, useTransition, useState, useEffect } from 'react';
 import Lightbox from 'yet-another-react-lightbox';
 import Counter from 'yet-another-react-lightbox/plugins/counter';
 import { createClient } from '@/lib/supabase/client';
+import { ensureJpeg } from '@/lib/convert-heic';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -59,6 +60,9 @@ interface Photo {
   name: string | null;
   created_at: string;
   uploaded_by_role?: string | null;
+  // Tracks the specific user who uploaded. Used to gate the delete button —
+  // contractors may only delete photos they personally uploaded.
+  uploaded_by?: string | null;
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -194,11 +198,13 @@ export function ContractorClient({
   greeting,
   firstName,
   archivedWorkOrderIds,
+  currentUserId = '',
 }: {
   workOrders: ContractorWorkOrder[];
   greeting: string;
   firstName: string | null;
   archivedWorkOrderIds: string[];
+  currentUserId?: string;
 }) {
   const [isPending, startTransition] = useTransition();
   // Canonical state — updated with real server results so that when
@@ -301,7 +307,7 @@ export function ContractorClient({
     setPhotos([]);
     supabase
       .from('work_order_photos')
-      .select('id, url, name, created_at, uploaded_by_role')
+      .select('id, url, name, created_at, uploaded_by_role, uploaded_by')
       .eq('work_order_id', selectedId)
       .order('created_at', { ascending: true })
       .then(({ data }) => {
@@ -319,14 +325,16 @@ export function ContractorClient({
 
   const PHOTO_LIMIT = 30;
 
-  const handlePhotoFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+  const handlePhotoFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = Array.from(e.target.files || []);
+    if (raw.length === 0) return;
+    e.target.value = '';
+    // Convert any HEIC/HEIF files to JPEG before generating previews or uploading.
+    const converted = await Promise.all(raw.map(ensureJpeg));
     const remaining = PHOTO_LIMIT - photos.length - pendingPhotos.length;
-    const allowed = files.slice(0, Math.max(0, remaining));
+    const allowed = converted.slice(0, Math.max(0, remaining));
     const newPending = allowed.map((file) => ({ file, preview: URL.createObjectURL(file) }));
     setPendingPhotos((prev) => [...prev, ...newPending]);
-    e.target.value = '';
   };
 
   const removePendingPhoto = (index: number) => {
@@ -355,6 +363,7 @@ export function ContractorClient({
             work_order_id: selectedId,
             url: urlData.publicUrl,
             uploaded_by_role: 'contractor',
+            uploaded_by: currentUserId || null,
           })
           .select()
           .single();
@@ -436,7 +445,7 @@ export function ContractorClient({
   const canAct = (status: string) => status === 'Open' || status === 'In Progress';
 
   return (
-    <div className="space-y-5 p-4 sm:space-y-6 sm:p-6">
+    <div className="space-y-4 sm:space-y-5">
       {/* Header */}
       <div>
         <h1 className="text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
@@ -484,8 +493,8 @@ export function ContractorClient({
       {/* Work order list */}
       {activeOrders.length === 0 && archivedList.length === 0 ? (
         <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="bg-muted text-muted-foreground mb-4 rounded-full p-4">
+          <CardContent className="flex flex-col items-center justify-center py-10 text-center sm:py-16">
+            <div className="bg-muted text-muted-foreground mb-3 rounded-full p-4 sm:mb-4">
               <ClipboardList className="h-8 w-8" />
             </div>
             <h3 className="mb-1 text-base font-semibold">No jobs yet</h3>
@@ -929,17 +938,21 @@ export function ContractorClient({
                               Owner
                             </div>
                           )}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteSinglePhoto(photo);
-                            }}
-                            className="absolute top-1 right-1 rounded-full bg-black/70 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-600"
-                            aria-label="Delete photo"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
+                          {/* Only show delete for photos this contractor uploaded.
+                              Landlord-uploaded photos can only be deleted by the landlord. */}
+                          {photo.uploaded_by === currentUserId && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteSinglePhoto(photo);
+                              }}
+                              className="absolute top-1 right-1 rounded-full bg-black/70 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-600"
+                              aria-label="Delete photo"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
                         </div>
 
                         {/* Name — editable inline */}

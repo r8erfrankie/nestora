@@ -129,6 +129,23 @@
   }
 }
 
+/* ── Mobile input fixes ────────────────────────────────────────────────────── */
+/*                                                                              */
+/* iOS Safari auto-zooms when a focused input has a font-size below 16px.      */
+/* Setting font-size to max(16px, 1em) on narrow screens prevents the zoom     */
+/* while respecting any larger size already applied (e.g. text-lg inputs).     */
+/*                                                                              */
+/* This rule lives OUTSIDE @layer so it wins over Tailwind utility classes.    */
+/* It targets only text-entry elements — checkboxes, radios, and ranges are    */
+/* excluded because they have no text cursor and don't trigger zoom.           */
+@media screen and (max-width: 767px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  textarea,
+  select {
+    font-size: max(16px, 1em);
+  }
+}
+
 /* ── PhoneInput component ──────────────────────────────────────────────────── */
 /* Styles the react-phone-number-input country selector to match our Input.    */
 

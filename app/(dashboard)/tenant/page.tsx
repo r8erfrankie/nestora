@@ -136,7 +136,7 @@ export default async function TenantDashboardPage() {
   }
 
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="max-w-3xl space-y-5 sm:space-y-8">
       {/* Page header */}
       <div>
         <p className="text-muted-foreground text-sm">{greeting}</p>
@@ -191,7 +191,7 @@ export default async function TenantDashboardPage() {
         </section>
       ) : (
         /* ── Empty state (no approved properties) ───────────────────────────── */
-        <section className="rounded-xl border border-dashed p-8 text-center">
+        <section className="rounded-xl border border-dashed p-5 text-center sm:p-8">
           <div className="space-y-3">
             <div className="flex justify-center">
               <div className="bg-muted flex h-12 w-12 items-center justify-center rounded-full">

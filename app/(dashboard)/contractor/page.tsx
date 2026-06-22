@@ -71,6 +71,7 @@ export default async function ContractorDashboardPage() {
       greeting={greeting}
       firstName={firstName}
       archivedWorkOrderIds={archivedWorkOrderIds}
+      currentUserId={user?.id ?? ''}
     />
   );
 }

@@ -79,6 +79,10 @@ export async function convertToWorkOrder(
           work_order_id: workOrder.id,
           url: p.url as string,
           name: p.name as string | null,
+          // The landlord is performing the conversion, so attribute these photos to them.
+          // They already have full delete rights as the work order owner, but setting
+          // uploaded_by keeps the data clean and consistent with new uploads.
+          uploaded_by: user.id,
         }))
       );
       if (photoInsertError) throw photoInsertError;

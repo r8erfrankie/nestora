@@ -79,7 +79,7 @@ export default async function RequestDetailPage({
   const priorityStyle = PRIORITY_STYLES[request.priority] ?? PRIORITY_STYLES['Medium'];
 
   return (
-    <div className="max-w-2xl space-y-6 p-6">
+    <div className="max-w-2xl space-y-4 sm:space-y-6">
       {/* Back */}
       <Link
         href="/tenant"

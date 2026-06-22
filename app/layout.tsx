@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { Toaster } from 'sonner';
+import { MobileFocusHandler } from '@/app/components/mobile-focus-handler';
 import './globals.css';
 import 'yet-another-react-lightbox/styles.css';
 import 'yet-another-react-lightbox/plugins/counter.css';
@@ -44,6 +45,7 @@ export default function RootLayout({
       <body className="bg-background text-foreground h-full">
         {children}
         <Toaster position="top-right" richColors />
+        <MobileFocusHandler />
       </body>
     </html>
   );

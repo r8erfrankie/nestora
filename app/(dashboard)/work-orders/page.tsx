@@ -276,6 +276,7 @@ export default async function WorkOrdersPage({
         autoOpenCreate={autoOpenCreate}
         prefillPropertyId={prefillPropertyId}
         prefillUnit={prefillUnit}
+        currentUserId={userId}
       />
     </div>
   );

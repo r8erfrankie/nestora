@@ -177,7 +177,7 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
   const propertiesWithCode = properties.filter((p) => p.join_code);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 sm:space-y-8">
       {/* Page header */}
       <div className="flex items-start justify-between gap-4">
         <div>

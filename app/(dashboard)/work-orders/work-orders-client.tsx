@@ -50,6 +50,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Plus, Eye, Upload, Loader2, ClipboardList, Archive, ArchiveRestore, Trash2, X, Pencil, Phone, ChevronDown, CheckCircle2 } from 'lucide-react';
 import { archiveWorkOrderForUser, unarchiveWorkOrderForUser } from '@/app/actions/archive-actions';
+import { ensureJpeg } from '@/lib/convert-heic';
 import { WorkOrderNotes } from '@/app/components/work-order-notes';
 
 interface WorkOrder {
@@ -98,6 +99,9 @@ interface Photo {
   name: string | null;
   created_at: string;
   uploaded_by_role?: string | null;
+  // Tracks the specific user who uploaded. NULL on old rows where the contractor
+  // account was not yet linked at upload time (see add-photo-uploaded-by.sql).
+  uploaded_by?: string | null;
 }
 
 const PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'] as const;
@@ -132,6 +136,7 @@ export function WorkOrdersClient({
   autoOpenCreate = false,
   prefillPropertyId,
   prefillUnit,
+  currentUserId = '',
 }: {
   initialWorkOrders: WorkOrder[];
   properties: Property[];
@@ -142,6 +147,7 @@ export function WorkOrdersClient({
   autoOpenCreate?: boolean;
   prefillPropertyId?: string;
   prefillUnit?: string;
+  currentUserId?: string;
 }) {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>(initialWorkOrders);
   const [view, setView] = useState<'active' | 'archived'>('active');
@@ -598,14 +604,15 @@ export function WorkOrdersClient({
     }
   };
 
-  const handlePhotoFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+  const handlePhotoFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = Array.from(e.target.files || []);
+    if (raw.length === 0) return;
+    e.target.value = '';
+    // Convert any HEIC/HEIF files to JPEG before generating previews or uploading.
+    const files = await Promise.all(raw.map(ensureJpeg));
     const newPreviews = files.map((f) => URL.createObjectURL(f));
     setPendingPhotoFiles((prev) => [...prev, ...files]);
     setPendingPhotoPreviews((prev) => [...prev, ...newPreviews]);
-    // reset input so same file can be selected again if needed
-    e.target.value = '';
   };
 
   const removePendingPhoto = (index: number) => {
@@ -629,6 +636,7 @@ export function WorkOrdersClient({
         await supabase.from('work_order_photos').insert({
           work_order_id: workOrderId,
           url: urlData.publicUrl,
+          uploaded_by: currentUserId || null,
         });
       } catch (err) {
         hadError = true;
@@ -651,10 +659,12 @@ export function WorkOrdersClient({
 
   // --- Photo management for detail view (existing work orders) ---
 
-  const handleDetailPhotoFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-
+  const handleDetailPhotoFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = Array.from(e.target.files || []);
+    if (raw.length === 0) return;
+    e.target.value = '';
+    // Convert any HEIC/HEIF files to JPEG before generating previews or uploading.
+    const files = await Promise.all(raw.map(ensureJpeg));
     const newPending = files.map((file) => {
       const defaultName = file.name.replace(/\.[^/.]+$/, ''); // strip extension
       return {
@@ -663,9 +673,7 @@ export function WorkOrdersClient({
         preview: URL.createObjectURL(file),
       };
     });
-
     setPendingDetailPhotos((prev) => [...prev, ...newPending]);
-    e.target.value = '';
   };
 
   const updatePendingDetailName = (index: number, newName: string) => {
@@ -708,6 +716,7 @@ export function WorkOrdersClient({
             work_order_id: selectedWorkOrder.id,
             url: urlData.publicUrl,
             name: pending.name || pending.file.name,
+            uploaded_by: currentUserId || null,
           })
           .select()
           .single();
@@ -967,7 +976,8 @@ export function WorkOrdersClient({
 
     setUploadingPhotos(true);
 
-    const uploadPromises = Array.from(files).map(async (file) => {
+    const uploadPromises = Array.from(files).map(async (raw) => {
+      const file = await ensureJpeg(raw);
       const filePath = `${workOrderId}/${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
 
       const { error: uploadError } = await supabase.storage
@@ -983,6 +993,7 @@ export function WorkOrdersClient({
         .insert({
           work_order_id: workOrderId,
           url: urlData.publicUrl,
+          uploaded_by: currentUserId || null,
         })
         .select()
         .single();
@@ -1117,8 +1128,8 @@ export function WorkOrdersClient({
       {/* List */}
       {sortedWorkOrders.length === 0 ? (
         <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="bg-muted text-muted-foreground mb-4 rounded-full p-4">
+          <CardContent className="flex flex-col items-center justify-center py-10 text-center sm:py-16">
+            <div className="bg-muted text-muted-foreground mb-3 rounded-full p-4 sm:mb-4">
               {view === 'archived' ? (
                 <Archive className="h-8 w-8" />
               ) : (

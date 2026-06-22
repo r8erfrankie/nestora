@@ -224,15 +224,15 @@ export function TeamsClient({ initialContractors }: { initialContractors: Contra
 
       {contractors.length === 0 ? (
         <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="bg-muted text-muted-foreground mb-4 rounded-full p-4">
+          <CardContent className="flex flex-col items-center justify-center py-10 text-center sm:py-16">
+            <div className="bg-muted text-muted-foreground mb-3 rounded-full p-4 sm:mb-4">
               <Users className="h-8 w-8" />
             </div>
             <h3 className="mb-2 text-lg font-semibold">No contractors yet</h3>
             <p className="text-muted-foreground max-w-sm text-sm">
               Add your contractors here to quickly assign them to work orders.
             </p>
-            <Button onClick={openAdd} className="mt-4 gap-1.5" size="sm">
+            <Button onClick={openAdd} className="mt-3 gap-1.5 sm:mt-4" size="sm">
               <Plus className="h-4 w-4" /> Add your first contractor
             </Button>
           </CardContent>

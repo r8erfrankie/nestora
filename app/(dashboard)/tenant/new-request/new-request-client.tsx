@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { ensureJpeg } from '@/lib/convert-heic';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -57,12 +58,14 @@ export function NewRequestClient({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  const handlePhotoFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+  const handlePhotoFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = Array.from(e.target.files || []);
+    if (raw.length === 0) return;
+    e.target.value = '';
+    // Convert any HEIC/HEIF files to JPEG before generating previews or uploading.
+    const files = await Promise.all(raw.map(ensureJpeg));
     setPhotoFiles((prev) => [...prev, ...files]);
     setPhotoPreviews((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
-    e.target.value = '';
   };
 
   const removePhoto = (index: number) => {
@@ -126,7 +129,7 @@ export function NewRequestClient({
 
   if (success) {
     return (
-      <div className="flex flex-col items-center gap-4 py-16 text-center">
+      <div className="flex flex-col items-center gap-4 py-10 text-center sm:py-16">
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50">
           <CheckCircle2 className="h-7 w-7 text-emerald-600" />
         </div>

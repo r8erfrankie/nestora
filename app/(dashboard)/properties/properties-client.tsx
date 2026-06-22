@@ -254,12 +254,12 @@ export function PropertiesClient({
       {/* Properties Grid */}
       {properties.length === 0 ? (
         <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="bg-muted text-muted-foreground mb-4 rounded-full p-4">
+          <CardContent className="flex flex-col items-center justify-center py-10 text-center sm:py-16">
+            <div className="bg-muted text-muted-foreground mb-3 rounded-full p-4 sm:mb-4">
               <Building2 className="h-8 w-8" />
             </div>
             <h3 className="mb-2 text-lg font-semibold">No properties yet</h3>
-            <p className="text-muted-foreground mb-6 max-w-sm text-sm">
+            <p className="text-muted-foreground mb-4 max-w-sm text-sm sm:mb-6">
               No properties yet. Add your first one to start managing your real estate portfolio.
             </p>
             <Button onClick={openCreate}>
