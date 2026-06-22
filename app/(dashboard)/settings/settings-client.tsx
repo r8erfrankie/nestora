@@ -171,16 +171,16 @@ export function SettingsClient({
           <div className="flex-1">
             {!emailChanging ? (
               <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">{email}</span>
-                  <Badge variant="secondary" className="text-xs">verified</Badge>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                  <span className="min-w-0 truncate text-sm">{email}</span>
+                  <Badge variant="secondary" className="shrink-0 text-xs">verified</Badge>
                   <button
                     onClick={() => {
                       setEmailChanging(true);
                       setNewEmail(pendingEmail); // pre-fill if resending
                       setEmailError('');
                     }}
-                    className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline transition-colors"
+                    className="shrink-0 text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
                   >
                     {pendingEmail ? 'Resend' : 'Change'}
                   </button>
