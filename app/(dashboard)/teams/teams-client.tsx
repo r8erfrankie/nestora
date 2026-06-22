@@ -33,8 +33,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Users, Plus, Pencil, Trash2, Loader2, Mail, Phone, Building2, Wrench, ShieldCheck } from 'lucide-react';
-import { createContractor, updateContractor, deleteContractor } from './contractor-actions';
+import { Users, Plus, Pencil, Trash2, Loader2, Mail, Phone, Building2, ShieldCheck, Send } from 'lucide-react';
+import { toast } from 'sonner';
+import { timeAgo } from '@/lib/utils';
+import { createContractor, updateContractor, deleteContractor, resendContractorInvite } from './contractor-actions';
 
 export interface Contractor {
   id: string;
@@ -43,6 +45,7 @@ export interface Contractor {
   phone: string | null;
   trade: string | null;
   notes: string | null;
+  last_invited_at?: string | null;
   // Set when the contractor has a registered Nestora account
   is_registered?: boolean;
   profile_name?: string | null;
@@ -95,6 +98,7 @@ export function TeamsClient({ initialContractors }: { initialContractors: Contra
   const [formError, setFormError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<Contractor | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [resendingIds, setResendingIds] = useState<Set<string>>(new Set());
 
   const openAdd = () => {
     setEditTarget(null);
@@ -196,6 +200,32 @@ export function TeamsClient({ initialContractors }: { initialContractors: Contra
     }
   };
 
+  const handleResend = async (contractorId: string) => {
+    setResendingIds((prev) => new Set(prev).add(contractorId));
+    try {
+      const result = await resendContractorInvite(contractorId);
+      if (result.success) {
+        toast.success(`Invite resent to ${result.email}`);
+        // Update last_invited_at locally so the "Invited X ago" refreshes.
+        setContractors((prev) =>
+          prev.map((c) =>
+            c.id === contractorId ? { ...c, last_invited_at: new Date().toISOString() } : c
+          )
+        );
+      } else {
+        toast.error(result.error);
+      }
+    } catch {
+      toast.error('Failed to resend invite. Please try again.');
+    } finally {
+      setResendingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(contractorId);
+        return next;
+      });
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -261,9 +291,32 @@ export function TeamsClient({ initialContractors }: { initialContractors: Contra
                       )}
                     </div>
                     {c.email && (
-                      <div className="text-muted-foreground mt-1.5 flex items-center gap-1.5 text-xs">
-                        <Mail className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{c.email}</span>
+                      <div className="mt-1.5 space-y-1">
+                        <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                          <Mail className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{c.email}</span>
+                        </div>
+                        {/* Pending invite row — only for unregistered contractors */}
+                        {!c.is_registered && (
+                          <div className="flex items-center gap-2 pl-4">
+                            <span className="text-muted-foreground text-xs">
+                              {c.last_invited_at
+                                ? `Invited ${timeAgo(c.last_invited_at)}`
+                                : 'Not yet invited'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleResend(c.id)}
+                              disabled={resendingIds.has(c.id)}
+                              className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-colors hover:bg-muted disabled:opacity-50"
+                            >
+                              {resendingIds.has(c.id)
+                                ? <Loader2 className="h-3 w-3 animate-spin" />
+                                : <Send className="h-3 w-3" />}
+                              Resend
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                     {/* Show profile phone for registered contractors, fallback to directory phone */}

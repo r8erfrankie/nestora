@@ -21,7 +21,7 @@ export default async function TeamsPage() {
 
   const { data: contractors, error: contractorsError } = await supabase
     .from('contractors')
-    .select('id, name, email, phone, trade, notes')
+    .select('id, name, email, phone, trade, notes, last_invited_at')
     .order('name');
 
   // Enrich with self-reported profile data (phone, company_name, trade) for contractors

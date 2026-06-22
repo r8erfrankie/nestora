@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient, createAdminClient } from '@/lib/supabase/server';
-import { sendContractorInvitation } from '@/app/actions/email';
+import { sendContractorInviteEmail } from '@/lib/email';
 import { validateEnv } from '@/lib/env';
 
 validateEnv();
@@ -100,7 +100,27 @@ export async function createContractor(data: {
   //   • the contractor has no linked account yet (user_id is still null)
   if (normalizedEmail && !linkedUserId) {
     try {
-      await sendContractorInvitation({ contractorEmail: normalizedEmail });
+      const inviteToken = (inserted as unknown as Record<string, unknown>).invite_token as string | undefined;
+      const { data: landlordProfile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single();
+      const landlordName = (landlordProfile?.full_name as string | null) ?? null;
+
+      if (inviteToken) {
+        await sendContractorInviteEmail({
+          to: normalizedEmail,
+          contractorName: data.name.trim(),
+          landlordName,
+          inviteToken,
+        });
+        // Record when the invite was sent.
+        await supabase
+          .from('contractors')
+          .update({ last_invited_at: new Date().toISOString() })
+          .eq('id', (inserted as unknown as Record<string, unknown>).id as string);
+      }
     } catch (emailError) {
       console.error('[createContractor] invitation email failed (non-fatal):', emailError);
     }
@@ -150,6 +170,65 @@ export async function updateContractor(
     .eq('id', id);
 
   if (error) throw error;
+}
+
+export async function resendContractorInvite(
+  contractorId: string
+): Promise<{ success: true; email: string } | { success: false; error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Not authenticated' };
+
+  // Admin client: contractors RLS is landlord_id = auth.uid(), but we also
+  // need to read invite_token which is excluded from landlord reads for safety.
+  const admin = createAdminClient();
+
+  const { data: contractor } = await admin
+    .from('contractors')
+    .select('id, name, email, user_id, landlord_id, invite_token, last_invited_at')
+    .eq('id', contractorId)
+    .single();
+
+  if (!contractor) return { success: false, error: 'Contractor not found' };
+  if (contractor.landlord_id !== user.id) return { success: false, error: 'Not authorized' };
+  if (!contractor.email) return { success: false, error: 'This contractor has no email address' };
+  if (contractor.user_id) return { success: false, error: 'This contractor has already accepted the invitation' };
+
+  // Rate limit: one resend per 60 minutes per contractor.
+  if (contractor.last_invited_at) {
+    const minutesSince = (Date.now() - new Date(contractor.last_invited_at as string).getTime()) / 60_000;
+    if (minutesSince < 60) {
+      const wait = Math.ceil(60 - minutesSince);
+      return {
+        success: false,
+        error: `Invite sent recently. Please wait ${wait} more minute${wait !== 1 ? 's' : ''} before resending.`,
+      };
+    }
+  }
+
+  if (!contractor.invite_token) return { success: false, error: 'No invite token found. Delete and re-add this contractor.' };
+
+  // Fetch landlord name for personalization.
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name')
+    .eq('id', user.id)
+    .single();
+  const landlordName = (profile?.full_name as string | null) ?? null;
+
+  await sendContractorInviteEmail({
+    to: contractor.email as string,
+    contractorName: contractor.name as string,
+    landlordName,
+    inviteToken: contractor.invite_token as string,
+  });
+
+  await admin
+    .from('contractors')
+    .update({ last_invited_at: new Date().toISOString() })
+    .eq('id', contractorId);
+
+  return { success: true, email: contractor.email as string };
 }
 
 export async function deleteContractor(
