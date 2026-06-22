@@ -332,6 +332,7 @@ export async function updateContractorAssignment(
           due_date: wo.due_date,
           propertyName: wo.properties?.name || null,
           assigned_contractor_email: newEmail,
+          landlordName,
         });
         await insertNotification({
           userId: contractorProfile.data.id as string,
@@ -480,6 +481,7 @@ export async function createWorkOrder(data: {
             due_date: inserted.due_date,
             propertyName: data.propertyName,
             assigned_contractor_email: contractorEmail,
+            landlordName,
           });
           await insertNotification({
             userId: contractorProfile.data.id as string,
