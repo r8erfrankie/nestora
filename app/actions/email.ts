@@ -83,6 +83,7 @@ export async function notifyContractorNewWorkOrder(data: {
   priority: string;
   due_date?: string | null;
   propertyName?: string | null;
+  unit?: string | null;
   assigned_contractor_email: string;
   landlordName?: string | null;
 }) {
@@ -93,9 +94,16 @@ export async function notifyContractorNewWorkOrder(data: {
   const eyebrow = data.landlordName
     ? `Assigned by ${escapeHtml(data.landlordName)}`
     : 'New work order';
-  const headline = data.propertyName
-    ? `New work order at ${escapeHtml(data.propertyName)}`
+
+  // Build a descriptive headline that includes property + unit when available.
+  const locationParts = [
+    data.propertyName ? escapeHtml(data.propertyName) : null,
+    data.unit ? `Unit ${escapeHtml(data.unit)}` : null,
+  ].filter(Boolean);
+  const headline = locationParts.length
+    ? `New work order at ${locationParts.join(', ')}`
     : 'New work order assigned to you';
+
   const intro = data.landlordName
     ? `<strong>${escapeHtml(data.landlordName)}</strong> assigned you a new work order. Log in to Nestora to view the full details, accept the job, and post updates.`
     : 'A new work order has been assigned to you. Log in to Nestora to view the full details and accept the job.';
@@ -119,6 +127,7 @@ export async function notifyContractorNewWorkOrder(data: {
                 <td style="padding:0 0 12px;font-size:11px;font-weight:600;color:#6b7280;letter-spacing:0.06em;text-transform:uppercase">Work order details</td>
               </tr>
               ${data.propertyName ? detailRow('Property', escapeHtml(data.propertyName)) : ''}
+              ${data.unit ? detailRow('Unit', escapeHtml(data.unit)) : ''}
               ${detailRow('Priority', escapeHtml(data.priority), `color:${pColor};font-weight:600`)}
               ${data.due_date ? detailRow('Due date', escapeHtml(data.due_date)) : ''}
               ${data.description ? detailRow('Description', escapeHtml(data.description)) : ''}
@@ -246,12 +255,13 @@ export async function sendContractorWorkOrderInvitation(data: {
     priority: string;
     due_date?: string | null;
     propertyName?: string | null;
+    unit?: string | null;
   };
 }) {
   const resend = await getResendClient();
   const welcomeUrl = `${APP_URL}/contractor/welcome?email=${encodeURIComponent(data.contractorEmail)}`;
   const landlord = data.landlordName ?? null;
-  const { title, priority, due_date, propertyName } = data.workOrder;
+  const { title, priority, due_date, propertyName, unit } = data.workOrder;
   const pColor = priorityColor(priority);
 
   const eyebrow = landlord ? `Invitation from ${escapeHtml(landlord)}` : 'You have a new invitation';
@@ -280,6 +290,7 @@ export async function sendContractorWorkOrderInvitation(data: {
               </tr>
               ${detailRow('Title', `<strong>${escapeHtml(title)}</strong>`)}
               ${propertyName ? detailRow('Property', escapeHtml(propertyName)) : ''}
+              ${unit ? detailRow('Unit', escapeHtml(unit)) : ''}
               ${detailRow('Priority', escapeHtml(priority), `color:${pColor};font-weight:600`)}
               ${due_date ? detailRow('Due date', escapeHtml(due_date)) : ''}
             </table>

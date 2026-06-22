@@ -242,7 +242,7 @@ export async function updateContractorAssignment(
   // Fetch current row for ownership check + fields needed for notification
   const { data: wo, error: fetchErr } = await supabase
     .from('work_orders')
-    .select('user_id, title, description, priority, due_date, assigned_contractor_email, properties(name)')
+    .select('user_id, title, description, priority, due_date, unit, assigned_contractor_email, properties(name)')
     .eq('id', id)
     .single() as {
       data: {
@@ -251,6 +251,7 @@ export async function updateContractorAssignment(
         description: string | null;
         priority: string;
         due_date: string | null;
+        unit: string | null;
         assigned_contractor_email: string | null;
         properties: { name: string } | null;
       } | null;
@@ -331,6 +332,7 @@ export async function updateContractorAssignment(
           priority: wo.priority,
           due_date: wo.due_date,
           propertyName: wo.properties?.name || null,
+          unit: wo.unit,
           assigned_contractor_email: newEmail,
           landlordName,
         });
@@ -369,6 +371,7 @@ export async function updateContractorAssignment(
             priority: wo.priority,
             due_date: wo.due_date,
             propertyName: wo.properties?.name || null,
+            unit: wo.unit,
           },
         });
       }
@@ -480,6 +483,7 @@ export async function createWorkOrder(data: {
             priority: inserted.priority,
             due_date: inserted.due_date,
             propertyName: data.propertyName,
+            unit: data.unit,
             assigned_contractor_email: contractorEmail,
             landlordName,
           });
@@ -517,6 +521,7 @@ export async function createWorkOrder(data: {
               priority: inserted.priority,
               due_date: inserted.due_date,
               propertyName: data.propertyName,
+              unit: data.unit,
             },
           });
         }
