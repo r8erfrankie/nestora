@@ -18,6 +18,7 @@ import { isValidPhoneNumber } from '@/lib/phone';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { updateProfile, requestEmailChange } from './actions';
 import { DeleteAccountButton } from './delete-account-button';
+import { SupportSection } from './support-section';
 
 const CONTRACTOR_TRADES = [
   'Plumbing',
@@ -350,6 +351,12 @@ export function SettingsClient({
         {saved && <span className="text-sm text-emerald-600">Saved successfully.</span>}
         {error && <span className="text-destructive text-sm">{error}</span>}
       </div>
+
+      <Separator />
+
+      <SupportSection />
+
+      <Separator />
 
       {/* Danger zone */}
       <div className="space-y-3 pt-2">
