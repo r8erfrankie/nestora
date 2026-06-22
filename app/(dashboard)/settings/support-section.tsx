@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ExternalLink, Mail, MessageSquare } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ExternalLink, Mail, MessageSquare } from 'lucide-react';
+import { submitSupportTicket } from './support-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -121,18 +122,27 @@ export function SupportSection() {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [formError, setFormError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!subject.trim() || !message.trim()) return;
     setSending(true);
-    // Placeholder — wire up to a real endpoint later.
-    await new Promise((r) => setTimeout(r, 600));
-    console.log('[Support] submitted:', { subject, message });
-    toast.success('Message sent! We\'ll get back to you within 24–48 hours.');
-    setSubject('');
-    setMessage('');
+    setFormError('');
+
+    const result = await submitSupportTicket({ subject: subject.trim(), message: message.trim() });
     setSending(false);
+
+    if (result.success) {
+      toast.success('Message sent!');
+      setSubject('');
+      setMessage('');
+      setSubmitted(true);
+    } else {
+      setFormError(result.error);
+      toast.error(result.error);
+    }
   };
 
   return (
@@ -177,49 +187,74 @@ export function SupportSection() {
           </p>
         </div>
         <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label htmlFor="support-subject" className="block text-sm font-medium text-gray-700">
-                Subject
-              </label>
-              <Input
-                id="support-subject"
-                placeholder="e.g. Problem with work order assignment"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                disabled={sending}
-                className="max-w-sm"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="support-message" className="block text-sm font-medium text-gray-700">
-                Message
-              </label>
-              <Textarea
-                id="support-message"
-                placeholder="Describe your issue or question in as much detail as you can…"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                disabled={sending}
-                rows={4}
-                className="resize-none"
-              />
-            </div>
-
-            <div className="flex items-center gap-4">
-              <Button
-                type="submit"
-                disabled={sending || !subject.trim() || !message.trim()}
-                className="bg-teal-700 text-white hover:bg-teal-800"
+          {submitted ? (
+            <div className="flex flex-col items-center gap-3 py-3 text-center">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-50">
+                <CheckCircle2 className="h-5 w-5 text-teal-700" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900">Your message has been sent.</p>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  We&apos;ll reply within 24–48 hours on business days.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSubmitted(false)}
+                className="text-xs font-medium text-teal-700 underline-offset-4 hover:underline"
               >
-                {sending ? 'Sending…' : 'Send message'}
-              </Button>
-              <p className="text-xs text-gray-400">
-                We usually reply within 24–48 hours on business days.
-              </p>
+                Send another message
+              </button>
             </div>
-          </form>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label htmlFor="support-subject" className="block text-sm font-medium text-gray-700">
+                  Subject
+                </label>
+                <Input
+                  id="support-subject"
+                  placeholder="e.g. Problem with work order assignment"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  disabled={sending}
+                  className="max-w-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="support-message" className="block text-sm font-medium text-gray-700">
+                  Message
+                </label>
+                <Textarea
+                  id="support-message"
+                  placeholder="Describe your issue or question in as much detail as you can…"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  disabled={sending}
+                  rows={4}
+                  className="resize-none"
+                />
+              </div>
+
+              {formError && (
+                <p className="text-xs text-red-600">{formError}</p>
+              )}
+
+              <div className="flex items-center gap-4">
+                <Button
+                  type="submit"
+                  disabled={sending || !subject.trim() || !message.trim()}
+                  className="bg-teal-700 text-white hover:bg-teal-800"
+                >
+                  {sending ? 'Sending…' : 'Send message'}
+                </Button>
+                <p className="text-xs text-gray-400">
+                  We usually reply within 24–48 hours on business days.
+                </p>
+              </div>
+            </form>
+          )}
         </div>
       </div>
 
