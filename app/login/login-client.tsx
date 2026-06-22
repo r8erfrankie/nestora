@@ -2,10 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { buttonVariants } from '@/components/ui/button';
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Layers, Mail, ArrowRight, Loader2 } from 'lucide-react';
+import { Layers, Mail, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 
@@ -148,166 +145,194 @@ export default function LoginClient() {
   };
 
   return (
-    <div className="bg-background flex min-h-full items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md space-y-8">
+    <div className="flex min-h-full items-center justify-center bg-gray-50 px-4 py-16">
+      <div className="w-full max-w-[400px]">
+
         {/* Branding */}
-        <div className="flex flex-col items-center text-center">
-          <div className="bg-primary text-primary-foreground mb-4 flex h-12 w-12 items-center justify-center rounded-xl">
-            <Layers className="h-6 w-6" />
+        <div className="mb-8 flex flex-col items-center text-center">
+          <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-700 shadow-lg shadow-teal-700/30">
+            <Layers className="h-7 w-7 text-white" />
           </div>
-          <h1 className="text-3xl font-semibold tracking-[-0.02em]">Nestora</h1>
-          <p className="text-muted-foreground mt-2 text-sm">
-            Professional workspace for modern teams.
+          <h1 className="text-3xl font-bold tracking-[-0.03em] text-gray-900">Nestora</h1>
+          <p className="mt-2 text-sm text-gray-500">
+            Property management for serious landlords
           </p>
         </div>
 
-        <Card className="shadow-sm">
-          <CardHeader className="pb-2 text-center">
-            <CardTitle className="text-2xl">Welcome back</CardTitle>
-            <CardDescription>Sign in with a magic link — no password needed.</CardDescription>
-          </CardHeader>
-          <CardContent>
+        {/* Card */}
+        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl shadow-gray-200/80">
+          {/* Teal accent stripe */}
+          <div className="h-[3px] w-full bg-teal-700" />
+
+          <div className="p-8">
             {message ? (
-              // Success state after sending magic link
-              <div className="space-y-6 py-4 text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
-                  <Mail className="h-6 w-6" />
+              /* ── Success state ── */
+              <div className="py-1 text-center">
+                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-teal-50 ring-8 ring-teal-50/50">
+                  <CheckCircle2 className="h-8 w-8 text-teal-700" />
                 </div>
-                <div>
-                  <p className="text-lg font-medium">Check your email</p>
-                  <p className="text-muted-foreground mt-1 text-sm">{message}</p>
+
+                <h2 className="text-xl font-semibold text-gray-900">Check your inbox</h2>
+                <p className="mt-2 text-sm text-gray-500">
+                  We sent a sign-in link to
+                </p>
+                <p className="mt-1 rounded-lg bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-800 inline-block">
+                  {trimmedEmail}
+                </p>
+                <p className="mt-3 text-xs text-gray-400">
+                  Can&apos;t find it? Check your spam or junk folder.
+                </p>
+
+                <div className="mt-6">
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    disabled={currentCooldown > 0}
+                    className={cn(
+                      'w-full rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors touch-manipulation',
+                      currentCooldown > 0
+                        ? 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-400'
+                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100'
+                    )}
+                    data-1p-ignore="true"
+                  >
+                    {currentCooldown > 0 ? `Resend in ${currentCooldown}s` : 'Send another link'}
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  disabled={currentCooldown > 0}
-                  className={cn(
-                    buttonVariants({ variant: 'outline' }),
-                    'w-full touch-manipulation',
-                    currentCooldown > 0 && 'cursor-not-allowed opacity-60'
-                  )}
-                  data-1p-ignore="true"
-                >
-                  {currentCooldown > 0 ? `Send another in ${currentCooldown}s` : 'Send another link'}
-                </button>
-                <p className="text-muted-foreground text-xs">
-                  The link will sign you in automatically and redirect you to the dashboard.
+
+                <p className="mt-5 text-xs leading-relaxed text-gray-400">
+                  The link signs you in instantly and expires after 1 hour.
                 </p>
               </div>
             ) : (
-              // Login form
-              <form
-                ref={formRef}
-                onSubmit={handleLogin}
-                className="space-y-5"
-                // These attributes help prevent password managers and autofill extensions
-                // (especially in Firefox) from injecting scripts that can cause runtime errors
-                // like "detectStore is undefined" or hydration issues.
-                data-form-type="login"
-                autoComplete="on"
-              >
-                {(error || urlError) && (
-                  <div className="border-destructive/20 bg-destructive/10 text-destructive rounded-md border px-3 py-2 text-sm">
-                    {error ||
-                      (urlError === 'Unable to sign in with magic link'
-                        ? 'Unable to sign in. Please request a new link.'
-                        : urlError)}
-                  </div>
-                )}
-
-                <div className="space-y-2" suppressHydrationWarning>
-                  <label htmlFor="email" className="text-sm font-medium">
-                    Email address
-                  </label>
-                  {/* Use native input here for reliable controlled onChange + value on mobile.
-                      The custom Input (base-ui) can have event/control quirks on some mobile browsers
-                      that prevent the email state (and thus isValidEmail) from updating, so the
-                      submit button never visually enables. Native input guarantees standard behavior. */}
-                  <input
-                    id="email"
-                    type="email"
-                    placeholder="you@company.com"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      // Always clear any previous error banner when user edits (avoids stale closure issues)
-                      setError('');
-                    }}
-                    required
-                    disabled={loading}
-                    aria-invalid={!isValidEmail && trimmedEmail.length > 0}
-                    autoComplete="email"
-                    ref={inputRef}
-                    suppressHydrationWarning
-                    // These attributes help prevent password managers / autofill extensions
-                    // (common cause of "detectStore" errors and hydration mismatches in Firefox)
-                    // from injecting their own scripts and styles into the field.
-                    data-1p-ignore="true"
-                    data-lpignore="true"
-                    data-form-type="username"
-                    autoCorrect="off"
-                    autoCapitalize="none"
-                    spellCheck={false}
-                    className={cn(
-                      // Core input styles matching the design system's Input (minus file-specific and h-8)
-                      'border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 disabled:bg-input/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 w-full min-w-0 rounded-lg border bg-transparent px-2.5 py-1 text-base transition-colors outline-none focus-visible:ring-3 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:ring-3 md:text-sm',
-                      // Make it h-10 like before for the form
-                      'h-10'
-                    )}
-                  />
-                  {/* Reserve space for the validation message so the submit button
-                      position never shifts on mobile when the message appears/disappears.
-                      Shifting targets are a common cause of "tap doesn't register". */}
-                  <div className="min-h-[1.25rem]">
-                    {trimmedEmail.length > 0 && !isValidEmail && (
-                      <p className="text-destructive text-xs">
-                        Please enter a valid email address.
-                      </p>
-                    )}
-                  </div>
+              /* ── Login form ── */
+              <>
+                <div className="mb-7 text-center">
+                  <h2 className="text-xl font-semibold text-gray-900">Welcome back</h2>
+                  <p className="mt-1.5 text-sm text-gray-500">
+                    Enter your email and we&apos;ll send a secure sign-in link.
+                  </p>
                 </div>
 
-                <button
-                  type="submit"
-                  className={cn(
-                    buttonVariants({ variant: 'default' }),
-                    'h-10 w-full touch-manipulation',
-                    // Explicit visual + cursor feedback in addition to the native disabled
-                    // attribute. Helps on mobile where :disabled styles or pointer-events
-                    // can be finicky, and makes the "enabled" state (full color) obvious.
-                    loading || !isValidEmail || currentCooldown > 0
-                      ? 'cursor-not-allowed opacity-60'
-                      : 'bg-primary text-primary-foreground active:scale-[0.985] active:opacity-90'
-                  )}
-                  disabled={loading || !isValidEmail || currentCooldown > 0}
+                <form
+                  ref={formRef}
+                  onSubmit={handleLogin}
+                  className="space-y-4"
+                  // These attributes help prevent password managers and autofill extensions
+                  // (especially in Firefox) from injecting scripts that can cause runtime errors
+                  // like "detectStore is undefined" or hydration issues.
+                  data-form-type="login"
+                  autoComplete="on"
                 >
-                  {currentCooldown > 0 ? (
-                    `Wait ${currentCooldown}s before sending again`
-                  ) : loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending magic link...
-                    </>
-                  ) : (
-                    <>
-                      Send magic link
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </>
+                  {(error || urlError) && (
+                    <div className="flex items-start gap-2.5 rounded-xl border border-red-100 bg-red-50 px-3.5 py-3 text-sm text-red-700">
+                      <span className="mt-0.5 shrink-0 text-red-400">⚠</span>
+                      <span>
+                        {error ||
+                          (urlError === 'Unable to sign in with magic link'
+                            ? 'Unable to sign in. Please request a new link.'
+                            : urlError)}
+                      </span>
+                    </div>
                   )}
-                </button>
 
-                <p className="text-muted-foreground text-center text-xs leading-relaxed">
-                  We&apos;ll email you a secure link that signs you in instantly. No passwords to
-                  remember.
-                </p>
-              </form>
+                  <div className="space-y-1.5" suppressHydrationWarning>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                      Email address
+                    </label>
+                    {/* Use native input here for reliable controlled onChange + value on mobile.
+                        The custom Input (base-ui) can have event/control quirks on some mobile browsers
+                        that prevent the email state (and thus isValidEmail) from updating, so the
+                        submit button never visually enables. Native input guarantees standard behavior. */}
+                    <input
+                      id="email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        // Always clear any previous error banner when user edits (avoids stale closure issues)
+                        setError('');
+                      }}
+                      required
+                      disabled={loading}
+                      aria-invalid={!isValidEmail && trimmedEmail.length > 0}
+                      autoComplete="email"
+                      ref={inputRef}
+                      suppressHydrationWarning
+                      // These attributes help prevent password managers / autofill extensions
+                      // (common cause of "detectStore" errors and hydration mismatches in Firefox)
+                      // from injecting their own scripts and styles into the field.
+                      data-1p-ignore="true"
+                      data-lpignore="true"
+                      data-form-type="username"
+                      autoCorrect="off"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      className={cn(
+                        'h-11 w-full rounded-xl border bg-white px-3.5 text-sm text-gray-900 placeholder:text-gray-400 outline-none transition-all',
+                        'focus:ring-2',
+                        !isValidEmail && trimmedEmail.length > 0
+                          ? 'border-red-300 focus:border-red-400 focus:ring-red-400/15'
+                          : 'border-gray-200 focus:border-teal-600 focus:ring-teal-600/15',
+                        'disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-60'
+                      )}
+                    />
+                    {/* Reserve space for the validation message so the submit button
+                        position never shifts on mobile when the message appears/disappears.
+                        Shifting targets are a common cause of "tap doesn't register". */}
+                    <div className="min-h-[1.25rem]">
+                      {trimmedEmail.length > 0 && !isValidEmail && (
+                        <p className="text-xs text-red-600">
+                          Please enter a valid email address.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className={cn(
+                      'flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-all touch-manipulation',
+                      loading || !isValidEmail || currentCooldown > 0
+                        ? 'cursor-not-allowed bg-teal-700/30 text-teal-700/60'
+                        : 'bg-teal-700 text-white shadow-sm shadow-teal-700/20 hover:bg-teal-800 active:scale-[0.985] active:bg-teal-900'
+                    )}
+                    disabled={loading || !isValidEmail || currentCooldown > 0}
+                  >
+                    {currentCooldown > 0 ? (
+                      `Wait ${currentCooldown}s before sending again`
+                    ) : loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Sending link…
+                      </>
+                    ) : (
+                      <>
+                        Send magic link
+                        <ArrowRight className="h-4 w-4" />
+                      </>
+                    )}
+                  </button>
+
+                  <p className="text-center text-xs leading-relaxed text-gray-400">
+                    We&apos;ll email you a secure link that signs you in instantly.
+                    <br />No passwords to remember.
+                  </p>
+                </form>
+              </>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <p className="text-muted-foreground text-center text-xs">
-          By continuing you agree to our Terms and Privacy Policy.
+        {/* Footer */}
+        <p className="mt-6 text-center text-xs text-gray-400">
+          By continuing you agree to our{' '}
+          <span className="underline underline-offset-2 cursor-pointer hover:text-gray-600">Terms</span>
+          {' '}and{' '}
+          <span className="underline underline-offset-2 cursor-pointer hover:text-gray-600">Privacy Policy</span>.
         </p>
+
       </div>
     </div>
   );
