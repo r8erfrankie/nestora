@@ -152,90 +152,98 @@ export default function LandingPage() {
             See it in action
           </h2>
           <p className="mb-12 text-gray-500">
-            Clean, focused screens built for the people who use them every day.
+            Clean, focused screens built for every person in the loop.
           </p>
 
-          <div className="grid items-start gap-10 sm:grid-cols-3">
+          <div className="grid items-start gap-8 sm:grid-cols-3">
 
             {/* Landlord — browser mockup */}
             <div className="flex flex-col gap-4">
+              <span className="inline-flex w-fit items-center rounded-full bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-700 ring-1 ring-teal-200">
+                For landlords
+              </span>
               <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md">
-                <div className="flex items-center gap-1.5 border-b border-gray-200 bg-gray-100 px-4 py-2.5">
-                  <span className="h-3 w-3 rounded-full bg-red-400" />
-                  <span className="h-3 w-3 rounded-full bg-yellow-400" />
-                  <span className="h-3 w-3 rounded-full bg-green-400" />
-                  <div className="mx-3 flex-1 truncate rounded bg-white px-3 py-1 text-[10px] text-gray-400">
+                <div className="flex items-center gap-1.5 border-b border-gray-100 bg-gray-50 px-3 py-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-green-400" />
+                  <div className="mx-2 flex-1 truncate rounded border border-gray-200 bg-white px-2 py-0.5 text-[9px] text-gray-400">
                     gonestora.app/work-orders
                   </div>
                 </div>
-                <div className="bg-gray-50">
-                  <img
-                    src="/screenshots/landlord-work-orders.png"
-                    alt="Landlord work orders dashboard"
-                    className="block w-full"
-                  />
-                </div>
+                <img
+                  src="/screenshots/landlord-work-orders.png"
+                  alt="Landlord work orders dashboard"
+                  className="block w-full"
+                  loading="lazy"
+                />
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-900">Landlord dashboard</p>
+                <p className="text-sm font-semibold text-gray-900">Work order management</p>
                 <p className="mt-0.5 text-sm text-gray-500">
-                  Track all work orders and statuses at a glance
+                  Track every job across all your properties in one place.
                 </p>
               </div>
             </div>
 
             {/* Contractor — phone mockup */}
             <div className="flex flex-col gap-4">
-              <div className="mx-auto w-3/4 sm:mx-0 sm:w-full">
-                <div className="overflow-hidden rounded-[2rem] border-[5px] border-gray-800 bg-gray-800 shadow-xl">
-                  {/* Status bar / notch area */}
-                  <div className="flex items-center justify-center bg-gray-800 py-2.5">
-                    <div className="h-1.5 w-14 rounded-full bg-gray-600" />
+              <span className="inline-flex w-fit items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 ring-1 ring-blue-200">
+                For contractors
+              </span>
+              <div className="mx-auto w-[75%] sm:mx-0 sm:w-full">
+                <div className="overflow-hidden rounded-[1.75rem] border-[4px] border-gray-800 bg-gray-800 shadow-xl">
+                  <div className="flex items-center justify-center bg-gray-800 py-2">
+                    <div className="h-1 w-12 rounded-full bg-gray-600" />
                   </div>
-                  <div className="overflow-hidden rounded-t-[0.5rem] bg-gray-50">
+                  <div className="h-[280px] overflow-hidden bg-white">
                     <img
-                      src="/screenshots/contractor-view.png"
-                      alt="Contractor mobile view"
+                      src="/screenshots/contractor-work-orders.png"
+                      alt="Contractor mobile work orders view"
                       className="block w-full"
+                      loading="lazy"
                     />
                   </div>
-                  {/* Home indicator */}
                   <div className="flex items-center justify-center bg-gray-800 py-2">
-                    <div className="h-1 w-10 rounded-full bg-gray-600" />
+                    <div className="h-1 w-8 rounded-full bg-gray-600" />
                   </div>
                 </div>
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-900">Contractor mobile experience</p>
+                <p className="text-sm font-semibold text-gray-900">Jobs on the go</p>
                 <p className="mt-0.5 text-sm text-gray-500">
-                  Accept and manage jobs on the go
+                  Accept and manage work orders from anywhere.
                 </p>
               </div>
             </div>
 
-            {/* Tenant — browser mockup */}
+            {/* Tenant — phone mockup */}
             <div className="flex flex-col gap-4">
-              <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md">
-                <div className="flex items-center gap-1.5 border-b border-gray-200 bg-gray-100 px-4 py-2.5">
-                  <span className="h-3 w-3 rounded-full bg-red-400" />
-                  <span className="h-3 w-3 rounded-full bg-yellow-400" />
-                  <span className="h-3 w-3 rounded-full bg-green-400" />
-                  <div className="mx-3 flex-1 truncate rounded bg-white px-3 py-1 text-[10px] text-gray-400">
-                    gonestora.app/tenant/new-request
+              <span className="inline-flex w-fit items-center rounded-full bg-purple-50 px-2.5 py-1 text-xs font-semibold text-purple-700 ring-1 ring-purple-200">
+                For tenants
+              </span>
+              <div className="mx-auto w-[75%] sm:mx-0 sm:w-full">
+                <div className="overflow-hidden rounded-[1.75rem] border-[4px] border-gray-800 bg-gray-800 shadow-xl">
+                  <div className="flex items-center justify-center bg-gray-800 py-2">
+                    <div className="h-1 w-12 rounded-full bg-gray-600" />
                   </div>
-                </div>
-                <div className="bg-gray-50">
-                  <img
-                    src="/screenshots/tenant-request.png"
-                    alt="Tenant maintenance request flow"
-                    className="block w-full"
-                  />
+                  <div className="h-[280px] overflow-hidden bg-white">
+                    <img
+                      src="/screenshots/tenant-request.png"
+                      alt="Tenant maintenance request dashboard"
+                      className="block w-full"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="flex items-center justify-center bg-gray-800 py-2">
+                    <div className="h-1 w-8 rounded-full bg-gray-600" />
+                  </div>
                 </div>
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-900">Tenant request flow</p>
+                <p className="text-sm font-semibold text-gray-900">Maintenance tracking</p>
                 <p className="mt-0.5 text-sm text-gray-500">
-                  Submit maintenance requests with photos in seconds
+                  Submit requests and track progress without phone calls.
                 </p>
               </div>
             </div>
