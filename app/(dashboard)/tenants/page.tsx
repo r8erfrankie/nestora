@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { TenantsClient, type TenantLink, type MaintenanceRequest } from './tenants-client';
+import { MarkVisited } from '@/components/mark-visited';
 
 export const metadata = { title: 'Tenants' };
 
@@ -141,6 +142,7 @@ export default async function TenantsPage({
 
   return (
     <div className="max-w-3xl p-6">
+      <MarkVisited section="tenants" />
       <TenantsClient
         pendingLinks={pendingLinks}
         approvedLinks={approvedLinks}

@@ -45,12 +45,32 @@ const tenantNavItems: NavItem[] = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
-export function Sidebar({ role = 'landlord' }: { role?: UserRole }) {
+function NavBadge({ count }: { count: number }) {
+  return (
+    <span className="ml-auto flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-teal-700 px-1.5 text-[10px] font-semibold leading-none text-white">
+      {count > 9 ? '9+' : count}
+    </span>
+  );
+}
+
+export function Sidebar({
+  role = 'landlord',
+  badges = { tenants: 0, workOrders: 0 },
+}: {
+  role?: UserRole;
+  badges?: { tenants: number; workOrders: number };
+}) {
   const pathname = usePathname();
   const navItems =
     role === 'contractor' ? contractorNavItems :
     role === 'tenant'     ? tenantNavItems     :
     landlordNavItems;
+
+  const badgeFor = (href: string): number => {
+    if (href === '/tenants')     return badges.tenants;
+    if (href === '/work-orders') return badges.workOrders;
+    return 0;
+  };
 
   return (
     <aside className="border-sidebar-border bg-sidebar text-sidebar-foreground flex h-full w-64 flex-shrink-0 flex-col border-r">
@@ -74,6 +94,9 @@ export function Sidebar({ role = 'landlord' }: { role?: UserRole }) {
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
+            const badge = badgeFor(item.href);
+            // Suppress badge while the user is already viewing that section.
+            const showBadge = badge > 0 && !isActive;
 
             return (
               <Link
@@ -88,6 +111,7 @@ export function Sidebar({ role = 'landlord' }: { role?: UserRole }) {
               >
                 <Icon className="h-4 w-4 shrink-0 opacity-80 group-hover:opacity-100" />
                 <span>{item.label}</span>
+                {showBadge && <NavBadge count={badge} />}
               </Link>
             );
           })}

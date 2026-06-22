@@ -84,6 +84,79 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
 }
 
 /**
+ * Returns the current user's role and nav badge counts in a single round-trip
+ * (role + last_seen timestamps in one profiles query, then two parallel count
+ * queries for landlords). Used by the dashboard layout to drive sidebar badges.
+ */
+export async function getNavData(): Promise<{
+  role: UserRole;
+  badges: { tenants: number; workOrders: number };
+}> {
+  const NO_BADGES = { tenants: 0, workOrders: 0 };
+
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { role: 'landlord', badges: NO_BADGES };
+
+    // Dev override — badge queries are skipped since it may be a different user.
+    if (process.env.NODE_ENV === 'development') {
+      const cookieStore = await cookies();
+      const devRole = cookieStore.get('dev_role')?.value;
+      if (devRole === 'landlord' || devRole === 'contractor' || devRole === 'tenant') {
+        return { role: devRole as UserRole, badges: NO_BADGES };
+      }
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, last_seen_tenants_at, last_seen_work_orders_at')
+      .eq('id', user.id)
+      .single();
+
+    const r = profile?.role;
+    const effectiveRole: UserRole =
+      r === 'landlord' || r === 'contractor' || r === 'tenant' ? r : 'landlord';
+
+    if (effectiveRole !== 'landlord' || !profile) {
+      return { role: effectiveRole, badges: NO_BADGES };
+    }
+
+    const lastSeenTenants    = profile.last_seen_tenants_at    as string | null;
+    const lastSeenWorkOrders = profile.last_seen_work_orders_at as string | null;
+
+    // Two conditional count queries — sequential is fine for small badge counts.
+    let tenantsCount = 0;
+    let workOrdersCount = 0;
+
+    if (lastSeenTenants) {
+      const { count } = await supabase
+        .from('tenant_property_links')
+        .select('*', { count: 'exact', head: true })
+        .eq('landlord_id', user.id)
+        .gt('created_at', lastSeenTenants);
+      tenantsCount = count ?? 0;
+    }
+
+    if (lastSeenWorkOrders) {
+      const { count } = await supabase
+        .from('work_orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gt('created_at', lastSeenWorkOrders);
+      workOrdersCount = count ?? 0;
+    }
+
+    return {
+      role: effectiveRole,
+      badges: { tenants: tenantsCount, workOrders: workOrdersCount },
+    };
+  } catch {
+    return { role: 'landlord', badges: NO_BADGES };
+  }
+}
+
+/**
  * Creates a Supabase admin client using the service role key.
  * ONLY use in Server Actions / server code. Never expose the service role key to the client.
  * Used e.g. for generating magic links (so we can send the email ourselves via Resend instead of Supabase).

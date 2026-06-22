@@ -1,5 +1,6 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { WorkOrdersClient } from './work-orders-client';
+import { MarkVisited } from '@/components/mark-visited';
 
 export default async function WorkOrdersPage({
   searchParams,
@@ -266,6 +267,7 @@ export default async function WorkOrdersPage({
 
   return (
     <div className="p-6">
+      <MarkVisited section="work_orders" />
       <WorkOrdersClient
         initialWorkOrders={workOrders || []}
         properties={properties}

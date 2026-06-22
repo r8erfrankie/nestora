@@ -62,7 +62,13 @@ const tenantBottomItems = [
 
 const tenantDrawerItems = tenantBottomItems;
 
-export function BottomNav({ role = 'landlord' }: { role?: UserRole }) {
+export function BottomNav({
+  role = 'landlord',
+  badges = { tenants: 0, workOrders: 0 },
+}: {
+  role?: UserRole;
+  badges?: { tenants: number; workOrders: number };
+}) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -77,26 +83,43 @@ export function BottomNav({ role = 'landlord' }: { role?: UserRole }) {
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
 
+  const badgeFor = (href: string): number => {
+    if (href === '/tenants')     return badges.tenants;
+    if (href === '/work-orders') return badges.workOrders;
+    return 0;
+  };
+
   return (
     <>
       {/* Bottom navigation bar — hidden on desktop */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden border-t border-border bg-background/95 supports-[backdrop-filter]:backdrop-blur-md">
         <div className="flex h-16 items-stretch">
-          {bottomItems.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                'flex flex-1 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors',
-                isActive(href)
-                  ? 'text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              <Icon className="h-5 w-5 shrink-0" />
-              <span className="leading-none">{label}</span>
-            </Link>
-          ))}
+          {bottomItems.map(({ href, label, icon: Icon }) => {
+            const badge = badgeFor(href);
+            const showBadge = badge > 0 && !isActive(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  'flex flex-1 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors',
+                  isActive(href)
+                    ? 'text-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <div className="relative">
+                  <Icon className="h-5 w-5 shrink-0" />
+                  {showBadge && (
+                    <span className="absolute -right-2 -top-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-teal-700 px-0.5 text-[9px] font-bold leading-none text-white">
+                      {badge > 9 ? '9+' : badge}
+                    </span>
+                  )}
+                </div>
+                <span className="leading-none">{label}</span>
+              </Link>
+            );
+          })}
 
           {/* Menu button */}
           <button
@@ -143,22 +166,33 @@ export function BottomNav({ role = 'landlord' }: { role?: UserRole }) {
 
           <nav className="overflow-y-auto px-4 pt-3">
             <div className="grid grid-cols-3 gap-1 sm:grid-cols-4">
-              {drawerItems.map(({ href, label, icon: Icon }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  onClick={() => setMenuOpen(false)}
-                  className={cn(
-                    'flex flex-col items-center gap-2 rounded-xl px-2 py-4 text-xs font-medium transition-colors',
-                    isActive(href)
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-foreground/80 hover:bg-muted hover:text-foreground'
-                  )}
-                >
-                  <Icon className="h-6 w-6 shrink-0" />
-                  <span className="text-center leading-tight">{label}</span>
-                </Link>
-              ))}
+              {drawerItems.map(({ href, label, icon: Icon }) => {
+                const badge = badgeFor(href);
+                const showBadge = badge > 0 && !isActive(href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={() => setMenuOpen(false)}
+                    className={cn(
+                      'flex flex-col items-center gap-2 rounded-xl px-2 py-4 text-xs font-medium transition-colors',
+                      isActive(href)
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-foreground/80 hover:bg-muted hover:text-foreground'
+                    )}
+                  >
+                    <div className="relative">
+                      <Icon className="h-6 w-6 shrink-0" />
+                      {showBadge && (
+                        <span className="absolute -right-2 -top-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-teal-700 px-0.5 text-[9px] font-bold leading-none text-white">
+                          {badge > 9 ? '9+' : badge}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-center leading-tight">{label}</span>
+                  </Link>
+                );
+              })}
             </div>
           </nav>
         </SheetContent>

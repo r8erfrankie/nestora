@@ -1,25 +1,24 @@
 import { Sidebar } from '@/components/sidebar';
 import { Navbar } from '@/components/navbar';
 import { BottomNav } from '@/components/bottom-nav';
-import { getCurrentUserRole } from '@/lib/supabase/server';
+import { getNavData } from '@/lib/supabase/server';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  let role = null;
+  let navRole: import('@/lib/supabase/server').UserRole = 'landlord';
+  let navBadges = { tenants: 0, workOrders: 0 };
   try {
-    role = await getCurrentUserRole();
+    const { role, badges } = await getNavData();
+    navRole = role;
+    navBadges = badges;
   } catch {
-    // Non-fatal — fall back to landlord for nav rendering below
+    // Non-fatal — fall back to defaults
   }
-
-  // Fall back to 'landlord' for nav rendering — any null-role user will be
-  // redirected by the page before the layout content is ever seen.
-  const navRole = role ?? 'landlord';
 
   return (
     <div className="flex h-full overflow-hidden">
       {/* Sidebar: desktop only */}
       <div className="hidden lg:block">
-        <Sidebar role={navRole} />
+        <Sidebar role={navRole} badges={navBadges} />
       </div>
       <div className="flex flex-1 flex-col overflow-hidden">
         <Navbar role={navRole} />
@@ -29,7 +28,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </main>
       </div>
       {/* Bottom nav: mobile and tablet only */}
-      <BottomNav role={navRole} />
+      <BottomNav role={navRole} badges={navBadges} />
     </div>
   );
 }
