@@ -1,11 +1,11 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
-import { getGreeting, timeAgo } from '@/lib/utils';
+import { getGreeting } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { PushPrompt } from '@/app/components/push-prompt';
+import { TenantRequestsList } from './tenant-requests-list';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { Building2, Clock, Home, Plus } from 'lucide-react';
 
 export const metadata = { title: 'My Properties' };
@@ -34,19 +34,6 @@ type MaintenanceRequest = {
   created_at: string;
 };
 
-const STATUS_STYLES: Record<string, string> = {
-  Submitted:     'bg-secondary text-secondary-foreground',
-  'In Progress': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-  Resolved:      'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-  Declined:      'bg-destructive/10 text-destructive',
-};
-
-const PRIORITY_STYLES: Record<string, string> = {
-  Low:    'text-muted-foreground',
-  Medium: 'text-yellow-600',
-  High:   'text-orange-600',
-  Urgent: 'text-destructive font-medium',
-};
 
 export default async function TenantDashboardPage() {
   const supabase = await createClient();
@@ -89,8 +76,8 @@ export default async function TenantDashboardPage() {
   const firstName = fullName ? fullName.trim().split(/\s+/)[0] : null;
   const greeting = getGreeting();
 
-  // Parallel fetch — links and maintenance requests (both scoped by RLS to this tenant).
-  const [{ data: rawLinks }, { data: rawRequests }] = await Promise.all([
+  // Parallel fetch — links, requests, and this tenant's archived request IDs.
+  const [{ data: rawLinks }, { data: rawRequests }, { data: rawArchives }] = await Promise.all([
     supabase
       .from('tenant_property_links')
       .select('id, property_id, status, initiated_by, unit, created_at')
@@ -99,14 +86,17 @@ export default async function TenantDashboardPage() {
     supabase
       .from('maintenance_requests')
       .select('id, property_id, title, priority, status, created_at')
-      .order('created_at', { ascending: false })
-      .limit(20),
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('tenant_request_archives')
+      .select('request_id'),
   ]);
 
   const allLinks = (rawLinks ?? []) as PropertyLink[];
   const approvedLinks = allLinks.filter((l) => l.status === 'approved');
   const pendingLinks = allLinks.filter((l) => l.status === 'pending');
   const requests = (rawRequests ?? []) as MaintenanceRequest[];
+  const archivedIds = (rawArchives ?? []).map((a) => a.request_id as string);
 
   // If there are any pending landlord-initiated invites, route through onboarding
   // so the auto-approval logic can accept them and link the tenant's account.
@@ -262,48 +252,12 @@ export default async function TenantDashboardPage() {
 
       {/* ── My Requests ──────────────────────────────────────────────────────── */}
       {(requests.length > 0 || approvedLinks.length > 0) && (
-        <section className="space-y-3">
-          <h2 className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-            My Requests
-          </h2>
-          <Separator />
-          {requests.length === 0 ? (
-            <p className="text-muted-foreground py-6 text-center text-sm">
-              No requests yet.
-            </p>
-          ) : (
-            <div className="divide-y rounded-lg border">
-              {requests.map((req) => {
-                const prop = propertyMap[req.property_id];
-                const statusStyle = STATUS_STYLES[req.status] ?? STATUS_STYLES['Submitted'];
-                const priorityStyle = PRIORITY_STYLES[req.priority] ?? '';
-                return (
-                  <Link
-                    key={req.id}
-                    href={`/tenant/requests/${req.id}`}
-                    className="hover:bg-muted/40 flex items-start gap-4 px-4 py-3 transition-colors"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{req.title}</p>
-                      <div className="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-1.5 text-xs">
-                        {prop && <span>{prop.name}</span>}
-                        <span>·</span>
-                        <span>{timeAgo(req.created_at)}</span>
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1.5">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyle}`}
-                      >
-                        {req.status}
-                      </span>
-                      <span className={`text-xs ${priorityStyle}`}>{req.priority}</span>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
+        <section>
+          <TenantRequestsList
+            requests={requests}
+            initialArchivedIds={archivedIds}
+            propertyMap={propertyMap}
+          />
         </section>
       )}
     </div>
