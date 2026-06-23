@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createProperty, updateProperty } from './actions';
+import { createProperty, updateProperty, getPropertyDeleteImpact, type PropertyDeleteImpact } from './actions';
 import { deleteProperty } from '@/app/(dashboard)/work-orders/crud-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,7 +40,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Plus, Eye, Edit2, Trash2, Loader2, Building2 } from 'lucide-react';
+import { Plus, Eye, Edit2, Trash2, Loader2, Building2, AlertTriangle } from 'lucide-react';
 
 interface Property {
   id: string;
@@ -86,6 +86,8 @@ export function PropertiesClient({
 
   const [deleteTarget, setDeleteTarget] = useState<Property | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteImpact, setDeleteImpact] = useState<PropertyDeleteImpact | null>(null);
+  const [loadingImpact, setLoadingImpact] = useState(false);
 
   // Derive a user-friendly load error message
   const loadErrorMessage = loadError
@@ -189,32 +191,33 @@ export function PropertiesClient({
   // Delete flow
   const requestDelete = (property: Property) => {
     setDeleteTarget(property);
+    setDeleteImpact(null);
+    setLoadingImpact(true);
+    getPropertyDeleteImpact(property.id)
+      .then((impact) => setDeleteImpact(impact))
+      .catch(() => setDeleteImpact({ tenants: 0, maintenanceRequests: 0, workOrders: 0 }))
+      .finally(() => setLoadingImpact(false));
   };
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
-
     setDeleting(true);
-
     try {
       await deleteProperty(deleteTarget.id);
-
       setProperties((prev) => prev.filter((p) => p.id !== deleteTarget.id));
-
-      // Close any open dialogs if the deleted item was selected
-      if (selectedProperty?.id === deleteTarget.id) {
-        closeDialog();
-      }
-    } catch (err: unknown) {
+      if (selectedProperty?.id === deleteTarget.id) closeDialog();
+    } catch {
       alert('Failed to delete property. Please try again.');
     } finally {
       setDeleting(false);
       setDeleteTarget(null);
+      setDeleteImpact(null);
     }
   };
 
   const cancelDelete = () => {
     setDeleteTarget(null);
+    setDeleteImpact(null);
   };
 
   // Format date for display
@@ -496,17 +499,62 @@ export function PropertiesClient({
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && cancelDelete()}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Property?</AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+              Delete &ldquo;{deleteTarget?.name}&rdquo;?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete{' '}
-              <span className="font-medium">{deleteTarget?.name}</span> and all associated data.
+              This action <span className="font-semibold text-foreground">cannot be undone</span>.
+              Deleting this property will permanently remove:
             </AlertDialogDescription>
+
+            {loadingImpact ? (
+              <div className="space-y-2 pt-1">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+                ))}
+              </div>
+            ) : deleteImpact ? (
+              <ul className="space-y-1.5 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm">
+                {deleteImpact.tenants > 0 && (
+                  <li className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-destructive" />
+                    <span>
+                      <span className="font-semibold text-foreground">{deleteImpact.tenants}</span>
+                      {' '}tenant {deleteImpact.tenants === 1 ? 'lease' : 'leases'}
+                    </span>
+                  </li>
+                )}
+                {deleteImpact.maintenanceRequests > 0 && (
+                  <li className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-destructive" />
+                    <span>
+                      <span className="font-semibold text-foreground">{deleteImpact.maintenanceRequests}</span>
+                      {' '}maintenance {deleteImpact.maintenanceRequests === 1 ? 'request' : 'requests'}
+                    </span>
+                  </li>
+                )}
+                {deleteImpact.workOrders > 0 && (
+                  <li className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-destructive" />
+                    <span>
+                      <span className="font-semibold text-foreground">{deleteImpact.workOrders}</span>
+                      {' '}work {deleteImpact.workOrders === 1 ? 'order' : 'orders'}
+                    </span>
+                  </li>
+                )}
+                <li className="flex items-center gap-2 text-muted-foreground">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
+                  All associated photos, notes, and activity history
+                </li>
+              </ul>
+            ) : null}
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
-              disabled={deleting}
+              disabled={deleting || loadingImpact}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
