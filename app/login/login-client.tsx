@@ -213,8 +213,72 @@ export default function LoginClient() {
     <div className="flex min-h-svh flex-col bg-white sm:items-center sm:justify-center sm:bg-gray-50 sm:px-4 sm:py-16">
       <div className="flex w-full flex-1 flex-col sm:block sm:flex-none sm:max-w-[400px]">
 
+        {/* Install tip — top of page on mobile, hidden on desktop */}
+        {showInstallTip && (
+          <div className="overflow-hidden border-b border-teal-100 bg-teal-50 sm:hidden">
+            <button
+              type="button"
+              onClick={() => setInstallTipOpen(v => !v)}
+              className="flex w-full items-center justify-between px-4 py-3"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-teal-700">
+                  <Layers className="h-3.5 w-3.5 text-white" />
+                </div>
+                <span className="text-sm font-medium text-teal-900">Install the Nestora app</span>
+              </div>
+              <ChevronDown className={cn(
+                'h-4 w-4 text-teal-600 transition-transform duration-200',
+                installTipOpen && 'rotate-180'
+              )} />
+            </button>
+
+            {installTipOpen && (
+              <div className="border-t border-teal-100 px-4 pb-4 pt-3">
+                {isIOS ? (
+                  <div className="space-y-3 text-sm text-teal-800">
+                    <p className="font-medium">Add to your home screen:</p>
+                    <ol className="space-y-2 text-teal-700">
+                      {[
+                        <span key={0}>Tap the <strong>Share</strong> button (↑) at the bottom of Safari</span>,
+                        <span key={1}>Scroll and tap <strong>"Add to Home Screen"</strong></span>,
+                        <span key={2}>Tap <strong>Add</strong> — Nestora appears on your home screen</span>,
+                      ].map((content, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-700 text-[10px] font-bold text-white">
+                            {i + 1}
+                          </span>
+                          {content}
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm text-teal-800">Get the full app experience on your device.</p>
+                    <button
+                      type="button"
+                      onClick={handleInstall}
+                      className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-teal-700 text-sm font-semibold text-white transition-colors hover:bg-teal-800 active:bg-teal-900"
+                    >
+                      Install Nestora
+                    </button>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={dismissInstallTip}
+                  className="mt-3 w-full text-center text-xs text-teal-500 hover:text-teal-700"
+                >
+                  No thanks
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Branding */}
-        <div className="flex flex-col items-center px-6 pb-8 pt-16 text-center sm:mb-8 sm:px-0 sm:pb-0 sm:pt-0">
+        <div className="flex flex-col items-center px-6 pb-8 pt-8 text-center sm:mb-8 sm:px-0 sm:pb-0 sm:pt-0">
           <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-700 shadow-lg shadow-teal-700/25 sm:h-14 sm:w-14">
             <Layers className="h-8 w-8 text-white sm:h-7 sm:w-7" />
           </div>
@@ -407,70 +471,6 @@ export default function LoginClient() {
 
           </div>
         </div>
-
-        {/* Install tip — collapsed accordion below the card */}
-        {showInstallTip && (
-          <div className="mt-4 overflow-hidden rounded-xl border border-teal-100 bg-teal-50">
-            <button
-              type="button"
-              onClick={() => setInstallTipOpen(v => !v)}
-              className="flex w-full items-center justify-between px-4 py-3"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-teal-700">
-                  <Layers className="h-3.5 w-3.5 text-white" />
-                </div>
-                <span className="text-sm font-medium text-teal-900">Install the Nestora app</span>
-              </div>
-              <ChevronDown className={cn(
-                'h-4 w-4 text-teal-600 transition-transform duration-200',
-                installTipOpen && 'rotate-180'
-              )} />
-            </button>
-
-            {installTipOpen && (
-              <div className="border-t border-teal-100 px-4 pb-4 pt-3">
-                {isIOS ? (
-                  <div className="space-y-3 text-sm text-teal-800">
-                    <p className="font-medium">Add to your home screen:</p>
-                    <ol className="space-y-2 text-teal-700">
-                      {[
-                        <span key={0}>Tap the <strong>Share</strong> button (↑) at the bottom of Safari</span>,
-                        <span key={1}>Scroll and tap <strong>"Add to Home Screen"</strong></span>,
-                        <span key={2}>Tap <strong>Add</strong> — Nestora appears on your home screen</span>,
-                      ].map((content, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-700 text-[10px] font-bold text-white">
-                            {i + 1}
-                          </span>
-                          {content}
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <p className="text-sm text-teal-800">Get the full app experience on your device.</p>
-                    <button
-                      type="button"
-                      onClick={handleInstall}
-                      className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-teal-700 text-sm font-semibold text-white transition-colors hover:bg-teal-800 active:bg-teal-900"
-                    >
-                      Install Nestora
-                    </button>
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={dismissInstallTip}
-                  className="mt-3 w-full text-center text-xs text-teal-500 hover:text-teal-700"
-                >
-                  No thanks
-                </button>
-              </div>
-            )}
-          </div>
-        )}
 
         <p className="mt-6 hidden text-center text-xs text-gray-400 sm:block">
           By continuing you agree to our{' '}
