@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { MobileFocusHandler } from '@/app/components/mobile-focus-handler';
+import { ServiceWorkerRegistration } from '@/app/components/service-worker-registration';
 import './globals.css';
 import 'yet-another-react-lightbox/styles.css';
 import 'yet-another-react-lightbox/plugins/counter.css';
@@ -57,6 +58,7 @@ export default function RootLayout({
         {children}
         <Toaster position="top-right" richColors />
         <MobileFocusHandler />
+        <ServiceWorkerRegistration />
       </body>
     </html>
   );
