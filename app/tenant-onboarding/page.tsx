@@ -54,8 +54,9 @@ export default async function TenantOnboardingPage({
     } = await sc.auth.getUser()
     if (!u?.email) redirect('/login')
 
-    // Phone is required and must be a valid E.164 number.
-    if (!phone || !isValidPhoneNumber(phone)) {
+    // Phone is required. Accept E.164 (+1XXXXXXXXXX from the input component)
+    // or any format that libphonenumber-js can parse as a US number.
+    if (!phone || !isValidPhoneNumber(phone, 'US')) {
       redirect('/tenant-onboarding?err=phone')
     }
 
