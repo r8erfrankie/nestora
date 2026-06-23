@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { getGreeting, timeAgo } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { PushPrompt } from '@/app/components/push-prompt';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Building2, Clock, Home, Plus } from 'lucide-react';
@@ -137,6 +138,7 @@ export default async function TenantDashboardPage() {
 
   return (
     <div className="max-w-3xl space-y-5 sm:space-y-8">
+      <PushPrompt role="tenant" />
       {/* Page header */}
       <div>
         <p className="text-muted-foreground text-sm">{greeting}</p>

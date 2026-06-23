@@ -1,0 +1,125 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { Bell, X } from 'lucide-react';
+import { savePushSubscription } from '@/app/actions/push-actions';
+
+const DISMISSED_KEY = 'nestora_push_dismissed_until';
+const SNOOZE_DAYS = 7;
+
+const COPY = {
+  landlord: {
+    heading: 'Stay on top of maintenance',
+    body: "Get notified when tenants submit requests or contractors update a job — even when you're not in the app.",
+  },
+  contractor: {
+    heading: 'Never miss a job update',
+    body: "Get notified the moment you're assigned a new work order, even when the app is closed.",
+  },
+  tenant: {
+    heading: 'Track your requests in real time',
+    body: "We'll let you know when your landlord reviews your request or a contractor is on the way.",
+  },
+};
+
+function urlBase64ToUint8Array(base64: string) {
+  const padding = '='.repeat((4 - (base64.length % 4)) % 4);
+  const b64 = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = window.atob(b64);
+  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+}
+
+export function PushPrompt({ role }: { role: 'landlord' | 'contractor' | 'tenant' }) {
+  const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+    if (Notification.permission !== 'default') return; // already granted or denied
+
+    const dismissedUntil = localStorage.getItem(DISMISSED_KEY);
+    if (dismissedUntil && Date.now() < Number(dismissedUntil)) return;
+
+    // Small delay so the page content loads first
+    const t = setTimeout(() => setShow(true), 1500);
+    return () => clearTimeout(t);
+  }, []);
+
+  const dismiss = () => {
+    const until = Date.now() + SNOOZE_DAYS * 24 * 60 * 60 * 1000;
+    localStorage.setItem(DISMISSED_KEY, String(until));
+    setShow(false);
+  };
+
+  const enable = async () => {
+    setLoading(true);
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') { setShow(false); return; }
+
+      const reg = await navigator.serviceWorker.ready;
+      const subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(
+          process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
+        ),
+      });
+
+      const json = subscription.toJSON();
+      await savePushSubscription({
+        endpoint: subscription.endpoint,
+        p256dh: json.keys!.p256dh,
+        auth: json.keys!.auth,
+      });
+
+      setShow(false);
+    } catch (err) {
+      console.error('[PushPrompt] subscribe failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!show) return null;
+
+  const { heading, body } = COPY[role];
+
+  return (
+    <div className="mb-4 flex items-start gap-3 rounded-xl border border-teal-100 bg-teal-50 p-4">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-700 text-white">
+        <Bell className="h-4 w-4" />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-gray-900">{heading}</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-gray-500">{body}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={enable}
+            disabled={loading}
+            className="rounded-lg bg-teal-700 px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-teal-800 disabled:opacity-60"
+          >
+            {loading ? 'Enabling…' : 'Enable notifications'}
+          </button>
+          <button
+            type="button"
+            onClick={dismiss}
+            className="rounded-lg px-3.5 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:text-gray-700"
+          >
+            Not now
+          </button>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={dismiss}
+        className="shrink-0 text-gray-400 transition-colors hover:text-gray-600"
+        aria-label="Dismiss"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}

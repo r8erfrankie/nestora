@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getGreeting } from '@/lib/utils';
 import { ContractorClient, type ContractorWorkOrder } from './contractor-client';
+import { PushPrompt } from '@/app/components/push-prompt';
 
 export default async function ContractorDashboardPage() {
   const supabase = await createClient();
@@ -66,12 +67,15 @@ export default async function ContractorDashboardPage() {
   const archivedWorkOrderIds = (archivedEntries ?? []).map((e) => e.work_order_id as string);
 
   return (
-    <ContractorClient
-      workOrders={((workOrders ?? []) as any) as ContractorWorkOrder[]}
-      greeting={greeting}
-      firstName={firstName}
-      archivedWorkOrderIds={archivedWorkOrderIds}
-      currentUserId={user?.id ?? ''}
-    />
+    <>
+      <PushPrompt role="contractor" />
+      <ContractorClient
+        workOrders={((workOrders ?? []) as any) as ContractorWorkOrder[]}
+        greeting={greeting}
+        firstName={firstName}
+        archivedWorkOrderIds={archivedWorkOrderIds}
+        currentUserId={user?.id ?? ''}
+      />
+    </>
   );
 }
