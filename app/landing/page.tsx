@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { InstallBanner } from '@/app/components/install-banner';
 import {
   Camera,
   Users,
@@ -34,6 +35,8 @@ export default function LandingPage() {
           </Link>
         </div>
       </header>
+
+      <InstallBanner />
 
       {/* ── Hero ── */}
       <section className="mx-auto max-w-4xl px-4 pb-20 pt-16 text-center sm:px-6 sm:pt-24 lg:pt-32">
