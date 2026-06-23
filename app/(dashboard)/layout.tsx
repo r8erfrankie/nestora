@@ -22,8 +22,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
       </div>
       <div className="flex flex-1 flex-col overflow-hidden">
         <Navbar role={navRole} />
-        {/* pb-20 on mobile/tablet gives clearance above the bottom nav bar */}
-        <main className="bg-background flex-1 overflow-auto p-4 pb-20 lg:p-6 lg:pb-6">
+        {/* pb accounts for the fixed bottom nav + iOS home indicator safe area */}
+        <main className="bg-background flex-1 overflow-auto p-4 lg:p-6 lg:pb-6" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
           {children}
         </main>
       </div>

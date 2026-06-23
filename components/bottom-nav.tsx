@@ -92,7 +92,7 @@ export function BottomNav({
   return (
     <>
       {/* Bottom navigation bar — hidden on desktop */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden border-t border-border bg-background/95 supports-[backdrop-filter]:backdrop-blur-md">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden border-t border-border bg-background" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="flex h-16 items-stretch">
           {bottomItems.map(({ href, label, icon: Icon }) => {
             const badge = badgeFor(href);

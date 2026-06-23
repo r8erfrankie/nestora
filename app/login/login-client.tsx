@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Layers, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -25,6 +25,7 @@ export default function LoginClient() {
   const [verifying, setVerifying] = useState(false);
   const digitRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+  const router = useRouter();
   const emailInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -126,7 +127,10 @@ export default function LoginClient() {
         setDigits(['', '', '', '', '', '']);
         setTimeout(() => digitRefs.current[0]?.focus(), 60);
       } else {
-        window.location.href = redirectTo || '/';
+        // router.push keeps the SPA alive — no WebView restart, no iOS PWA
+        // splash screen flash. The session cookie was written synchronously by
+        // verifyOtp so the server will see it on the next fetch.
+        router.push(redirectTo || '/');
       }
     } catch {
       setError('Something went wrong. Please try again.');
