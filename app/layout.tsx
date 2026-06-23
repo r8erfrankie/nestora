@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { MobileFocusHandler } from '@/app/components/mobile-focus-handler';
@@ -24,14 +24,24 @@ const geistMono = Geist_Mono({
   adjustFontFallback: true,
 });
 
+export const viewport: Viewport = {
+  themeColor: '#0F766E',
+};
+
 export const metadata: Metadata = {
   title: {
     default: 'Nestora',
     template: '%s | Nestora',
   },
-  description: 'Professional workspace for modern teams.',
-  icons: {
-    icon: '/favicon.ico',
+  description: 'Property maintenance made simple for small landlords.',
+  applicationName: 'Nestora',
+  appleWebApp: {
+    capable: true,
+    title: 'Nestora',
+    statusBarStyle: 'default',
+  },
+  formatDetection: {
+    telephone: false,
   },
 };
 
