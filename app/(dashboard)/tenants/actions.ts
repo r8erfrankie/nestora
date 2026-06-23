@@ -126,12 +126,40 @@ export async function approveTenantRequest(linkId: string) {
 
   if (error) throw new Error(error.message);
 
-  // Non-blocking email — approval succeeds even if Resend is down.
+  // Non-blocking: generate a magic link then send the approval email.
+  // If either step fails, the approval itself is unaffected.
   const propertyName = (link.property as unknown as { name: string } | null)?.name ?? 'your property';
   const landlordName = (profile?.full_name as string | null) ?? null;
-  sendTenantAccessGrantedEmail({ to: link.tenant_email, propertyName, landlordName }).catch((err) => {
-    console.error('Approval email failed:', err);
-  });
+  const tenantEmail = link.tenant_email as string;
+
+  ;(async () => {
+    let magicLink: string | null = null;
+    let otpCode: string | null = null;
+
+    try {
+      const adminClient = createAdminClient();
+      const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/tenant`;
+      const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+        type: 'magiclink',
+        email: tenantEmail,
+        options: { redirectTo: callbackUrl },
+      });
+      if (linkError) {
+        console.error('generateLink error:', linkError);
+      } else {
+        magicLink = linkData?.properties?.action_link ?? null;
+        otpCode = linkData?.properties?.email_otp ?? null;
+      }
+    } catch (err) {
+      console.error('Failed to generate magic link for approval email:', err);
+    }
+
+    try {
+      await sendTenantAccessGrantedEmail({ to: tenantEmail, propertyName, landlordName, magicLink, otpCode });
+    } catch (err) {
+      console.error('Approval email failed:', err);
+    }
+  })();
 
   revalidatePath('/tenants');
 }
