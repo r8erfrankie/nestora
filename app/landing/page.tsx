@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { InstallBanner } from '@/app/components/install-banner';
+import { InstallSection } from './install-section';
 import {
   Camera,
   Users,
@@ -278,6 +279,8 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      <InstallSection />
 
       {/* ── Final CTA ── */}
       <section className="bg-teal-900 py-24">
