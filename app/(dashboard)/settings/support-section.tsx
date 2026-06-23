@@ -9,46 +9,135 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-// ── FAQ data ──────────────────────────────────────────────────────────────────
+// ── FAQ data — one array per role ─────────────────────────────────────────────
+// To update content: edit the relevant array below. The rendering logic
+// automatically picks the right set based on the user's role prop.
 
-const FAQ_ITEMS = [
+const LANDLORD_FAQ = [
   {
-    id: 'add-tenant',
+    id: 'll-add-tenant',
     question: 'How do I add a new tenant?',
     answer:
       'Go to the Tenants page and click "Add Tenant". Enter the tenant\'s email address and assign them to one of your properties. They\'ll receive an invitation email with a link to set up their account. You can also share your property\'s unique join code so tenants can self-request access.',
   },
   {
-    id: 'tenant-request',
+    id: 'll-tenant-request',
     question: 'How does a tenant submit a maintenance request?',
     answer:
-      'Once a tenant has an approved account, they can log in and navigate to their dashboard. From there, they can submit a new maintenance request by filling in the title, description, category, and priority. You\'ll be notified when they submit one, and it will appear in your Tenants section.',
+      'Once a tenant has an approved account, they can log in and submit a new maintenance request from their dashboard. You\'ll be notified when they submit one, and it will appear in your Tenants section.',
   },
   {
-    id: 'request-statuses',
+    id: 'll-statuses',
     question: 'What do the different request statuses mean?',
     answer:
-      'Submitted — the tenant just sent it and it\'s waiting for your review. In Progress — you\'ve converted it into a work order and a contractor is handling it. Resolved — the work is done and you\'ve marked it complete. Declined — you\'ve reviewed the request and decided not to act on it.',
+      'Submitted — waiting for your review. In Progress — converted into a work order and being handled. Resolved — work is complete. Declined — reviewed but not actioned.',
   },
   {
-    id: 'convert-request',
+    id: 'll-convert',
     question: 'How do I convert a maintenance request into a work order?',
     answer:
-      'Open the Tenants page and find the maintenance request. Click into it and select "Convert to Work Order". A new work order is created pre-filled with the request details. You can then assign it to a contractor, set a priority and due date, and track it through completion.',
+      'Open the Tenants page, find the maintenance request, and select "Convert to Work Order". A new work order is created pre-filled with the request details. You can then assign a contractor, set a priority, and track it through to completion.',
   },
   {
-    id: 'invite-contractor',
+    id: 'll-invite-contractor',
     question: 'How do I invite a contractor?',
     answer:
       'Go to Teams in the sidebar and click "Add Contractor". Enter their name, email, trade, and an optional phone number. They\'ll receive an invitation email with a link to create their account. Once registered, you can assign them to work orders directly.',
   },
   {
-    id: 'see-activity',
+    id: 'll-activity',
     question: 'Where can I see all activity on my properties?',
     answer:
-      'Your Dashboard shows a Recent Activity feed with the latest work order updates across all your properties. For a full history, go to Work Orders and use the filters to narrow by property, status, or date. The Tenants page shows all maintenance requests by property.',
+      'Your Dashboard shows a Recent Activity feed with the latest work order updates. For a full history, go to Work Orders and use the filters to narrow by property, status, or date.',
   },
 ] as const;
+
+const TENANT_FAQ = [
+  {
+    id: 'tn-submit',
+    question: 'How do I submit a maintenance request?',
+    answer:
+      'From your dashboard, click "New Request" and fill in the title, description, category, and priority. Your landlord will be notified immediately and can review it from their Tenants page.',
+  },
+  {
+    id: 'tn-status',
+    question: 'How do I check the status of my request?',
+    answer:
+      'Go to your dashboard and look at the Maintenance Requests section. Each request shows its current status: Submitted, In Progress, Resolved, or Declined. You\'ll also see any notes added by your landlord.',
+  },
+  {
+    id: 'tn-what-happens',
+    question: 'What happens after I submit a maintenance request?',
+    answer:
+      'Your landlord reviews the request and can convert it into a work order, assigning a contractor to handle the repair. The status will update as the work progresses. You can check back at any time to see where things stand.',
+  },
+  {
+    id: 'tn-statuses',
+    question: 'What do the different statuses mean?',
+    answer:
+      'Submitted — your landlord hasn\'t reviewed it yet. In Progress — a contractor has been assigned and the work is underway. Resolved — the issue has been fixed. Declined — your landlord reviewed the request but decided not to action it.',
+  },
+  {
+    id: 'tn-profile',
+    question: 'How do I update my contact or emergency contact information?',
+    answer:
+      'Go to Settings (your profile icon in the sidebar). You can update your phone number and emergency contact details there. Changes are saved immediately when you click "Save changes".',
+  },
+  {
+    id: 'tn-join',
+    question: 'How do I join a property?',
+    answer:
+      'Your landlord can invite you by email, or they can share a join code for the property. Visit the join page, enter the code, and your request will be sent to your landlord for approval. Once approved, the property will appear in your dashboard.',
+  },
+] as const;
+
+const CONTRACTOR_FAQ = [
+  {
+    id: 'co-see-orders',
+    question: 'How do I see the work orders assigned to me?',
+    answer:
+      'Log in and go to your dashboard — all work orders assigned to you are listed there. Each card shows the property address, unit, priority, and due date so you can plan your schedule.',
+  },
+  {
+    id: 'co-update-status',
+    question: 'How do I update the status of a work order?',
+    answer:
+      'Open the work order from your dashboard and use the status dropdown to move it from Open to In Progress or Completed. The landlord is notified automatically when you mark a job complete.',
+  },
+  {
+    id: 'co-notes-photos',
+    question: 'How do I add notes or photos to a work order?',
+    answer:
+      'Open the work order and scroll to the Notes or Photos section. You can type a note and attach photos directly from your phone or computer. These are visible to the landlord and help document the work done.',
+  },
+  {
+    id: 'co-reassign',
+    question: 'What happens if a work order is reassigned?',
+    answer:
+      'If the landlord reassigns a work order to another contractor, it will disappear from your dashboard and you\'ll receive an email notification. Any notes or photos you added are retained.',
+  },
+  {
+    id: 'co-profile',
+    question: 'How do I update my contact information or trade?',
+    answer:
+      'Go to Settings from the sidebar. You can update your name, phone number, company name, and trade there. Keep your phone number current so landlords can reach you about jobs.',
+  },
+  {
+    id: 'co-questions',
+    question: 'Who do I contact with questions about a specific job?',
+    answer:
+      'Reach out to the landlord who assigned the work order directly. Their contact details are shown on the work order page. If you have a platform issue, use the Contact Support form below.',
+  },
+] as const;
+
+type FaqItem = { id: string; question: string; answer: string };
+
+function getFaqItems(role: string | null): ReadonlyArray<FaqItem> | null {
+  if (role === 'landlord') return LANDLORD_FAQ;
+  if (role === 'tenant')   return TENANT_FAQ;
+  if (role === 'contractor') return CONTRACTOR_FAQ;
+  return null;
+}
 
 // ── Accordion item ─────────────────────────────────────────────────────────────
 
@@ -105,7 +194,9 @@ const RESOURCES = [
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function SupportSection() {
+export function SupportSection({ role }: { role: string | null }) {
+  const faqItems = getFaqItems(role);
+
   // Multiple accordion items can be open simultaneously.
   const [openItems, setOpenItems] = useState<Set<string>>(new Set());
 
@@ -164,18 +255,26 @@ export function SupportSection() {
             Help &amp; FAQ
           </p>
         </div>
-        <div className="rounded-xl border border-gray-100 bg-white px-4 shadow-sm">
-          {FAQ_ITEMS.map((item) => (
-            <AccordionItem
-              key={item.id}
-              id={item.id}
-              question={item.question}
-              answer={item.answer}
-              isOpen={openItems.has(item.id)}
-              onToggle={toggle}
-            />
-          ))}
-        </div>
+        {faqItems === null ? (
+          <div className="rounded-xl border border-gray-100 bg-white px-4 py-5 shadow-sm">
+            <p className="text-sm text-gray-500">
+              Complete your profile to see role-specific help topics.
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-gray-100 bg-white px-4 shadow-sm">
+            {faqItems.map((item) => (
+              <AccordionItem
+                key={item.id}
+                id={item.id}
+                question={item.question}
+                answer={item.answer}
+                isOpen={openItems.has(item.id)}
+                onToggle={toggle}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Contact Support ── */}

@@ -354,7 +354,7 @@ export function SettingsClient({
 
       <Separator />
 
-      <SupportSection />
+      <SupportSection role={role} />
 
       <Separator />
 
