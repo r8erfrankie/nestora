@@ -384,5 +384,5 @@ const FEATURES = [
   'Clean work order management',
   'Contractor directory and easy assignment',
   'Real-time status updates',
-  'Tenant entry point for requests (coming soon)',
+  'Tenant maintenance request portal with photo uploads',
 ] as const;
