@@ -11,34 +11,58 @@ const PLATFORMS = [
     icon: Apple,
     note: 'Safari required',
     steps: [
-      'Open gonestora.app in Safari',
-      'Tap the Share button (↑) at the bottom of the screen',
-      'Scroll down and tap "Add to Home Screen"',
-      'Tap Add — Nestora appears on your home screen',
+      'Open gonestora.app in Safari (must be Safari, not Chrome)',
+      'Tap the Share button (the box with an arrow pointing up) at the bottom of the screen',
+      'Scroll down in the share sheet and tap "Add to Home Screen"',
+      'Tap Add in the top-right corner — Nestora appears on your home screen',
     ],
   },
   {
     id: 'android',
     label: 'Android',
     icon: Smartphone,
-    note: 'Chrome required',
+    note: 'Chrome, Firefox, or Samsung Browser',
     steps: [
-      'Open gonestora.app in Chrome',
-      'Tap the three-dot menu (⋮) in the top right',
-      'Tap "Add to Home Screen" or "Install App"',
-      'Tap Add — Nestora appears on your home screen',
+      'Open gonestora.app in Chrome (or Firefox / Samsung Browser)',
+      'Tap the three-dot menu (⋮) in the top-right corner',
+      'Tap "Add to Home Screen" or "Install App" — the wording varies by browser',
+      'Tap Add or Install in the prompt — Nestora appears on your home screen',
     ],
   },
   {
-    id: 'desktop',
-    label: 'Desktop',
+    id: 'chrome',
+    label: 'Chrome on Mac or Windows',
     icon: Monitor,
-    note: 'Chrome or Edge',
+    note: 'Two ways to install',
     steps: [
-      'Open gonestora.app in Chrome or Edge',
-      'Click the install icon (⊕) in the address bar',
-      'Click Install in the prompt that appears',
-      'Nestora opens as a standalone app on your desktop',
+      'Open gonestora.app in Google Chrome',
+      'Option A — Menu: Click the three-dot menu (⋮) in the top-right → hover over "Cast, Save and Share" → click "Install Nestora"',
+      'Option B — Address bar: Look for a small computer icon (⊕) on the right side of the address bar and click it',
+      'Click Install in the confirmation dialog — Nestora opens as a standalone app',
+    ],
+  },
+  {
+    id: 'edge',
+    label: 'Microsoft Edge',
+    icon: Monitor,
+    note: 'Windows or Mac',
+    steps: [
+      'Open gonestora.app in Microsoft Edge',
+      'Option A — Address bar: Look for the "App available" icon (a monitor with a down arrow) on the right side of the address bar and click it',
+      'Option B — Menu: Click the three-dot menu (⋯) → click "Apps" → click "Install this site as an app"',
+      'Click Install — Nestora is added to your Start Menu or Applications folder',
+    ],
+  },
+  {
+    id: 'safari-mac',
+    label: 'Safari on Mac',
+    icon: Apple,
+    note: 'macOS Sonoma (14) or later',
+    steps: [
+      'Open gonestora.app in Safari on your Mac',
+      'Click the File menu in the top menu bar',
+      'Click "Add to Dock…"',
+      'Click Add — Nestora appears in your Dock and Launchpad',
     ],
   },
 ] as const;
@@ -49,7 +73,7 @@ export function InstallSection() {
   const toggle = (id: string) => setOpen(prev => (prev === id ? null : id));
 
   return (
-    <section className="py-20">
+    <section id="install" className="py-20">
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <h2 className="mb-2 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
           Works on every device

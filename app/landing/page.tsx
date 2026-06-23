@@ -28,12 +28,20 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
           <span className="text-lg font-bold tracking-tight text-teal-700">Nestora</span>
-          <Link
-            href="/sign-in"
-            className="rounded-lg border border-teal-200 bg-white px-4 py-1.5 text-sm font-medium text-teal-700 shadow-sm transition-colors hover:bg-teal-50"
-          >
-            Sign In
-          </Link>
+          <div className="flex items-center gap-2">
+            <a
+              href="#install"
+              className="rounded-lg border border-gray-200 bg-white px-4 py-1.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 hover:text-gray-900"
+            >
+              Install App
+            </a>
+            <Link
+              href="/sign-in"
+              className="rounded-lg border border-teal-200 bg-white px-4 py-1.5 text-sm font-medium text-teal-700 shadow-sm transition-colors hover:bg-teal-50"
+            >
+              Sign In
+            </Link>
+          </div>
         </div>
       </header>
 
