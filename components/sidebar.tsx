@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -11,7 +12,6 @@ import {
   BarChart3,
   FileBarChart,
   Settings,
-  Layers,
   Building2,
   ClipboardList,
 } from 'lucide-react';
@@ -76,9 +76,7 @@ export function Sidebar({
     <aside className="border-sidebar-border bg-sidebar text-sidebar-foreground flex h-full w-64 flex-shrink-0 flex-col border-r">
       {/* Logo */}
       <div className="border-sidebar-border flex h-14 items-center gap-2.5 border-b px-5">
-        <div className="bg-primary text-primary-foreground flex h-8 w-8 items-center justify-center rounded-lg">
-          <Layers className="h-4 w-4" />
-        </div>
+        <Image src="/nestora-icon.svg" alt="Nestora" width={32} height={32} className="rounded-lg" />
         <div>
           <div className="text-base font-semibold tracking-[-0.015em]">Nestora</div>
           <div className="text-sidebar-foreground/60 -mt-0.5 text-[10px]">Workspace</div>

@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { InstallBanner } from '@/app/components/install-banner';
 import { InstallSection } from './install-section';
@@ -27,7 +28,7 @@ export default function LandingPage() {
       {/* ── Navbar ── */}
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <span className="text-lg font-bold tracking-tight text-teal-700">Nestora</span>
+          <Image src="/nestora-logo.svg" alt="Nestora" width={120} height={30} priority />
           <div className="flex items-center gap-2">
             <a
               href="#install"

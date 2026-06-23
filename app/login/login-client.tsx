@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Layers, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import { InstallBanner } from '@/app/components/install-banner';
@@ -178,10 +179,20 @@ export default function LoginClient() {
 
           {/* Branding */}
           <div className="flex flex-col items-center px-6 pb-8 pt-8 text-center sm:mb-8 sm:px-0 sm:pb-0 sm:pt-0">
-            <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-700 shadow-lg shadow-teal-700/25 sm:h-14 sm:w-14">
-              <Layers className="h-8 w-8 text-white sm:h-7 sm:w-7" />
-            </div>
-            <h1 className="text-3xl font-bold tracking-[-0.03em] text-gray-900">Nestora</h1>
+            <Image
+              src="/nestora-icon.svg"
+              alt="Nestora"
+              width={64}
+              height={64}
+              className="mb-5 rounded-2xl shadow-lg shadow-teal-700/25 sm:h-14 sm:w-14"
+            />
+            <Image
+              src="/nestora-logo.svg"
+              alt="Nestora"
+              width={160}
+              height={41}
+              className="mb-1"
+            />
             <p className="mt-2 text-sm text-gray-500">Property management made simple</p>
           </div>
 
