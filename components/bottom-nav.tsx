@@ -29,7 +29,7 @@ import type { UserRole } from '@/lib/roles';
 const landlordBottomItems = [
   { href: '/overview', label: 'Home', icon: LayoutDashboard },
   { href: '/work-orders', label: 'Work Orders', icon: ClipboardList },
-  { href: '/properties', label: 'Properties', icon: Building2 },
+  { href: '/tenants', label: 'Tenants', icon: UserCheck },
   { href: '/teams', label: 'Team', icon: Users },
 ] as const;
 
