@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckCircle2, ChevronDown, ExternalLink, Mail, MessageSquare } from 'lucide-react';
+import { CheckCircle2, ChevronDown, Mail, MessageSquare } from 'lucide-react';
 import { submitSupportTicket } from './support-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -184,14 +184,6 @@ function AccordionItem({
   );
 }
 
-// ── Quick resources ────────────────────────────────────────────────────────────
-
-const RESOURCES = [
-  { label: 'Getting started guide', href: '#' },
-  { label: 'Video walkthrough', href: '#' },
-  { label: 'Report a bug', href: '#' },
-] as const;
-
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function SupportSection({ role }: { role: string | null }) {
@@ -354,28 +346,6 @@ export function SupportSection({ role }: { role: string | null }) {
               </div>
             </form>
           )}
-        </div>
-      </div>
-
-      {/* ── Quick Resources ── */}
-      <div className="space-y-1">
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 pb-1">
-          Quick Resources
-        </p>
-        <div className="rounded-xl border border-gray-100 bg-white px-4 shadow-sm">
-          {RESOURCES.map((r, i) => (
-            <a
-              key={r.label}
-              href={r.href}
-              className={cn(
-                'flex items-center justify-between py-3.5 text-sm text-gray-700 transition-colors hover:text-teal-700',
-                i < RESOURCES.length - 1 && 'border-b border-gray-50'
-              )}
-            >
-              {r.label}
-              <ExternalLink className="h-3.5 w-3.5 shrink-0 text-gray-300" />
-            </a>
-          ))}
         </div>
       </div>
 
