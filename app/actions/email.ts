@@ -37,6 +37,37 @@ function priorityColor(priority: string) {
   return PRIORITY_COLOR[priority.toLowerCase()] ?? '#6B7280';
 }
 
+const INSTALL_BLOCK = `
+    <!-- Get the app -->
+    <tr>
+      <td style="padding:0 32px 28px">
+        <table cellpadding="0" cellspacing="0" width="100%" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px">
+          <tr>
+            <td style="padding:16px 20px">
+              <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#111827;letter-spacing:0.05em;text-transform:uppercase">Get the Nestora app</p>
+              <p style="margin:0 0 14px;font-size:12px;color:#6b7280;line-height:1.5">No App Store needed — install directly from your browser at <a href="https://gonestora.app" style="color:#0F766E;font-weight:600;text-decoration:none">gonestora.app</a></p>
+              <table cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                  <td style="width:50%;vertical-align:top;padding-right:12px">
+                    <p style="margin:0 0 7px;font-size:12px;font-weight:600;color:#374151">iPhone &amp; iPad</p>
+                    <p style="margin:0 0 3px;font-size:12px;color:#6b7280;line-height:1.5">1. Open in <strong>Safari</strong></p>
+                    <p style="margin:0 0 3px;font-size:12px;color:#6b7280;line-height:1.5">2. Tap Share &#8593; &#8594; <strong>Add to Home Screen</strong></p>
+                    <p style="margin:0;font-size:12px;color:#6b7280;line-height:1.5">3. Tap <strong>Add</strong></p>
+                  </td>
+                  <td style="width:50%;vertical-align:top;padding-left:12px;border-left:1px solid #e5e7eb">
+                    <p style="margin:0 0 7px;font-size:12px;font-weight:600;color:#374151">Android</p>
+                    <p style="margin:0 0 3px;font-size:12px;color:#6b7280;line-height:1.5">1. Open in <strong>Chrome</strong></p>
+                    <p style="margin:0 0 3px;font-size:12px;color:#6b7280;line-height:1.5">2. Tap &#8942; menu &#8594; <strong>Add to Home Screen</strong></p>
+                    <p style="margin:0;font-size:12px;color:#6b7280;line-height:1.5">3. Tap <strong>Install</strong></p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>`;
+
 // Shared HTML chrome — header + outer table wrappers.
 function emailWrap(body: string) {
   return `
@@ -147,7 +178,7 @@ export async function notifyContractorNewWorkOrder(data: {
           View Work Order
         </a>
       </td>
-    </tr>`;
+    </tr>${INSTALL_BLOCK}`;
 
   const { error } = await resend.emails.send({
     from: FROM,
@@ -243,7 +274,7 @@ export async function sendContractorInvitation(data: {
           Get Started
         </a>
       </td>
-    </tr>`;
+    </tr>${INSTALL_BLOCK}`;
 
   const { error } = await resend.emails.send({
     from: FROM,
@@ -309,7 +340,7 @@ export async function sendContractorWorkOrderInvitation(data: {
           Create My Account
         </a>
       </td>
-    </tr>`;
+    </tr>${INSTALL_BLOCK}`;
 
   const { error } = await resend.emails.send({
     from: FROM,
