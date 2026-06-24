@@ -327,11 +327,80 @@ export async function inviteTenantByEmail(email: string, propertyId: string, uni
   }
 
   const landlordName = (landlordProfile?.full_name as string | null) ?? null;
-  sendTenantInviteEmail({
-    to: normalizedEmail,
-    propertyName: property.name as string,
-    landlordName,
-  }).catch((err) => { console.error('Invite email failed:', err); });
+
+  // Generate a magic link so the invite email contains both a one-click button
+  // and a 6-digit code — no second Supabase email needed.
+  ;(async () => {
+    let magicLink: string | null = null;
+    let otpCode: string | null = null;
+    try {
+      const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/tenant-onboarding`;
+      const { data: linkData } = await admin.auth.admin.generateLink({
+        type: 'magiclink',
+        email: normalizedEmail,
+        options: { redirectTo: callbackUrl },
+      });
+      magicLink = linkData?.properties?.action_link ?? null;
+      otpCode = linkData?.properties?.email_otp ?? null;
+    } catch (err) {
+      console.error('generateLink failed for invite:', err);
+    }
+    try {
+      await sendTenantInviteEmail({
+        to: normalizedEmail,
+        propertyName: property.name as string,
+        landlordName,
+        magicLink,
+        otpCode,
+      });
+    } catch (err) {
+      console.error('Invite email failed:', err);
+    }
+  })();
 
   revalidatePath('/tenants');
+}
+
+export async function resendTenantInvite(linkId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const [{ data: link }, { data: profile }] = await Promise.all([
+    supabase
+      .from('tenant_property_links')
+      .select('tenant_email, property_id, property:property_id(name)')
+      .eq('id', linkId)
+      .eq('landlord_id', user.id)
+      .eq('status', 'approved')
+      .is('tenant_id', null)
+      .single(),
+    supabase.from('profiles').select('full_name').eq('id', user.id).single(),
+  ]);
+
+  if (!link) throw new Error('Invite not found or tenant has already signed in.');
+
+  const tenantEmail = link.tenant_email as string;
+  const propertyName = (link.property as unknown as { name: string } | null)?.name ?? 'your property';
+  const landlordName = (profile?.full_name as string | null) ?? null;
+
+  let magicLink: string | null = null;
+  let otpCode: string | null = null;
+  try {
+    const admin = createAdminClient();
+    const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/tenant-onboarding`;
+    const { data: linkData } = await admin.auth.admin.generateLink({
+      type: 'magiclink',
+      email: tenantEmail,
+      options: { redirectTo: callbackUrl },
+    });
+    magicLink = linkData?.properties?.action_link ?? null;
+    otpCode = linkData?.properties?.email_otp ?? null;
+  } catch (err) {
+    console.error('generateLink failed for resend:', err);
+  }
+
+  await sendTenantInviteEmail({ to: tenantEmail, propertyName, landlordName, magicLink, otpCode });
 }

@@ -45,7 +45,7 @@ import {
 import Link from 'next/link';
 import { timeAgo } from '@/lib/utils';
 import { PhotoLightbox } from '@/components/PhotoLightbox';
-import { approveTenantRequest, convertToWorkOrder, inviteTenantByEmail, rejectTenantRequest, removeTenant, updateTenantNotes } from './actions';
+import { approveTenantRequest, convertToWorkOrder, inviteTenantByEmail, rejectTenantRequest, removeTenant, resendTenantInvite, updateTenantNotes } from './actions';
 
 export type PropertySummary = {
   id: string;
@@ -860,6 +860,9 @@ function TenantRow({
   const isDirty = notes !== savedNotes;
   const isInviteSent = (link.profileMissing ?? false) && link.tenant_id === null;
   const isDeleted = (link.profileMissing ?? false) && link.tenant_id !== null;
+  const [resending, startResend] = useTransition();
+  const [resendError, setResendError] = useState('');
+  const [resendDone, setResendDone] = useState(false);
   const unitLabel = link.unit ? `Unit ${link.unit}` : null;
 
   const handleSaveNotes = () => {
@@ -885,14 +888,39 @@ function TenantRow({
             <div className="flex flex-wrap items-center gap-1.5">
               <p className="text-muted-foreground truncate">{link.tenant_email}</p>
               {isInviteSent && (
-                <span className="bg-muted text-muted-foreground inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium">
-                  Invite sent
-                </span>
+                <>
+                  <span className="bg-muted text-muted-foreground inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium">
+                    Invite sent
+                  </span>
+                  <button
+                    type="button"
+                    disabled={resending || resendDone}
+                    onClick={() => {
+                      setResendError('');
+                      setResendDone(false);
+                      startResend(async () => {
+                        try {
+                          await resendTenantInvite(link.id);
+                          setResendDone(true);
+                          setTimeout(() => setResendDone(false), 3000);
+                        } catch (err: unknown) {
+                          setResendError(err instanceof Error ? err.message : 'Failed to resend.');
+                        }
+                      });
+                    }}
+                    className="text-primary shrink-0 text-xs underline-offset-2 hover:underline disabled:opacity-50"
+                  >
+                    {resending ? 'Sending…' : resendDone ? 'Sent ✓' : 'Resend invite'}
+                  </button>
+                </>
               )}
               {isDeleted && (
                 <span className="bg-muted text-muted-foreground inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium">
                   Account deleted
                 </span>
+              )}
+              {resendError && (
+                <p className="text-destructive w-full text-xs">{resendError}</p>
               )}
             </div>
           ) : (

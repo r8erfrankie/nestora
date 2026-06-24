@@ -165,14 +165,17 @@ export async function sendTenantInviteEmail({
   to,
   propertyName,
   landlordName,
+  magicLink,
+  otpCode,
 }: {
   to: string;
   propertyName: string;
   landlordName?: string | null;
+  magicLink?: string | null;
+  otpCode?: string | null;
 }) {
-  // Link goes to a pre-filled login page. The tenant signs in via magic link
-  // and lands on /tenant-onboarding where their pre-approved link is waiting.
-  const acceptUrl = `${APP_URL}/login?email=${encodeURIComponent(to)}&redirectTo=${encodeURIComponent('/tenant-onboarding')}`;
+  const fallbackLoginUrl = `${APP_URL}/login?email=${encodeURIComponent(to)}&redirectTo=${encodeURIComponent('/tenant-onboarding')}`;
+  const ctaHref = magicLink ?? fallbackLoginUrl;
 
   const eyebrow = landlordName
     ? `Invitation from ${escapeHtml(landlordName)}`
@@ -183,6 +186,31 @@ export async function sendTenantInviteEmail({
   const intro = landlordName
     ? `<strong>${escapeHtml(landlordName)}</strong> uses Nestora to manage maintenance at <strong>${escapeHtml(propertyName)}</strong> and has invited you to connect as a tenant.`
     : `Your landlord uses Nestora to manage maintenance at <strong>${escapeHtml(propertyName)}</strong> and has invited you to connect as a tenant.`;
+
+  const otpBlock = otpCode
+    ? `
+            <!-- OTP code block -->
+            <div style="background:#f0fdf4;border:2px solid #d1fae5;border-radius:12px;padding:24px 20px;text-align:center;margin:4px 0 20px">
+              <p style="margin:0 0 6px;font-size:11px;font-weight:600;color:#6b7280;letter-spacing:0.1em;text-transform:uppercase">Your sign-in code</p>
+              <p style="margin:0;font-size:40px;font-weight:700;color:#111827;letter-spacing:0.25em;font-family:monospace">${otpCode}</p>
+              <p style="margin:8px 0 0;font-size:12px;color:#9ca3af">Expires in 24 hours · Enter this at gonestora.app/login</p>
+            </div>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px">
+              <tr>
+                <td style="border-top:1px solid #f3f4f6;width:44%"></td>
+                <td style="text-align:center;padding:0 12px;white-space:nowrap;font-size:12px;color:#9ca3af">or accept directly</td>
+                <td style="border-top:1px solid #f3f4f6;width:44%"></td>
+              </tr>
+            </table>`
+    : '';
+
+  const linkBlock = magicLink
+    ? `
+            <p style="margin:16px 0 0;font-size:13px;color:#6b7280;line-height:1.6">
+              Or copy and paste this link into your browser:<br>
+              <span style="color:${BRAND_COLOR};word-break:break-all">${magicLink}</span>
+            </p>`
+    : '';
 
   await resend.emails.send({
     from: FROM,
@@ -224,13 +252,15 @@ export async function sendTenantInviteEmail({
               ${intro}
               Once you accept, you can submit and track maintenance requests directly from your phone — no calls or texts needed.
             </p>
-            <p style="margin:0 0 28px;font-size:15px;color:#374151;line-height:1.65">
+            <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.65">
               Setting up your account takes under two minutes.
             </p>
-            <a href="${acceptUrl}"
+            ${otpBlock}
+            <a href="${ctaHref}"
                style="display:inline-block;padding:13px 28px;background:${BRAND_COLOR};color:#ffffff;font-size:14px;font-weight:600;border-radius:8px;text-decoration:none;letter-spacing:0.01em">
               Accept Invitation
             </a>
+            ${linkBlock}
           </td>
         </tr>
         ${INSTALL_BLOCK}
