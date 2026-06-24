@@ -164,17 +164,15 @@ export async function sendTenantAccessGrantedEmail({
 export async function sendTenantInviteEmail({
   to,
   propertyName,
-  joinCode,
   landlordName,
 }: {
   to: string;
   propertyName: string;
-  joinCode: string;
   landlordName?: string | null;
 }) {
-  // Route through /login so the tenant's email is pre-filled and redirectTo
-  // carries the join code through the magic-link round-trip.
-  const acceptUrl = `${APP_URL}/login?email=${encodeURIComponent(to)}&redirectTo=${encodeURIComponent(`/tenant-onboarding?join=${joinCode}`)}`;
+  // Link goes to a pre-filled login page. The tenant signs in via magic link
+  // and lands on /tenant-onboarding where their pre-approved link is waiting.
+  const acceptUrl = `${APP_URL}/login?email=${encodeURIComponent(to)}&redirectTo=${encodeURIComponent('/tenant-onboarding')}`;
 
   const eyebrow = landlordName
     ? `Invitation from ${escapeHtml(landlordName)}`

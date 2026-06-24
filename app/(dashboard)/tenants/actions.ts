@@ -272,7 +272,7 @@ export async function inviteTenantByEmail(email: string, propertyId: string, uni
   const [{ data: property }, { data: landlordProfile }] = await Promise.all([
     supabase
       .from('properties')
-      .select('id, name, join_code')
+      .select('id, name')
       .eq('id', propertyId)
       .eq('user_id', user.id)
       .single(),
@@ -280,9 +280,6 @@ export async function inviteTenantByEmail(email: string, propertyId: string, uni
   ]);
 
   if (!property) throw new Error('Property not found');
-
-  const joinCode = property.join_code as string | null;
-  if (!joinCode) throw new Error('This property has no join code yet. Please try again.');
 
   const unitValue = unit?.trim() || null;
 
@@ -298,14 +295,16 @@ export async function inviteTenantByEmail(email: string, propertyId: string, uni
   }
 
   const admin = createAdminClient();
+  const now = new Date().toISOString();
 
   if (existing) {
-    // Update existing link (pending, removed, or declined) back to a pending landlord invite.
-    // tenant_id is cleared so the tenant re-links their account when they accept.
+    // Re-invite: reset the link to approved so the tenant can sign in immediately.
+    // tenant_id is cleared so the profile-completion gate fires when they sign in.
     const { error } = await admin
       .from('tenant_property_links')
       .update({
-        status: 'pending',
+        status: 'approved',
+        approved_at: now,
         initiated_by: 'landlord',
         unit: unitValue ?? (existing.unit as string | null),
         tenant_id: null,
@@ -319,7 +318,8 @@ export async function inviteTenantByEmail(email: string, propertyId: string, uni
         landlord_id: user.id,
         property_id: propertyId,
         tenant_email: normalizedEmail,
-        status: 'pending',
+        status: 'approved',
+        approved_at: now,
         initiated_by: 'landlord',
         unit: unitValue,
       });
@@ -330,7 +330,6 @@ export async function inviteTenantByEmail(email: string, propertyId: string, uni
   sendTenantInviteEmail({
     to: normalizedEmail,
     propertyName: property.name as string,
-    joinCode,
     landlordName,
   }).catch((err) => { console.error('Invite email failed:', err); });
 

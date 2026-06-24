@@ -342,20 +342,6 @@ export default async function TenantOnboardingPage({
 
     const existingLink = links?.find((l) => l.property_id === property.id)
 
-    // ── Auto-approve pending landlord invites ─────────────────────────────────
-    // When the landlord pre-created the link as pending, accept it automatically
-    // on the tenant's behalf the moment they arrive with the correct join code.
-    if (existingLink?.status === 'pending' && (existingLink.initiated_by as string) === 'landlord') {
-      const adminClient = createAdminClient()
-      // Guard: only set role when null — never override landlord/contractor.
-      await supabase.from('profiles').update({ role: 'tenant' }).eq('id', user.id).is('role', null)
-      await adminClient
-        .from('tenant_property_links')
-        .update({ status: 'approved', approved_at: new Date().toISOString(), tenant_id: user.id })
-        .eq('id', existingLink.id)
-      redirect('/tenant-onboarding')
-    }
-
     // ── Pending ────────────────────────────────────────────────────────────────
     if (existingLink?.status === 'pending') {
       return (
@@ -512,26 +498,6 @@ export default async function TenantOnboardingPage({
   }
 
   // ── No join code — show code entry ─────────────────────────────────────────────
-  // Fallback: auto-approve any pending landlord invites even without a join code.
-  // Handles the case where ?join= was lost during the magic-link round-trip.
-  const pendingLandlordLinks = pendingLinks.filter(
-    (l) => (l.initiated_by as string) === 'landlord'
-  )
-  if (pendingLandlordLinks.length > 0) {
-    const adminClient = createAdminClient()
-    // Guard: only set role when null — never override landlord/contractor.
-    await supabase.from('profiles').update({ role: 'tenant' }).eq('id', user.id).is('role', null)
-    await Promise.all(
-      pendingLandlordLinks.map((l) =>
-        adminClient
-          .from('tenant_property_links')
-          .update({ status: 'approved', approved_at: new Date().toISOString(), tenant_id: user.id })
-          .eq('id', l.id)
-      )
-    )
-    redirect('/tenant-onboarding')
-  }
-
   // Fetch property names + join codes for pending and declined links so the list
   // is meaningful and declined rows can link to the re-request flow.
   const linkedPropertyIds = [
