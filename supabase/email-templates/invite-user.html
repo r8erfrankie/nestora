@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f0fdf4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdf4;padding:40px 16px">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;border:1px solid #d1fae5;overflow:hidden">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:#0F766E;padding:16px 32px">
+            <table cellpadding="0" cellspacing="0" border="0" role="presentation"><tr>
+              <td style="padding-right:10px;vertical-align:middle">
+                <img src="https://gonestora.app/icons/icon-192.png" width="30" height="30" alt="" style="display:block;border-radius:6px">
+              </td>
+              <td style="vertical-align:middle">
+                <img src="https://gonestora.app/nestora-wordmark-white.png" width="84" height="28" alt="Nestora" style="display:block">
+              </td>
+            </tr></table>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:32px 32px 24px">
+            <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#0F766E;letter-spacing:0.06em;text-transform:uppercase">You're invited</p>
+            <h1 style="margin:0 0 12px;font-size:22px;font-weight:700;color:#111827;line-height:1.3">
+              You've been invited to Nestora
+            </h1>
+            <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.65">
+              Enter this code in the Nestora app to accept your invite and set up your account.
+            </p>
+
+            <!-- Prominent code block -->
+            <div style="background:#f0fdf4;border:2px solid #d1fae5;border-radius:12px;padding:24px 20px;text-align:center;margin-bottom:28px">
+              <p style="margin:0 0 6px;font-size:11px;font-weight:600;color:#6b7280;letter-spacing:0.1em;text-transform:uppercase">Your 6-digit code</p>
+              <p style="margin:0;font-size:40px;font-weight:700;color:#111827;letter-spacing:0.25em;font-family:monospace">{{ .Token }}</p>
+              <p style="margin:8px 0 0;font-size:12px;color:#9ca3af">Expires in 24 hours · Enter this in the Nestora app</p>
+            </div>
+
+            <!-- Divider with "or" -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px">
+              <tr>
+                <td style="border-top:1px solid #f3f4f6;width:44%"></td>
+                <td style="text-align:center;padding:0 12px;white-space:nowrap;font-size:12px;color:#9ca3af">or accept directly</td>
+                <td style="border-top:1px solid #f3f4f6;width:44%"></td>
+              </tr>
+            </table>
+
+            <a href="{{ .ConfirmationURL }}"
+               style="display:inline-block;padding:13px 28px;background:#0F766E;color:#ffffff;font-size:14px;font-weight:600;border-radius:8px;text-decoration:none;letter-spacing:0.01em">
+              Accept Invite
+            </a>
+
+            <p style="margin:20px 0 0;font-size:13px;color:#6b7280;line-height:1.6">
+              Or copy and paste this link into your browser:<br>
+              <span style="color:#0F766E;word-break:break-all">{{ .ConfirmationURL }}</span>
+            </p>
+          </td>
+        </tr>
+
+        <!-- Get the app -->
+        <tr>
+          <td style="padding:0 32px 28px">
+            <table cellpadding="0" cellspacing="0" width="100%" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px">
+              <tr>
+                <td style="padding:16px 20px">
+                  <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#111827;letter-spacing:0.05em;text-transform:uppercase">Get the Nestora app</p>
+                  <p style="margin:0 0 14px;font-size:12px;color:#6b7280;line-height:1.5">No App Store needed — install directly from your browser at <a href="https://gonestora.app" style="color:#0F766E;font-weight:600;text-decoration:none">gonestora.app</a></p>
+                  <table cellpadding="0" cellspacing="0" width="100%">
+                    <tr>
+                      <td style="width:50%;vertical-align:top;padding-right:12px">
+                        <p style="margin:0 0 7px;font-size:12px;font-weight:600;color:#374151">iPhone &amp; iPad</p>
+                        <p style="margin:0 0 3px;font-size:12px;color:#6b7280;line-height:1.5">1. Open in <strong>Safari</strong></p>
+                        <p style="margin:0 0 3px;font-size:12px;color:#6b7280;line-height:1.5">2. Tap Share &#8593; &#8594; <strong>Add to Home Screen</strong></p>
+                        <p style="margin:0;font-size:12px;color:#6b7280;line-height:1.5">3. Tap <strong>Add</strong></p>
+                      </td>
+                      <td style="width:50%;vertical-align:top;padding-left:12px;border-left:1px solid #e5e7eb">
+                        <p style="margin:0 0 7px;font-size:12px;font-weight:600;color:#374151">Android</p>
+                        <p style="margin:0 0 3px;font-size:12px;color:#6b7280;line-height:1.5">1. Open in <strong>Chrome</strong></p>
+                        <p style="margin:0 0 3px;font-size:12px;color:#6b7280;line-height:1.5">2. Tap &#8942; menu &#8594; <strong>Add to Home Screen</strong></p>
+                        <p style="margin:0;font-size:12px;color:#6b7280;line-height:1.5">3. Tap <strong>Install</strong></p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Divider -->
+        <tr><td style="padding:0 32px"><div style="height:1px;background:#f3f4f6"></div></td></tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:20px 32px">
+            <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.6">
+              You received this because someone invited you to join Nestora.
+              If you weren't expecting this, you can safely ignore it — no account will be created without your action.
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
