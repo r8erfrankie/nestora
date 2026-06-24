@@ -48,8 +48,15 @@ function emailWrap(body: string) {
     <tr><td align="center">
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;border:1px solid #d1fae5;overflow:hidden">
         <tr>
-          <td style="background:${BRAND_COLOR};padding:20px 32px">
-            <span style="color:#ffffff;font-size:18px;font-weight:700;letter-spacing:-0.02em">Nestora</span>
+          <td style="background:${BRAND_COLOR};padding:16px 32px">
+            <table cellpadding="0" cellspacing="0" border="0" role="presentation"><tr>
+              <td style="padding-right:10px;vertical-align:middle">
+                <img src="${APP_URL}/icons/icon-192.png" width="30" height="30" alt="" style="display:block;border-radius:6px">
+              </td>
+              <td style="vertical-align:middle">
+                <img src="${APP_URL}/nestora-wordmark-white.png" width="84" height="28" alt="Nestora" style="display:block">
+              </td>
+            </tr></table>
           </td>
         </tr>
         ${body}
