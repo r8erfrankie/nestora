@@ -100,7 +100,6 @@ export async function createContractor(data: {
   //   • the contractor has no linked account yet (user_id is still null)
   if (normalizedEmail && !linkedUserId) {
     try {
-      const inviteToken = (inserted as unknown as Record<string, unknown>).invite_token as string | undefined;
       const { data: landlordProfile } = await supabase
         .from('profiles')
         .select('full_name')
@@ -108,19 +107,29 @@ export async function createContractor(data: {
         .single();
       const landlordName = (landlordProfile?.full_name as string | null) ?? null;
 
-      if (inviteToken) {
-        await sendContractorInviteEmail({
-          to: normalizedEmail,
-          contractorName: data.name.trim(),
-          landlordName,
-          inviteToken,
+      const admin = createAdminClient();
+      let otpCode: string | null = null;
+      try {
+        const { data: linkData } = await admin.auth.admin.generateLink({
+          type: 'magiclink',
+          email: normalizedEmail,
+          options: { redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/contractor/welcome` },
         });
-        // Record when the invite was sent.
-        await supabase
-          .from('contractors')
-          .update({ last_invited_at: new Date().toISOString() })
-          .eq('id', (inserted as unknown as Record<string, unknown>).id as string);
+        otpCode = linkData?.properties?.email_otp ?? null;
+      } catch (genErr) {
+        console.error('[createContractor] generateLink failed (non-fatal):', genErr);
       }
+
+      await sendContractorInviteEmail({
+        to: normalizedEmail,
+        contractorName: data.name.trim(),
+        landlordName,
+        otpCode,
+      });
+      await supabase
+        .from('contractors')
+        .update({ last_invited_at: new Date().toISOString() })
+        .eq('id', (inserted as unknown as Record<string, unknown>).id as string);
     } catch (emailError) {
       console.error('[createContractor] invitation email failed (non-fatal):', emailError);
     }
@@ -206,8 +215,6 @@ export async function resendContractorInvite(
     }
   }
 
-  if (!contractor.invite_token) return { success: false, error: 'No invite token found. Delete and re-add this contractor.' };
-
   // Fetch landlord name for personalization.
   const { data: profile } = await supabase
     .from('profiles')
@@ -216,11 +223,23 @@ export async function resendContractorInvite(
     .single();
   const landlordName = (profile?.full_name as string | null) ?? null;
 
+  let otpCode: string | null = null;
+  try {
+    const { data: linkData } = await admin.auth.admin.generateLink({
+      type: 'magiclink',
+      email: contractor.email as string,
+      options: { redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/contractor/welcome` },
+    });
+    otpCode = linkData?.properties?.email_otp ?? null;
+  } catch (genErr) {
+    console.error('[resendContractorInvite] generateLink failed (non-fatal):', genErr);
+  }
+
   await sendContractorInviteEmail({
     to: contractor.email as string,
     contractorName: contractor.name as string,
     landlordName,
-    inviteToken: contractor.invite_token as string,
+    otpCode,
   });
 
   await admin

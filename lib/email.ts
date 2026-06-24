@@ -260,14 +260,14 @@ export async function sendContractorInviteEmail({
   to,
   contractorName,
   landlordName,
-  inviteToken,
+  otpCode,
 }: {
   to: string;
   contractorName?: string | null;
   landlordName?: string | null;
-  inviteToken: string;
+  otpCode?: string | null;
 }) {
-  const acceptUrl = `${APP_URL}/accept-invite?token=${encodeURIComponent(inviteToken)}`;
+  const loginUrl = `${APP_URL}/login?email=${encodeURIComponent(to)}&redirectTo=${encodeURIComponent('/contractor/welcome')}${otpCode ? '&skipToCode=1' : ''}`;
 
   const eyebrow = landlordName ? `Invitation from ${escapeHtml(landlordName)}` : 'You have a new invitation';
   const headline = landlordName
@@ -277,6 +277,19 @@ export async function sendContractorInviteEmail({
   const body = landlordName
     ? `<strong>${escapeHtml(landlordName)}</strong> has added you as a contractor on Nestora. Once you accept, you'll be able to view and manage work orders assigned to you directly from your phone.`
     : `A property manager has added you as a contractor on Nestora. Once you accept, you'll be able to view and manage work orders assigned to you.`;
+
+  const otpBlock = otpCode
+    ? `
+            <!-- OTP code block -->
+            <div style="margin-top:24px">
+              <p style="margin:0 0 10px;font-size:13px;color:#374151;line-height:1.5">Your invitation includes a sign-in code. Enter it on the next screen:</p>
+              <div style="background:#f0fdf4;border:2px solid #d1fae5;border-radius:12px;padding:20px;text-align:center">
+                <p style="margin:0 0 6px;font-size:11px;font-weight:600;color:#6b7280;letter-spacing:0.1em;text-transform:uppercase">Sign-in code</p>
+                <p style="margin:0;font-size:40px;font-weight:700;color:#111827;letter-spacing:0.25em;font-family:monospace">${otpCode}</p>
+                <p style="margin:8px 0 0;font-size:12px;color:#9ca3af">Expires in 24 hours</p>
+              </div>
+            </div>`
+    : '';
 
   await resend.emails.send({
     from: FROM,
@@ -315,13 +328,14 @@ export async function sendContractorInviteEmail({
               ${headline}
             </h1>
             <p style="margin:0 0 8px;font-size:15px;color:#374151;line-height:1.65">${greeting}</p>
-            <p style="margin:0 0 28px;font-size:15px;color:#374151;line-height:1.65">
+            <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.65">
               ${body}
             </p>
-            <a href="${acceptUrl}"
+            <a href="${loginUrl}"
                style="display:inline-block;padding:13px 28px;background:${BRAND_COLOR};color:#ffffff;font-size:14px;font-weight:600;border-radius:8px;text-decoration:none;letter-spacing:0.01em">
-              Accept Invitation
+              Accept Invitation →
             </a>
+            ${otpBlock}
           </td>
         </tr>
         ${INSTALL_BLOCK}
