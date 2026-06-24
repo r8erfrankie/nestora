@@ -26,6 +26,7 @@ export default function LoginClient() {
   // 6-digit OTP
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
   const [verifying, setVerifying] = useState(false);
+  const verifyingRef = useRef(false); // synchronous guard against concurrent calls
   const digitRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const router = useRouter();
@@ -117,7 +118,8 @@ export default function LoginClient() {
 
   // ── Step 2: verify the 6-digit code ────────────────────────────────────────
   const handleVerify = async (codeStr: string) => {
-    if (codeStr.length !== 6 || verifying) return;
+    if (codeStr.length !== 6 || verifyingRef.current) return;
+    verifyingRef.current = true;
     setVerifying(true);
     setError('');
 
@@ -142,6 +144,7 @@ export default function LoginClient() {
     } catch {
       setError('Something went wrong. Please try again.');
     } finally {
+      verifyingRef.current = false;
       setVerifying(false);
     }
   };
@@ -350,12 +353,10 @@ export default function LoginClient() {
                       disabled={!codeComplete || verifying}
                       className={cn(
                         'flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-all touch-manipulation sm:h-11',
-                        !codeComplete || verifying
-                          ? 'cursor-not-allowed bg-teal-700/30 text-teal-700/60'
-                          : 'bg-teal-700 text-white shadow-sm shadow-teal-700/20 hover:bg-teal-800 active:scale-[0.985]'
+                        'cursor-not-allowed bg-teal-700/30 text-teal-700/60'
                       )}
                     >
-                      {verifying
+                      {verifying || codeComplete
                         ? <><Loader2 className="h-4 w-4 animate-spin" />Verifying…</>
                         : <>Sign in<CheckCircle2 className="h-4 w-4" /></>}
                     </button>
