@@ -15,8 +15,10 @@ export default function LoginClient() {
   const urlError = searchParams.get('error');
   const redirectTo = searchParams.get('redirectTo') ?? '';
   const emailParam = searchParams.get('email') ?? '';
+  const skipToCode = searchParams.get('skipToCode') === '1';
+  const startAtCode = skipToCode && !!emailParam;
 
-  const [step, setStep] = useState<Step>('email');
+  const [step, setStep] = useState<Step>(startAtCode ? 'code' : 'email');
   const [email, setEmail] = useState(emailParam);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -30,8 +32,12 @@ export default function LoginClient() {
   const emailInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    emailInputRef.current?.focus();
-  }, []);
+    if (startAtCode) {
+      setTimeout(() => digitRefs.current[0]?.focus(), 60);
+    } else {
+      emailInputRef.current?.focus();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cooldown (rate-limit guard)
   const [cooldownEnd, setCooldownEnd] = useState<number | null>(null);
@@ -294,8 +300,12 @@ export default function LoginClient() {
                 /* ── Code entry ── */
                 <div className="flex flex-1 flex-col">
                   <div className="mb-6 text-center">
-                    <h2 className="text-xl font-semibold text-gray-900">Enter your code</h2>
-                    <p className="mt-1.5 text-sm text-gray-500">Sent to</p>
+                    <h2 className="text-xl font-semibold text-gray-900">
+                      {startAtCode ? 'Enter your invitation code' : 'Enter your code'}
+                    </h2>
+                    <p className="mt-1.5 text-sm text-gray-500">
+                      {startAtCode ? 'From your invitation email — signing in as' : 'Sent to'}
+                    </p>
                     <p className="mt-1 inline-block rounded-lg bg-gray-50 px-3 py-1 text-sm font-medium text-gray-800">
                       {trimmedEmail}
                     </p>
@@ -373,7 +383,9 @@ export default function LoginClient() {
                     </div>
 
                     <p className="text-center text-xs text-gray-400">
-                      You can also tap the link in the email instead.
+                      {startAtCode
+                        ? 'Code expired? Use the one-click link in your invitation email.'
+                        : 'You can also tap the link in the email instead.'}
                     </p>
                   </div>
                 </div>

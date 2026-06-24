@@ -174,7 +174,7 @@ export async function sendTenantInviteEmail({
   magicLink?: string | null;
   otpCode?: string | null;
 }) {
-  const loginUrl = `${APP_URL}/login?email=${encodeURIComponent(to)}&redirectTo=${encodeURIComponent('/tenant-onboarding')}`;
+  const loginUrl = `${APP_URL}/login?email=${encodeURIComponent(to)}&redirectTo=${encodeURIComponent('/tenant-onboarding')}${otpCode ? '&skipToCode=1' : ''}`;
 
   const eyebrow = landlordName
     ? `Invitation from ${escapeHtml(landlordName)}`
