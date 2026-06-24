@@ -44,20 +44,14 @@ export async function sendTenantAccessGrantedEmail({
   to,
   propertyName,
   landlordName,
-  magicLink,
   otpCode,
 }: {
   to: string;
   propertyName: string;
   landlordName?: string | null;
-  magicLink?: string | null;
   otpCode?: string | null;
 }) {
-  // Primary CTA: magic link → one click to sign in and land on /tenant.
-  // Fallback: /login pre-filled with their email so they just click "Send code".
-  const fallbackLoginUrl = `${APP_URL}/login?email=${encodeURIComponent(to)}&redirectTo=${encodeURIComponent('/tenant')}`;
-  const ctaHref = magicLink ?? fallbackLoginUrl;
-  const ctaLabel = magicLink ? 'Open My Dashboard' : 'Sign In to Dashboard';
+  const loginUrl = `${APP_URL}/login?email=${encodeURIComponent(to)}&redirectTo=${encodeURIComponent('/tenant')}${otpCode ? '&skipToCode=1' : ''}`;
 
   const eyebrow = landlordName
     ? `Approved by ${escapeHtml(landlordName)}`
@@ -66,26 +60,17 @@ export async function sendTenantAccessGrantedEmail({
     ? `<strong>${escapeHtml(landlordName)}</strong> has approved your access to <strong>${escapeHtml(propertyName)}</strong>.`
     : `Your landlord has approved your access to <strong>${escapeHtml(propertyName)}</strong>.`;
 
-  // Render the OTP digits as styled boxes (works reliably across email clients).
   const otpBlock = otpCode
     ? `
-        <!-- OTP fallback -->
+        <!-- OTP code block -->
         <tr><td style="padding:0 32px 24px">
           <div style="border-top:1px solid #f3f4f6;padding-top:24px">
-            <p style="margin:0 0 4px;font-size:12px;font-weight:600;color:#6b7280;letter-spacing:0.06em;text-transform:uppercase">Sign-in code</p>
-            <p style="margin:0 0 14px;font-size:13px;color:#6b7280;line-height:1.5">
-              If the button doesn&apos;t work, visit
-              <a href="${fallbackLoginUrl}" style="color:${BRAND_COLOR}">gonestora.app</a>,
-              enter your email, and type this code when prompted.
-            </p>
-            <div style="display:inline-block">
-              <table cellpadding="0" cellspacing="0"><tr>
-                ${otpCode.split('').map(d =>
-                  `<td style="padding:0 3px"><div style="width:40px;height:48px;line-height:48px;text-align:center;font-size:22px;font-weight:700;color:#111827;background:#f9fafb;border:2px solid #e5e7eb;border-radius:8px">${d}</div></td>`
-                ).join('')}
-              </tr></table>
+            <p style="margin:0 0 10px;font-size:13px;color:#374151;line-height:1.5">Tap the button above, then enter this code to sign in:</p>
+            <div style="background:#f0fdf4;border:2px solid #d1fae5;border-radius:12px;padding:20px;text-align:center">
+              <p style="margin:0 0 6px;font-size:11px;font-weight:600;color:#6b7280;letter-spacing:0.1em;text-transform:uppercase">Sign-in code</p>
+              <p style="margin:0;font-size:40px;font-weight:700;color:#111827;letter-spacing:0.25em;font-family:monospace">${otpCode}</p>
+              <p style="margin:8px 0 0;font-size:12px;color:#9ca3af">Expires in 24 hours</p>
             </div>
-            <p style="margin:10px 0 0;font-size:12px;color:#9ca3af">This code expires in 24 hours.</p>
           </div>
         </td></tr>`
     : '';
@@ -128,11 +113,10 @@ export async function sendTenantAccessGrantedEmail({
               ${intro}
               You can now submit and track maintenance requests directly from your Nestora dashboard — no phone calls or texts needed.
             </p>
-            <a href="${ctaHref}"
+            <a href="${loginUrl}"
                style="display:inline-block;padding:14px 32px;background:${BRAND_COLOR};color:#ffffff;font-size:15px;font-weight:600;border-radius:8px;text-decoration:none;letter-spacing:0.01em">
-              ${ctaLabel} →
+              Sign In to Dashboard →
             </a>
-            ${magicLink ? `<p style="margin:12px 0 0;font-size:12px;color:#9ca3af">This link signs you in automatically. It can only be used once.</p>` : ''}
           </td>
         </tr>
 
@@ -165,13 +149,11 @@ export async function sendTenantInviteEmail({
   to,
   propertyName,
   landlordName,
-  magicLink,
   otpCode,
 }: {
   to: string;
   propertyName: string;
   landlordName?: string | null;
-  magicLink?: string | null;
   otpCode?: string | null;
 }) {
   const loginUrl = `${APP_URL}/login?email=${encodeURIComponent(to)}&redirectTo=${encodeURIComponent('/tenant-onboarding')}${otpCode ? '&skipToCode=1' : ''}`;
@@ -199,13 +181,6 @@ export async function sendTenantInviteEmail({
             </div>`
     : '';
 
-  const linkBlock = magicLink
-    ? `
-            <p style="margin:20px 0 0;font-size:12px;color:#9ca3af;line-height:1.6">
-              Prefer a one-click link?<br>
-              <a href="${magicLink}" style="color:${BRAND_COLOR};word-break:break-all">${magicLink}</a>
-            </p>`
-    : '';
 
   await resend.emails.send({
     from: FROM,
@@ -255,7 +230,6 @@ export async function sendTenantInviteEmail({
               Accept Invitation
             </a>
             ${otpBlock}
-            ${linkBlock}
           </td>
         </tr>
         ${INSTALL_BLOCK}

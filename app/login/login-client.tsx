@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -29,7 +29,6 @@ export default function LoginClient() {
   const verifyingRef = useRef(false); // synchronous guard against concurrent calls
   const digitRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  const router = useRouter();
   const emailInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -136,10 +135,10 @@ export default function LoginClient() {
         setDigits(['', '', '', '', '', '']);
         setTimeout(() => digitRefs.current[0]?.focus(), 60);
       } else {
-        // router.push keeps the SPA alive — no WebView restart, no iOS PWA
-        // splash screen flash. The session cookie was written synchronously by
-        // verifyOtp so the server will see it on the next fetch.
-        router.push(redirectTo || '/');
+        // Hard redirect so only the server-side Supabase client uses the new
+        // session — router.push causes both client and server to race on the
+        // same refresh token, producing "refresh_token_already_used" errors.
+        window.location.href = redirectTo || '/';
       }
     } catch {
       setError('Something went wrong. Please try again.');
@@ -385,8 +384,8 @@ export default function LoginClient() {
 
                     <p className="text-center text-xs text-gray-400">
                       {startAtCode
-                        ? 'Code expired? Use the one-click link in your invitation email.'
-                        : 'You can also tap the link in the email instead.'}
+                        ? 'Code expired? Hit Resend above to get a new one.'
+                        : 'Check your spam folder if the email doesn’t arrive.'}
                     </p>
                   </div>
                 </div>

@@ -155,7 +155,7 @@ export async function approveTenantRequest(linkId: string) {
     }
 
     try {
-      await sendTenantAccessGrantedEmail({ to: tenantEmail, propertyName, landlordName, magicLink, otpCode });
+      await sendTenantAccessGrantedEmail({ to: tenantEmail, propertyName, landlordName, otpCode });
     } catch (err) {
       console.error('Approval email failed:', err);
     }
@@ -350,7 +350,6 @@ export async function inviteTenantByEmail(email: string, propertyId: string, uni
         to: normalizedEmail,
         propertyName: property.name as string,
         landlordName,
-        magicLink,
         otpCode,
       });
     } catch (err) {
@@ -402,5 +401,5 @@ export async function resendTenantInvite(linkId: string) {
     console.error('generateLink failed for resend:', err);
   }
 
-  await sendTenantInviteEmail({ to: tenantEmail, propertyName, landlordName, magicLink, otpCode });
+  await sendTenantInviteEmail({ to: tenantEmail, propertyName, landlordName, otpCode });
 }
