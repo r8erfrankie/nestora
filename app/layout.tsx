@@ -54,7 +54,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="bg-background text-foreground h-full">
+      <body className="bg-white text-foreground h-full">
         {children}
         <Toaster position="top-right" richColors />
         <MobileFocusHandler />
