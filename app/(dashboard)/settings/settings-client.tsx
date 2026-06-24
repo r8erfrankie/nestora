@@ -19,6 +19,8 @@ import { PhoneInput } from '@/components/ui/phone-input';
 import { updateProfile, requestEmailChange } from './actions';
 import { DeleteAccountButton } from './delete-account-button';
 import { SupportSection } from './support-section';
+import { NotificationPreferencesSection } from './notification-preferences';
+import { type NotificationPrefs } from './notification-actions';
 
 const CONTRACTOR_TRADES = [
   'Plumbing',
@@ -40,6 +42,7 @@ interface SettingsClientProps {
   ecPhone: string | null;
   companyName: string | null;
   trade: string | null;
+  notifPrefs: NotificationPrefs;
 }
 
 export function SettingsClient({
@@ -51,6 +54,7 @@ export function SettingsClient({
   ecPhone: initialEcPhone,
   companyName: initialCompanyName,
   trade: initialTrade,
+  notifPrefs,
 }: SettingsClientProps) {
   const [name, setName] = useState(fullName ?? '');
   const [phone, setPhone] = useState<string | undefined>(initialPhone ?? undefined);
@@ -350,6 +354,13 @@ export function SettingsClient({
         </Button>
         {saved && <span className="text-sm text-emerald-600">Saved successfully.</span>}
         {error && <span className="text-destructive text-sm">{error}</span>}
+      </div>
+
+      <Separator />
+
+      {/* Notifications */}
+      <div className="divide-y rounded-none border-y">
+        <NotificationPreferencesSection initialPrefs={notifPrefs} />
       </div>
 
       <Separator />

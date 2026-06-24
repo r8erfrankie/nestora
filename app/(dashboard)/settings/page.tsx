@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { SettingsClient } from './settings-client';
+import { getNotificationPreferences } from './notification-actions';
 
 export const metadata = { title: 'Settings' };
 
@@ -12,11 +13,14 @@ export default async function SettingsPage() {
 
   if (!user) redirect('/login');
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, full_name, phone, emergency_contact_name, emergency_contact_phone, company_name, trade')
-    .eq('id', user.id)
-    .single();
+  const [{ data: profile }, notifPrefs] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('role, full_name, phone, emergency_contact_name, emergency_contact_phone, company_name, trade')
+      .eq('id', user.id)
+      .single(),
+    getNotificationPreferences(),
+  ]);
 
   return (
     <div className="p-6 max-w-2xl">
@@ -29,6 +33,7 @@ export default async function SettingsPage() {
         ecPhone={(profile?.emergency_contact_phone as string | null) ?? null}
         companyName={(profile?.company_name as string | null) ?? null}
         trade={(profile?.trade as string | null) ?? null}
+        notifPrefs={notifPrefs}
       />
     </div>
   );
