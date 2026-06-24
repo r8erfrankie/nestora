@@ -19,7 +19,6 @@ export function createClient() {
     {
       auth: { flowType: 'pkce' },
       cookieOptions: {
-        domain: process.env.NODE_ENV === 'production' ? '.gonestora.app' : undefined,
         path: '/',
         sameSite: 'lax',
         secure: process.env.NODE_ENV === 'production',
