@@ -80,7 +80,13 @@ export async function deleteAccount() {
 
   const admin = createAdminClient();
 
-  // Delete profile first to avoid FK constraint issues before removing the auth record
+  // Null out tenant_id on any property links so the FK doesn't block profile deletion.
+  await admin
+    .from('tenant_property_links')
+    .update({ tenant_id: null })
+    .eq('tenant_id', user.id);
+
+  // Remove the profile row before the auth user so cascades resolve cleanly.
   await admin.from('profiles').delete().eq('id', user.id);
 
   const { error } = await admin.auth.admin.deleteUser(user.id);
@@ -89,7 +95,6 @@ export async function deleteAccount() {
     throw new Error('Failed to delete account');
   }
 
-  // Clear session cookies; may fail since the user record is already gone
   try {
     await supabase.auth.signOut();
   } catch { /* non-fatal */ }
