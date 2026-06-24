@@ -15,9 +15,7 @@ function validRole(value: string | undefined): 'landlord' | 'contractor' | 'tena
 }
 
 export async function proxy(request: NextRequest) {
-  let response = NextResponse.next({
-    request: { headers: request.headers },
-  })
+  let response = NextResponse.next({ request })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,6 +26,11 @@ export async function proxy(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
+          // Patch the request cookies so server components on this same request
+          // see the refreshed tokens — without this, they read stale cookies and
+          // try to re-refresh, triggering "refresh_token_already_used" errors.
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          response = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
           )
