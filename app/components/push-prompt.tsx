@@ -30,37 +30,21 @@ function urlBase64ToUint8Array(base64: string) {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
-// navigator.serviceWorker.ready requires the SW to *control* the current page,
-// which iOS often delays after rapid SW updates. getRegistration() resolves
-// immediately with whatever state the SW is in — no controller requirement.
+// Returns the active SW registration. Never attempts its own register() call —
+// the root layout handles that. Calling register() after iOS clears website data
+// throws until the PWA is fully restarted, producing misleading errors.
 async function swReady(): Promise<ServiceWorkerRegistration> {
   const existing = await navigator.serviceWorker.getRegistration('/');
-
-  // Active SW already exists — use it directly.
   if (existing?.active) return existing;
 
-  // SW is registered but still installing/waiting — wait for it to activate.
-  // Do NOT call register() again here; that forces a script re-fetch which
-  // fails on spotty connections and shows "sw.js load failed" to the user.
-  if (existing) {
-    return Promise.race([
-      navigator.serviceWorker.ready,
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('App not ready. Try closing and reopening Nestora.')), 15_000)
-      ),
-    ]);
-  }
-
-  // No registration at all (truly first time) — register fresh.
-  try {
-    await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-  } catch {
-    throw new Error('Could not start background services. Try closing and reopening Nestora.');
-  }
+  // SW registered but still installing/waiting (or page just opened) — wait.
   return Promise.race([
     navigator.serviceWorker.ready,
     new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('App not ready. Try closing and reopening Nestora.')), 15_000)
+      setTimeout(
+        () => reject(new Error('Close the app completely, reopen it, then try again.')),
+        20_000
+      )
     ),
   ]);
 }

@@ -12,27 +12,15 @@ const SUBSCRIBE_TIMEOUT_MS = 20_000;
 
 async function swReady(): Promise<ServiceWorkerRegistration> {
   const existing = await navigator.serviceWorker.getRegistration('/');
-
   if (existing?.active) return existing;
 
-  if (existing) {
-    return Promise.race([
-      navigator.serviceWorker.ready,
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('App not ready. Try closing and reopening Nestora.')), 15_000)
-      ),
-    ]);
-  }
-
-  try {
-    await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-  } catch {
-    throw new Error('Could not start background services. Try closing and reopening Nestora.');
-  }
   return Promise.race([
     navigator.serviceWorker.ready,
     new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('App not ready. Try closing and reopening Nestora.')), 15_000)
+      setTimeout(
+        () => reject(new Error('Close the app completely, reopen it, then try again.')),
+        20_000
+      )
     ),
   ]);
 }
