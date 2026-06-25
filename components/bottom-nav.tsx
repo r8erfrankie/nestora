@@ -132,7 +132,8 @@ export function BottomNav({
             </button>
           )}
         </div>
-        <div style={{ height: 'env(safe-area-inset-bottom)' }} />
+        {/* Cap safe area at 40px — prevents iOS Safari browser chrome from inflating this */}
+        <div style={{ height: 'min(env(safe-area-inset-bottom, 0px), 40px)' }} />
       </nav>
 
       {/* Full nav drawer — slides up from bottom */}

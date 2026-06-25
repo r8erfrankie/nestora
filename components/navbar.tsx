@@ -42,7 +42,7 @@ export async function Navbar({
   return (
     <header
       className="border-border bg-background/95 supports-[backdrop-filter]:bg-background/60 z-40 border-b backdrop-blur"
-      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      style={{ paddingTop: 'min(env(safe-area-inset-top, 0px), 54px)' }}
     >
       <div className="flex h-14 items-center justify-end px-6 gap-1.5">
 
