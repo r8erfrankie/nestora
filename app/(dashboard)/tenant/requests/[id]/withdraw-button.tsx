@@ -8,11 +8,18 @@ export function WithdrawButton({ requestId }: { requestId: string }) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState('');
 
   const handleWithdraw = () => {
+    setError('');
     startTransition(async () => {
-      await withdrawTenantRequest(requestId);
-      router.push('/tenant');
+      try {
+        await withdrawTenantRequest(requestId);
+        router.push('/tenant');
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Something went wrong.');
+        setConfirming(false);
+      }
     });
   };
 
@@ -40,12 +47,15 @@ export function WithdrawButton({ requestId }: { requestId: string }) {
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => setConfirming(true)}
-      className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2 transition-colors"
-    >
-      Withdraw this request
-    </button>
+    <div className="space-y-1">
+      {error && <p className="text-xs text-destructive">{error}</p>}
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2 transition-colors"
+      >
+        Withdraw this request
+      </button>
+    </div>
   );
 }
