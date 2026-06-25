@@ -41,6 +41,7 @@ export async function withdrawTenantRequest(requestId: string): Promise<void> {
     );
 
   revalidatePath('/tenant');
+  revalidatePath('/tenants');
 }
 
 export async function unarchiveTenantRequest(requestId: string): Promise<void> {
