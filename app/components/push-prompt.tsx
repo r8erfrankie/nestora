@@ -32,13 +32,31 @@ function urlBase64ToUint8Array(base64: string) {
 
 // navigator.serviceWorker.ready requires the SW to *control* the current page,
 // which iOS often delays after rapid SW updates. getRegistration() resolves
-// immediately if a SW is already registered — no controller requirement.
+// immediately with whatever state the SW is in — no controller requirement.
 async function swReady(): Promise<ServiceWorkerRegistration> {
   const existing = await navigator.serviceWorker.getRegistration('/');
+
+  // Active SW already exists — use it directly.
   if (existing?.active) return existing;
 
-  // Nothing active yet — re-register and wait up to 15s.
-  await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+  // SW is registered but still installing/waiting — wait for it to activate.
+  // Do NOT call register() again here; that forces a script re-fetch which
+  // fails on spotty connections and shows "sw.js load failed" to the user.
+  if (existing) {
+    return Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('App not ready. Try closing and reopening Nestora.')), 15_000)
+      ),
+    ]);
+  }
+
+  // No registration at all (truly first time) — register fresh.
+  try {
+    await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+  } catch {
+    throw new Error('Could not start background services. Try closing and reopening Nestora.');
+  }
   return Promise.race([
     navigator.serviceWorker.ready,
     new Promise<never>((_, reject) =>
