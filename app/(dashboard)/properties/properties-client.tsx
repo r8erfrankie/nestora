@@ -41,12 +41,14 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Plus, Eye, Edit2, Trash2, Loader2, Building2, AlertTriangle } from 'lucide-react';
+import { UNIT_LABEL_OPTIONS } from '@/lib/unit-label';
 
 interface Property {
   id: string;
   name: string;
   address: string | null;
   type: string | null;
+  unit_label_type: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -56,6 +58,7 @@ interface FormData {
   name: string;
   address: string;
   type: string;
+  unit_label_type: string;
   notes: string;
 }
 
@@ -80,7 +83,7 @@ export function PropertiesClient({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'create' | 'edit' | 'view'>('create');
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
-  const [form, setForm] = useState<FormData>({ name: '', address: '', type: '', notes: '' });
+  const [form, setForm] = useState<FormData>({ name: '', address: '', type: '', unit_label_type: 'unit', notes: '' });
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -99,7 +102,7 @@ export function PropertiesClient({
   const openCreate = () => {
     setDialogMode('create');
     setSelectedProperty(null);
-    setForm({ name: '', address: '', type: '', notes: '' });
+    setForm({ name: '', address: '', type: '', unit_label_type: 'unit', notes: '' });
     setFormError('');
     setIsDialogOpen(true);
   };
@@ -120,6 +123,7 @@ export function PropertiesClient({
       name: property.name,
       address: property.address || '',
       type: property.type || '',
+      unit_label_type: property.unit_label_type || 'unit',
       notes: property.notes || '',
     });
     setFormError('');
@@ -131,7 +135,7 @@ export function PropertiesClient({
     // Small delay to allow animation before resetting
     setTimeout(() => {
       setSelectedProperty(null);
-      setForm({ name: '', address: '', type: '', notes: '' });
+      setForm({ name: '', address: '', type: '', unit_label_type: 'unit', notes: '' });
       setFormError('');
     }, 200);
   };
@@ -166,6 +170,7 @@ export function PropertiesClient({
         name: trimmedName,
         address: form.address.trim() || null,
         type: form.type || null,
+        unit_label_type: form.unit_label_type || 'unit',
         notes: form.notes.trim() || null,
       };
 
@@ -370,7 +375,7 @@ export function PropertiesClient({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <div className="text-muted-foreground mb-1 text-xs font-medium tracking-widest uppercase">
                     Type
@@ -380,6 +385,12 @@ export function PropertiesClient({
                       <span className="text-muted-foreground italic">Not specified</span>
                     )}
                   </div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground mb-1 text-xs font-medium tracking-widest uppercase">
+                    Unit Label
+                  </div>
+                  <div className="capitalize">{selectedProperty.unit_label_type ?? 'unit'}</div>
                 </div>
                 <div>
                   <div className="text-muted-foreground mb-1 text-xs font-medium tracking-widest uppercase">
@@ -447,24 +458,46 @@ export function PropertiesClient({
                 />
               </div>
 
-              <div className="space-y-1.5 sm:space-y-2">
-                <label className="text-sm font-medium">Property Type</label>
-                <Select
-                  value={form.type}
-                  onValueChange={(value) => handleFormChange('type', value || '')}
-                  disabled={saving}
-                >
-                  <SelectTrigger className="!h-11 sm:!h-8">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PROPERTY_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <label className="text-sm font-medium">Property Type</label>
+                  <Select
+                    value={form.type}
+                    onValueChange={(value) => handleFormChange('type', value || '')}
+                    disabled={saving}
+                  >
+                    <SelectTrigger className="!h-11 sm:!h-8">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROPERTY_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5 sm:space-y-2">
+                  <label className="text-sm font-medium">Unit Label</label>
+                  <Select
+                    value={form.unit_label_type}
+                    onValueChange={(value) => handleFormChange('unit_label_type', value || 'unit')}
+                    disabled={saving}
+                  >
+                    <SelectTrigger className="!h-11 sm:!h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {UNIT_LABEL_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="space-y-1.5 sm:space-y-2">

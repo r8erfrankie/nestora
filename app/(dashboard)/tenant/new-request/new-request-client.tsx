@@ -17,12 +17,14 @@ import {
 } from '@/components/ui/select';
 import { ArrowLeft, CheckCircle2, Loader2, X } from 'lucide-react';
 import { submitMaintenanceRequest } from './actions';
+import { formatUnit } from '@/lib/unit-label';
 
 type Property = {
   id: string;
   name: string;
   address: string | null;
   unit: string | null;
+  unit_label_type?: string | null;
 };
 
 const CATEGORIES = [
@@ -169,7 +171,7 @@ export function NewRequestClient({
             <p className="text-sm">
               {properties[0].name}
               {properties[0].unit && (
-                <span className="text-muted-foreground"> · Unit {properties[0].unit}</span>
+                <span className="text-muted-foreground"> · {formatUnit(properties[0].unit, properties[0].unit_label_type)}</span>
               )}
             </p>
           ) : (
@@ -188,7 +190,7 @@ export function NewRequestClient({
                 {properties.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.name}
-                    {p.unit ? ` · Unit ${p.unit}` : ''}
+                    {p.unit ? ` · ${formatUnit(p.unit, p.unit_label_type)}` : ''}
                   </SelectItem>
                 ))}
               </SelectContent>

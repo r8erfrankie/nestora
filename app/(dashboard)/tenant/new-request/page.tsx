@@ -41,7 +41,7 @@ export default async function NewRequestPage({
   const admin = createAdminClient();
   const { data: props } = await admin
     .from('properties')
-    .select('id, name, address')
+    .select('id, name, address, unit_label_type')
     .in('id', propertyIds);
 
   const unitMap: Record<string, string | null> = {};
@@ -54,6 +54,7 @@ export default async function NewRequestPage({
     name: p.name as string,
     address: (p.address ?? null) as string | null,
     unit: unitMap[p.id] ?? null,
+    unit_label_type: (p.unit_label_type ?? null) as string | null,
   }));
 
   // Validate the ?property= param — ignore IDs the tenant doesn't have access to.

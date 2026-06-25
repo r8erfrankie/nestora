@@ -91,26 +91,30 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
 export async function getNavData(): Promise<{
   role: UserRole;
   badges: { tenants: number; workOrders: number };
+  fullName: string | null;
+  email: string;
 }> {
   const NO_BADGES = { tenants: 0, workOrders: 0 };
 
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { role: 'landlord', badges: NO_BADGES };
+    if (!user) return { role: 'landlord', badges: NO_BADGES, fullName: null, email: '' };
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role, last_seen_tenants_at, last_seen_work_orders_at')
+      .select('role, full_name, last_seen_tenants_at, last_seen_work_orders_at')
       .eq('id', user.id)
       .single();
 
     const r = profile?.role;
     const effectiveRole: UserRole =
       r === 'landlord' || r === 'contractor' || r === 'tenant' ? r : 'landlord';
+    const fullName = (profile?.full_name as string | null) ?? null;
+    const email = user.email ?? '';
 
     if (effectiveRole !== 'landlord' || !profile) {
-      return { role: effectiveRole, badges: NO_BADGES };
+      return { role: effectiveRole, badges: NO_BADGES, fullName, email };
     }
 
     const lastSeenTenants    = profile.last_seen_tenants_at    as string | null;
@@ -152,9 +156,11 @@ export async function getNavData(): Promise<{
     return {
       role: effectiveRole,
       badges: { tenants: tenantsCount, workOrders: workOrdersCount },
+      fullName,
+      email,
     };
   } catch {
-    return { role: 'landlord', badges: NO_BADGES };
+    return { role: 'landlord', badges: NO_BADGES, fullName: null, email: '' };
   }
 }
 

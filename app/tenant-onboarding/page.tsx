@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PhoneInputField } from '@/components/ui/phone-input'
 import { Layers, Building2, Clock, AlertCircle, UserX, ArrowLeft, XCircle } from 'lucide-react'
+import { formatUnit, getLabelWord } from '@/lib/unit-label'
 
 export const metadata = { title: 'Set Up Your Tenant Account' }
 
@@ -302,7 +303,7 @@ export default async function TenantOnboardingPage({
     const admin = createAdminClient()
     const { data: property } = await admin
       .from('properties')
-      .select('id, name, address, user_id')
+      .select('id, name, address, user_id, unit_label_type')
       .eq('join_code', joinCode)
       .single()
 
@@ -363,7 +364,7 @@ export default async function TenantOnboardingPage({
               </CardHeader>
               <CardContent className="space-y-1 text-center">
                 {existingLink.unit && (
-                  <p className="text-muted-foreground text-sm">Unit {existingLink.unit}</p>
+                  <p className="text-muted-foreground text-sm">{formatUnit(existingLink.unit as string, property.unit_label_type as string | null)}</p>
                 )}
                 <p className="text-muted-foreground text-sm">
                   You&apos;ll be able to submit maintenance requests once approved.
@@ -416,6 +417,7 @@ export default async function TenantOnboardingPage({
                   prefillPhone={prefillPhone}
                   prefillECName={prefillECName}
                   prefillECPhone={prefillECPhone}
+                  unitLabelType={property.unit_label_type as string | null}
                   err={err}
                   submitLabel="Request Again"
                 />
@@ -476,6 +478,7 @@ export default async function TenantOnboardingPage({
                 prefillPhone={prefillPhone}
                 prefillECName={prefillECName}
                 prefillECPhone={prefillECPhone}
+                unitLabelType={property.unit_label_type as string | null}
                 err={err}
                 submitLabel="Request Access"
               />
@@ -506,17 +509,17 @@ export default async function TenantOnboardingPage({
       ...declinedLinks.map((l) => l.property_id),
     ]),
   ]
-  let propertyMap: Record<string, { name: string; joinCode: string | null }> = {}
+  let propertyMap: Record<string, { name: string; joinCode: string | null; unitLabelType?: string | null }> = {}
   if (linkedPropertyIds.length > 0) {
     const admin = createAdminClient()
     const { data: props } = await admin
       .from('properties')
-      .select('id, name, join_code')
+      .select('id, name, join_code, unit_label_type')
       .in('id', linkedPropertyIds)
     propertyMap = Object.fromEntries(
       (props ?? []).map((p) => [
         p.id,
-        { name: p.name as string, joinCode: p.join_code as string | null },
+        { name: p.name as string, joinCode: p.join_code as string | null, unitLabelType: (p.unit_label_type ?? null) as string | null },
       ])
     )
   }
@@ -548,7 +551,7 @@ export default async function TenantOnboardingPage({
                     {propertyMap[link.property_id]?.name ?? 'Property'}
                     {link.unit && (
                       <span className="text-muted-foreground font-normal">
-                        {' '}· Unit {link.unit}
+                        {' '}· {formatUnit(link.unit as string, propertyMap[link.property_id]?.unitLabelType)}
                       </span>
                     )}
                   </p>
@@ -578,7 +581,7 @@ export default async function TenantOnboardingPage({
                       {prop?.name ?? 'Property'}
                       {link.unit && (
                         <span className="text-muted-foreground font-normal">
-                          {' '}· Unit {link.unit}
+                          {' '}· {formatUnit(link.unit as string, prop?.unitLabelType)}
                         </span>
                       )}
                     </p>
@@ -737,6 +740,7 @@ function RequestForm({
   prefillPhone,
   prefillECName,
   prefillECPhone,
+  unitLabelType,
   err,
   submitLabel,
 }: {
@@ -749,6 +753,7 @@ function RequestForm({
   prefillPhone: string | null
   prefillECName: string | null
   prefillECPhone: string | null
+  unitLabelType?: string | null
   err: string | undefined
   submitLabel: string
 }) {
@@ -774,7 +779,7 @@ function RequestForm({
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <label htmlFor="unit" className="text-sm font-medium">
-            Unit{' '}
+            {getLabelWord(unitLabelType)}{' '}
             <span className="text-muted-foreground font-normal">(optional)</span>
           </label>
           <Input

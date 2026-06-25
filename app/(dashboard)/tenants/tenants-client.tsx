@@ -48,11 +48,13 @@ import { PhotoLightbox } from '@/components/PhotoLightbox';
 import { approveTenantRequest, convertToWorkOrder, inviteTenantByEmail, rejectTenantRequest, removeTenant, resendTenantInvite, updateTenantNotes } from './actions';
 import { LeaseSection } from './lease-section';
 import { type LeaseData } from './lease-actions';
+import { formatUnit, getLabelWord } from '@/lib/unit-label';
 
 export type PropertySummary = {
   id: string;
   name: string;
   address: string | null;
+  unit_label_type?: string | null;
 };
 
 export type TenantLink = {
@@ -79,6 +81,7 @@ export type PropertyWithCode = {
   name: string;
   address: string | null;
   join_code: string | null;
+  unit_label_type?: string | null;
 };
 
 export type MaintenanceRequest = {
@@ -479,7 +482,7 @@ function RequestRow({
               {request.unit && (
                 <>
                   <span>·</span>
-                  <span>Unit {request.unit}</span>
+                  <span>{formatUnit(request.unit, request.property?.unit_label_type)}</span>
                 </>
               )}
               <span>·</span>
@@ -543,7 +546,7 @@ function RequestRow({
                   <p className="mt-0.5">
                     {request.property.name}
                     {request.unit && (
-                      <span className="text-muted-foreground"> • Unit {request.unit}</span>
+                      <span className="text-muted-foreground"> • {formatUnit(request.unit, request.property?.unit_label_type)}</span>
                     )}
                   </p>
                 </div>
@@ -866,7 +869,7 @@ function TenantRow({
   const [resending, startResend] = useTransition();
   const [resendError, setResendError] = useState('');
   const [resendDone, setResendDone] = useState(false);
-  const unitLabel = link.unit ? `Unit ${link.unit}` : null;
+  const unitLabel = formatUnit(link.unit, link.property?.unit_label_type);
 
   const handleSaveNotes = () => {
     setSaveError('');
@@ -1112,7 +1115,7 @@ function PendingRow({ link }: { link: TenantLink }) {
                 <Building2 className="h-3 w-3" />
                 {link.property?.name ?? 'Unknown property'}
               </span>
-              {link.unit && <span>· Unit {link.unit}</span>}
+              {link.unit && <span>· {formatUnit(link.unit, link.property?.unit_label_type)}</span>}
               {ago && <span>· {ago}</span>}
             </div>
             {error && <p className="text-destructive mt-1 text-xs">{error}</p>}
@@ -1281,11 +1284,12 @@ function InviteModal({
 
             <div className="space-y-1.5">
               <label className="text-sm font-medium">
-                Unit <span className="text-muted-foreground font-normal">(optional)</span>
+                {getLabelWord(properties.find((p) => p.id === propertyId)?.unit_label_type)}{' '}
+                <span className="text-muted-foreground font-normal">(optional)</span>
               </label>
               <Input
                 type="text"
-                placeholder="e.g. 12, Unit B, Main House"
+                placeholder="e.g. 12, B, Main House"
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
                 disabled={isPending}

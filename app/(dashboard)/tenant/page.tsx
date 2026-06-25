@@ -7,7 +7,8 @@ import { PushPrompt } from '@/app/components/push-prompt';
 import { TenantRequestsList } from './tenant-requests-list';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Building2, Clock, Home, Plus } from 'lucide-react';
-import { LeaseCard } from './lease-card';
+import { LeaseSummaryPanel, type LeaseSummary } from './lease-card';
+import { formatUnit } from '@/lib/unit-label';
 
 export const metadata = { title: 'My Properties' };
 
@@ -24,6 +25,7 @@ type PropertyInfo = {
   id: string;
   name: string;
   address: string | null;
+  unit_label_type?: string | null;
 };
 
 type MaintenanceRequest = {
@@ -93,7 +95,7 @@ export default async function TenantDashboardPage() {
       .select('request_id'),
     supabase
       .from('leases')
-      .select('link_id, lease_type, lease_start, lease_end, security_deposit, notes'),
+      .select('link_id, lease_type, lease_start, lease_end, monthly_rent, security_deposit, notes'),
   ]);
 
   const allLinks = (rawLinks ?? []) as PropertyLink[];
@@ -102,10 +104,8 @@ export default async function TenantDashboardPage() {
   const requests = (rawRequests ?? []) as MaintenanceRequest[];
   const archivedIds = (rawArchives ?? []).map((a) => a.request_id as string);
 
-  // Build a map of link_id → lease for the LeaseCard.
-  type RawLease = { link_id: string; lease_type: string | null; lease_start: string | null; lease_end: string | null; security_deposit: number | null; notes: string | null };
-  const leaseByLinkId = new Map<string, RawLease>();
-  for (const l of (rawLeases ?? []) as unknown as RawLease[]) {
+  const leaseByLinkId = new Map<string, LeaseSummary>();
+  for (const l of (rawLeases ?? []) as unknown as (LeaseSummary & { link_id: string })[]) {
     leaseByLinkId.set(l.link_id, l);
   }
 
@@ -132,7 +132,7 @@ export default async function TenantDashboardPage() {
     const admin = createAdminClient();
     const { data: props } = await admin
       .from('properties')
-      .select('id, name, address')
+      .select('id, name, address, unit_label_type')
       .in('id', allPropertyIds);
     propertyMap = Object.fromEntries((props ?? []).map((p) => [p.id, p as PropertyInfo]));
   }
@@ -154,40 +154,47 @@ export default async function TenantDashboardPage() {
           <h2 className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
             Home
           </h2>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-3">
             {approvedLinks.map((link) => {
               const prop = propertyMap[link.property_id];
+              const lease = leaseByLinkId.get(link.id);
               return (
-                <Card key={link.id} className="flex flex-col">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start gap-3">
-                      <div className="bg-primary/10 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
-                        <Building2 className="text-primary h-4 w-4" />
+                <div key={link.id} className="grid gap-3 sm:grid-cols-2">
+                  {/* Property card */}
+                  <Card className="flex flex-col">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start gap-3">
+                        <div className="bg-primary/10 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
+                          <Building2 className="text-primary h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className="text-base leading-snug">
+                            {prop?.name ?? 'Property'}
+                          </CardTitle>
+                          {prop?.address && (
+                            <CardDescription className="mt-0.5 truncate">
+                              {prop.address}
+                            </CardDescription>
+                          )}
+                          {link.unit && (
+                            <p className="text-muted-foreground mt-0.5 text-xs">{formatUnit(link.unit, prop?.unit_label_type)}</p>
+                          )}
+                        </div>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <CardTitle className="text-base leading-snug">
-                          {prop?.name ?? 'Property'}
-                        </CardTitle>
-                        {prop?.address && (
-                          <CardDescription className="mt-0.5 truncate">
-                            {prop.address}
-                          </CardDescription>
-                        )}
-                        {link.unit && (
-                          <p className="text-muted-foreground mt-0.5 text-xs">Unit {link.unit}</p>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="mt-auto pt-0">
-                    <Button asChild size="sm" className="w-full">
-                      <Link href={`/tenant/new-request?property=${link.property_id}`}>
-                        <Plus className="mr-1.5 h-3.5 w-3.5" />
-                        Maintenance Request
-                      </Link>
-                    </Button>
-                  </CardContent>
-                </Card>
+                    </CardHeader>
+                    <CardContent className="mt-auto pt-0">
+                      <Button asChild size="sm" className="w-full">
+                        <Link href={`/tenant/new-request?property=${link.property_id}`}>
+                          <Plus className="mr-1.5 h-3.5 w-3.5" />
+                          Maintenance Request
+                        </Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  {/* Lease panel — right of the property card */}
+                  <LeaseSummaryPanel lease={lease} />
+                </div>
               );
             })}
           </div>
@@ -238,7 +245,7 @@ export default async function TenantDashboardPage() {
                       {prop?.name ?? 'Property'}
                       {link.unit && (
                         <span className="text-muted-foreground font-normal">
-                          {' '}· Unit {link.unit}
+                          {' '}· {formatUnit(link.unit, prop?.unit_label_type)}
                         </span>
                       )}
                     </p>
@@ -258,26 +265,6 @@ export default async function TenantDashboardPage() {
               <Link href="/tenant-onboarding">+ Add another property</Link>
             </Button>
           </div>
-        </section>
-      )}
-
-      {/* ── Lease information ────────────────────────────────────────────────── */}
-      {approvedLinks.length > 0 && (
-        <section>
-          <LeaseCard
-            leases={approvedLinks.map((link) => {
-              const lease = leaseByLinkId.get(link.id);
-              return {
-                lease_type: lease?.lease_type ?? null,
-                lease_start: lease?.lease_start ?? null,
-                lease_end: lease?.lease_end ?? null,
-                security_deposit: lease?.security_deposit ?? null,
-                notes: lease?.notes ?? null,
-                propertyName: propertyMap[link.property_id]?.name,
-                showPropertyName: approvedLinks.length > 1,
-              };
-            })}
-          />
         </section>
       )}
 

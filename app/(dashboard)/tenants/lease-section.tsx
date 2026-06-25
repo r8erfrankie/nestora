@@ -18,6 +18,7 @@ type LF = {
   leaseType: 'fixed' | 'month_to_month' | '';
   leaseStart: string;
   leaseEnd: string;
+  monthlyRent: string;
   deposit: string;
   notes: string;
 };
@@ -27,6 +28,7 @@ function toForm(lease: LeaseData | null): LF {
     leaseType: lease?.lease_type ?? '',
     leaseStart: lease?.lease_start ?? '',
     leaseEnd: lease?.lease_end ?? '',
+    monthlyRent: lease?.monthly_rent != null ? String(lease.monthly_rent) : '',
     deposit: lease?.security_deposit != null ? String(lease.security_deposit) : '',
     notes: lease?.notes ?? '',
   };
@@ -37,6 +39,7 @@ function eqForm(a: LF, b: LF) {
     a.leaseType === b.leaseType &&
     a.leaseStart === b.leaseStart &&
     a.leaseEnd === b.leaseEnd &&
+    a.monthlyRent === b.monthlyRent &&
     a.deposit === b.deposit &&
     a.notes === b.notes
   );
@@ -66,6 +69,7 @@ export function LeaseSection({
       lease_type: form.leaseType || null,
       lease_start: form.leaseStart || null,
       lease_end: form.leaseType === 'month_to_month' ? null : (form.leaseEnd || null),
+      monthly_rent: form.monthlyRent ? parseFloat(form.monthlyRent) : null,
       security_deposit: form.deposit ? parseFloat(form.deposit) : null,
       notes: form.notes.trim() || null,
     };
@@ -108,6 +112,26 @@ export function LeaseSection({
               <SelectItem value="month_to_month">Month-to-month</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Monthly rent */}
+        <div className="space-y-1">
+          <p className="text-muted-foreground text-[11px]">Monthly rent</p>
+          <div className="relative">
+            <span className="text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 text-xs">
+              $
+            </span>
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.monthlyRent}
+              onChange={(e) => set('monthlyRent', e.target.value)}
+              placeholder="0.00"
+              disabled={saving}
+              className="h-8 pl-5 text-sm"
+            />
+          </div>
         </div>
 
         {/* Security deposit */}

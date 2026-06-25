@@ -34,13 +34,13 @@ export default async function TenantsPage({
     supabase
       .from('tenant_property_links')
       .select(
-        'id, tenant_id, tenant_email, status, unit, initiated_by, notes, created_at, property_id, property:property_id(id, name, address)'
+        'id, tenant_id, tenant_email, status, unit, initiated_by, notes, created_at, property_id, property:property_id(id, name, address, unit_label_type)'
       )
       .in('status', ['pending', 'approved'])
       .order('created_at', { ascending: false }),
     supabase
       .from('properties')
-      .select('id, name, address, join_code')
+      .select('id, name, address, join_code, unit_label_type')
       .order('name', { ascending: true }),
     supabase
       .from('maintenance_requests')
@@ -51,7 +51,7 @@ export default async function TenantsPage({
       .limit(100),
     supabase
       .from('leases')
-      .select('id, link_id, lease_type, lease_start, lease_end, security_deposit, notes'),
+      .select('id, link_id, lease_type, lease_start, lease_end, monthly_rent, security_deposit, notes'),
   ]);
 
   const links = (rawLinks ?? []) as unknown as TenantLink[];

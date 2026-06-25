@@ -6,10 +6,14 @@ import { getNavData } from '@/lib/supabase/server';
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   let navRole: import('@/lib/supabase/server').UserRole = 'landlord';
   let navBadges = { tenants: 0, workOrders: 0 };
+  let navFullName: string | null = null;
+  let navEmail = '';
   try {
-    const { role, badges } = await getNavData();
+    const { role, badges, fullName, email } = await getNavData();
     navRole = role;
     navBadges = badges;
+    navFullName = fullName;
+    navEmail = email;
   } catch {
     // Non-fatal — fall back to defaults
   }
@@ -21,7 +25,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <Sidebar role={navRole} badges={navBadges} />
       </div>
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Navbar role={navRole} />
+        <Navbar role={navRole} fullName={navFullName} email={navEmail} />
         {/* pb accounts for the fixed bottom nav + iOS home indicator safe area */}
         <main className="bg-background flex-1 overflow-auto p-4 lg:p-6 lg:pb-6" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
           {children}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
+import { formatUnit, getLabelWord } from '@/lib/unit-label';
 import Link from 'next/link';
 import Lightbox from 'yet-another-react-lightbox';
 import Counter from 'yet-another-react-lightbox/plugins/counter';
@@ -66,7 +67,7 @@ interface WorkOrder {
   assigned_contractor_phone?: string | null;
   trade?: string | null;
   property_id: string;
-  properties: { id: string; name: string } | null;
+  properties: { id: string; name: string; unit_label_type?: string | null } | null;
   notes?: string | null;
   cost?: number | null;
   contractor_quote?: number | null;
@@ -91,6 +92,7 @@ interface Contractor {
 interface Property {
   id: string;
   name: string;
+  unit_label_type?: string | null;
 }
 
 interface Photo {
@@ -895,6 +897,7 @@ export function WorkOrdersClient({
         trade: effectiveTrade,
         cost: form.cost ? parseFloat(form.cost) : 0,
         propertyName: prop?.name || null,
+        unit_label_type: prop?.unit_label_type ?? null,
       });
 
       if (result.error) {
@@ -907,7 +910,7 @@ export function WorkOrdersClient({
         // Enrich with property name from local list to avoid join permission issues
         const newWO: WorkOrder = {
           ...(inserted as unknown as WorkOrder),
-          properties: prop ? { id: prop.id, name: prop.name } : null,
+          properties: prop ? { id: prop.id, name: prop.name, unit_label_type: prop.unit_label_type } : null,
         };
         setWorkOrders((prev) => [newWO, ...prev]);
 
@@ -1334,12 +1337,13 @@ export function WorkOrdersClient({
 
             <div className="space-y-2">
               <label className="text-sm font-medium">
-                Unit <span className="text-muted-foreground font-normal">(optional)</span>
+                {getLabelWord(properties.find((p) => p.id === form.property_id)?.unit_label_type)}{' '}
+                <span className="text-muted-foreground font-normal">(optional)</span>
               </label>
               <Input
                 value={form.unit}
                 onChange={(e) => updateForm('unit', e.target.value)}
-                placeholder="e.g. 12, Unit B, Main House"
+                placeholder="e.g. 12, B, Main House"
                 className="!h-11 sm:!h-8"
               />
             </div>
@@ -1710,8 +1714,11 @@ export function WorkOrdersClient({
                       {selectedWorkOrder.properties?.name}
                       {(selectedWorkOrder.unit || linkedWorkOrderMap[selectedWorkOrder.id]?.unit) && (
                         <span className="text-muted-foreground">
-                          {' • Unit '}
-                          {selectedWorkOrder.unit || linkedWorkOrderMap[selectedWorkOrder.id]!.unit}
+                          {' • '}
+                          {formatUnit(
+                            selectedWorkOrder.unit || linkedWorkOrderMap[selectedWorkOrder.id]!.unit,
+                            selectedWorkOrder.properties?.unit_label_type
+                          )}
                         </span>
                       )}
                     </div>
@@ -2329,6 +2336,7 @@ function WorkOrderRow({
 }) {
   const propName = wo.properties?.name || properties.find((p) => p.id === wo.property_id)?.name || wo.property_id || '—';
   const unit = wo.unit || linkedWorkOrderMap[wo.id]?.unit;
+  const unitLabelType = wo.properties?.unit_label_type ?? properties.find((p) => p.id === wo.property_id)?.unit_label_type;
 
   return (
     <TableRow onClick={() => onOpen(wo)} className="hover:bg-muted/50 cursor-pointer">
@@ -2345,8 +2353,8 @@ function WorkOrderRow({
       {groupBy !== 'property' && (
         <TableCell className="max-w-[160px]">
           {unit ? (
-            <span className="block truncate" title={`${propName} • Unit ${unit}`}>
-              {propName} <span className="text-muted-foreground">• Unit {unit}</span>
+            <span className="block truncate" title={`${propName} • ${formatUnit(unit, unitLabelType)}`}>
+              {propName} <span className="text-muted-foreground">• {formatUnit(unit, unitLabelType)}</span>
             </span>
           ) : (
             <span className="block truncate" title={propName}>{propName}</span>

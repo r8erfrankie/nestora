@@ -31,7 +31,7 @@ export default async function WorkOrdersPage({
   // the page with "An error occurred in the Server Components render".
   let workOrders = null;
   let workOrdersError = null;
-  let properties: { id: string; name: string }[] = [];
+  let properties: { id: string; name: string; unit_label_type?: string | null }[] = [];
   let contractors: { id: string; name: string; email: string; phone: string | null; trade: string | null }[] = [];
   let archivedWorkOrderIds: string[] = [];
   let linkedWorkOrderMap: Record<string, { requestId: string; unit: string | null }> = {};
@@ -50,11 +50,11 @@ export default async function WorkOrdersPage({
         .select(
           `
           *,
-          properties (id, name)
+          properties (id, name, unit_label_type)
         `
         )
         .order('created_at', { ascending: false }),
-      supabase.from('properties').select('id, name').order('name'),
+      supabase.from('properties').select('id, name, unit_label_type').order('name'),
       supabase.from('contractors').select('id, name, email, phone, trade').order('name'),
       supabase
         .from('work_order_user_archives')

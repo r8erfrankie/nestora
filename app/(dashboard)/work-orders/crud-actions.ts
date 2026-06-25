@@ -242,7 +242,7 @@ export async function updateContractorAssignment(
   // Fetch current row for ownership check + fields needed for notification
   const { data: wo, error: fetchErr } = await supabase
     .from('work_orders')
-    .select('user_id, title, description, priority, due_date, unit, assigned_contractor_email, properties(name)')
+    .select('user_id, title, description, priority, due_date, unit, assigned_contractor_email, properties(name, unit_label_type)')
     .eq('id', id)
     .single() as {
       data: {
@@ -253,7 +253,7 @@ export async function updateContractorAssignment(
         due_date: string | null;
         unit: string | null;
         assigned_contractor_email: string | null;
-        properties: { name: string } | null;
+        properties: { name: string; unit_label_type?: string | null } | null;
       } | null;
       error: any;
     };
@@ -333,6 +333,7 @@ export async function updateContractorAssignment(
           due_date: wo.due_date,
           propertyName: wo.properties?.name || null,
           unit: wo.unit,
+          unit_label_type: wo.properties?.unit_label_type ?? null,
           assigned_contractor_email: newEmail,
           landlordName,
         });
@@ -372,6 +373,7 @@ export async function updateContractorAssignment(
             due_date: wo.due_date,
             propertyName: wo.properties?.name || null,
             unit: wo.unit,
+            unit_label_type: wo.properties?.unit_label_type ?? null,
           },
         });
       }
@@ -408,6 +410,7 @@ export async function createWorkOrder(data: {
   trade?: string | null;
   cost?: number | null;
   propertyName?: string | null;
+  unit_label_type?: string | null;
 }): Promise<{ data: Record<string, unknown> | null; error: string | null }> {
   // In Next.js 16, throwing from a Server Action produces a 500 that the
   // framework treats as a fatal RSC error instead of routing to the caller's
@@ -484,6 +487,7 @@ export async function createWorkOrder(data: {
             due_date: inserted.due_date,
             propertyName: data.propertyName,
             unit: data.unit,
+            unit_label_type: data.unit_label_type,
             assigned_contractor_email: contractorEmail,
             landlordName,
           });
@@ -522,6 +526,7 @@ export async function createWorkOrder(data: {
               due_date: inserted.due_date,
               propertyName: data.propertyName,
               unit: data.unit,
+              unit_label_type: data.unit_label_type,
             },
           });
         }

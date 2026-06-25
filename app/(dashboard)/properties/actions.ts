@@ -56,6 +56,7 @@ export async function createProperty(data: {
   name: string;
   address?: string | null;
   type?: string | null;
+  unit_label_type?: string | null;
   notes?: string | null;
 }) {
   const supabase = await createClient();
@@ -68,6 +69,7 @@ export async function createProperty(data: {
       name: data.name.trim(),
       address: data.address?.trim() || null,
       type: data.type || null,
+      unit_label_type: data.unit_label_type || 'unit',
       notes: data.notes?.trim() || null,
       user_id: user.id,
     })
@@ -82,7 +84,7 @@ export async function createProperty(data: {
 
 export async function updateProperty(
   id: string,
-  data: { name: string; address?: string | null; type?: string | null; notes?: string | null }
+  data: { name: string; address?: string | null; type?: string | null; unit_label_type?: string | null; notes?: string | null }
 ) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -94,6 +96,7 @@ export async function updateProperty(
       name: data.name.trim(),
       address: data.address?.trim() || null,
       type: data.type || null,
+      unit_label_type: data.unit_label_type || 'unit',
       notes: data.notes?.trim() || null,
     })
     .eq('id', id)

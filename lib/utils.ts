@@ -17,6 +17,21 @@ export function timeAgo(dateString: string): string {
   return `${diffDays}d ago`;
 }
 
+/**
+ * Generates 1-2 letter initials from a full name.
+ * "Jane Smith" → "JS", "Alice" → "A"
+ * Falls back to the first 2 chars of the email prefix when no name is available.
+ */
+export function getInitials(name: string | null | undefined, email?: string): string {
+  if (name) {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    if (parts.length === 1 && parts[0].length > 0) return parts[0].slice(0, 2).toUpperCase();
+  }
+  if (email) return email.slice(0, 2).toUpperCase();
+  return 'U';
+}
+
 export function getGreeting(): string {
   const hour = new Date().getHours();
   if (hour < 12) return 'Good morning';

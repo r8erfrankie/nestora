@@ -36,6 +36,7 @@ import {
 import { acceptOrCompleteWorkOrder, saveContractorQuote } from './contractor-actions';
 import { archiveWorkOrderForUser, unarchiveWorkOrderForUser } from '@/app/actions/archive-actions';
 import { WorkOrderNotes } from '@/app/components/work-order-notes';
+import { formatUnit } from '@/lib/unit-label';
 
 export interface ContractorWorkOrder {
   id: string;
@@ -51,7 +52,7 @@ export interface ContractorWorkOrder {
   contractor_quote: number | null;
   created_at: string;
   updated_at: string;
-  properties: { id: string; name: string; address: string | null } | null;
+  properties: { id: string; name: string; address: string | null; unit_label_type?: string | null } | null;
 }
 
 interface Photo {
@@ -526,7 +527,7 @@ export function ContractorClient({
                         <Building2 className="h-3 w-3 shrink-0" />
                         <span className="truncate">{wo.properties.name}</span>
                         {wo.unit && (
-                          <span className="font-medium text-foreground/70">{' · '}Unit {wo.unit}</span>
+                          <span className="font-medium text-foreground/70">{' · '}{formatUnit(wo.unit, wo.properties?.unit_label_type)}</span>
                         )}
                         {wo.properties.address && (
                           <span className="truncate text-muted-foreground/70">
@@ -656,7 +657,7 @@ export function ContractorClient({
                                   <Building2 className="h-3 w-3 shrink-0" />
                                   <span className="truncate">{wo.properties.name}</span>
                                   {wo.unit && (
-                                    <span className="font-medium text-foreground/70">{' · '}Unit {wo.unit}</span>
+                                    <span className="font-medium text-foreground/70">{' · '}{formatUnit(wo.unit, wo.properties?.unit_label_type)}</span>
                                   )}
                                 </div>
                               )}
@@ -709,7 +710,7 @@ export function ContractorClient({
                     <DialogDescription className="mt-1 flex items-center gap-1">
                       <Building2 className="h-3.5 w-3.5 shrink-0" />
                       {selected.properties.name}
-                      {selected.unit && ` · Unit ${selected.unit}`}
+                      {selected.unit && ` · ${formatUnit(selected.unit, selected.properties?.unit_label_type)}`}
                       {selected.properties.address && ` · ${selected.properties.address}`}
                     </DialogDescription>
                   )}
@@ -718,15 +719,15 @@ export function ContractorClient({
             </DialogHeader>
 
             <div className="space-y-5 pt-1">
-              {/* Unit — shown prominently when set; address is already in the subtitle */}
+              {/* Unit shown prominently when set; address is already in the subtitle */}
               {selected.unit && (
                 <div>
                   <div className="text-muted-foreground mb-1 text-xs font-medium uppercase tracking-wider">
-                    Unit
+                    {formatUnit(selected.unit, selected.properties?.unit_label_type)}
                   </div>
                   <div className="flex items-center gap-1.5 text-sm font-semibold">
                     <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    Unit {selected.unit}
+                    {formatUnit(selected.unit, selected.properties?.unit_label_type)}
                     {selected.properties?.name && (
                       <span className="text-muted-foreground font-normal">
                         — {selected.properties.name}

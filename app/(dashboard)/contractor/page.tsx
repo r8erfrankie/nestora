@@ -49,7 +49,7 @@ export default async function ContractorDashboardPage() {
         contractor_quote,
         created_at,
         updated_at,
-        properties (id, name, address)
+        properties (id, name, address, unit_label_type)
       `
       )
       .eq('assigned_contractor_email', userEmail)

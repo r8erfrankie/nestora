@@ -1,5 +1,7 @@
 'use server';
 
+import { formatUnit, getLabelWord } from '@/lib/unit-label';
+
 /**
  * Centralized email sending via Resend for work order notifications.
  * Magic link auth emails are handled by Supabase via custom SMTP (also Resend).
@@ -122,6 +124,7 @@ export async function notifyContractorNewWorkOrder(data: {
   due_date?: string | null;
   propertyName?: string | null;
   unit?: string | null;
+  unit_label_type?: string | null;
   assigned_contractor_email: string;
   landlordName?: string | null;
 }) {
@@ -134,9 +137,10 @@ export async function notifyContractorNewWorkOrder(data: {
     : 'New work order';
 
   // Build a descriptive headline that includes property + unit when available.
+  const unitLabel = formatUnit(data.unit, data.unit_label_type);
   const locationParts = [
     data.propertyName ? escapeHtml(data.propertyName) : null,
-    data.unit ? `Unit ${escapeHtml(data.unit)}` : null,
+    unitLabel ? escapeHtml(unitLabel) : null,
   ].filter(Boolean);
   const headline = locationParts.length
     ? `New work order at ${locationParts.join(', ')}`
@@ -165,7 +169,7 @@ export async function notifyContractorNewWorkOrder(data: {
                 <td style="padding:0 0 12px;font-size:11px;font-weight:600;color:#6b7280;letter-spacing:0.06em;text-transform:uppercase">Work order details</td>
               </tr>
               ${data.propertyName ? detailRow('Property', escapeHtml(data.propertyName)) : ''}
-              ${data.unit ? detailRow('Unit', escapeHtml(data.unit)) : ''}
+              ${unitLabel ? detailRow(getLabelWord(data.unit_label_type), escapeHtml(unitLabel)) : ''}
               ${detailRow('Priority', escapeHtml(data.priority), `color:${pColor};font-weight:600`)}
               ${data.due_date ? detailRow('Due date', escapeHtml(data.due_date)) : ''}
               ${data.description ? detailRow('Description', escapeHtml(data.description)) : ''}
@@ -294,12 +298,13 @@ export async function sendContractorWorkOrderInvitation(data: {
     due_date?: string | null;
     propertyName?: string | null;
     unit?: string | null;
+    unit_label_type?: string | null;
   };
 }) {
   const resend = await getResendClient();
   const welcomeUrl = `${APP_URL}/contractor/welcome?email=${encodeURIComponent(data.contractorEmail)}`;
   const landlord = data.landlordName ?? null;
-  const { title, priority, due_date, propertyName, unit } = data.workOrder;
+  const { title, priority, due_date, propertyName, unit, unit_label_type } = data.workOrder;
   const pColor = priorityColor(priority);
 
   const eyebrow = landlord ? `Invitation from ${escapeHtml(landlord)}` : 'You have a new invitation';
@@ -328,7 +333,7 @@ export async function sendContractorWorkOrderInvitation(data: {
               </tr>
               ${detailRow('Title', `<strong>${escapeHtml(title)}</strong>`)}
               ${propertyName ? detailRow('Property', escapeHtml(propertyName)) : ''}
-              ${unit ? detailRow('Unit', escapeHtml(unit)) : ''}
+              ${unit ? detailRow(getLabelWord(unit_label_type), escapeHtml(formatUnit(unit, unit_label_type)!)) : ''}
               ${detailRow('Priority', escapeHtml(priority), `color:${pColor};font-weight:600`)}
               ${due_date ? detailRow('Due date', escapeHtml(due_date)) : ''}
             </table>
