@@ -25,7 +25,7 @@ export default async function DashboardPage() {
     .eq('id', user?.id || '')
     .single();
 
-  if (profile?.role !== 'landlord') redirect('/contractor');
+  if (profile?.role !== 'landlord') redirect('/');
 
   const fullName = (profile as any)?.full_name as string | null | undefined;
   const greetingName = fullName ? fullName.trim().split(/\s+/)[0] : null;
