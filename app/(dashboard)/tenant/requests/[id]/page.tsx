@@ -4,6 +4,8 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Building2, MessageSquare } from 'lucide-react';
 import { timeAgo } from '@/lib/utils';
+import { RequestThread } from '@/app/components/request-thread';
+import { addTenantMaintenanceNote, type MaintenanceNote } from '@/app/actions/maintenance-note-actions';
 
 export const metadata = { title: 'Request Details' };
 
@@ -73,13 +75,13 @@ export default async function RequestDetailPage({
     admin.from('properties').select('name, address').eq('id', request.property_id).single(),
     admin
       .from('maintenance_request_notes')
-      .select('id, content, created_at')
+      .select('id, request_id, author_email, author_role, note_type, content, created_at')
       .eq('request_id', id)
       .eq('note_type', 'manual')
       .order('created_at', { ascending: true }),
   ]);
 
-  const notes = (rawNotes ?? []) as { id: string; content: string; created_at: string }[];
+  const notes = (rawNotes ?? []) as MaintenanceNote[];
 
   const statusStyle = STATUS_STYLES[request.status] ?? STATUS_STYLES['Submitted'];
   const priorityStyle = PRIORITY_STYLES[request.priority] ?? PRIORITY_STYLES['Medium'];
@@ -162,23 +164,22 @@ export default async function RequestDetailPage({
         </div>
       )}
 
-      {/* Notes from landlord */}
-      {notes.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-1.5">
-            <MessageSquare className="text-muted-foreground h-3.5 w-3.5" />
-            <p className="text-sm font-medium">Notes from your landlord</p>
-          </div>
-          <div className="space-y-2">
-            {notes.map((note) => (
-              <div key={note.id} className="rounded-lg border bg-card px-4 py-3">
-                <p className="whitespace-pre-wrap text-sm">{note.content}</p>
-                <p className="text-muted-foreground mt-1.5 text-xs">{timeAgo(note.created_at)}</p>
-              </div>
-            ))}
-          </div>
+      {/* Conversation thread with landlord */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-1.5">
+          <MessageSquare className="text-muted-foreground h-3.5 w-3.5" />
+          <p className="text-sm font-medium">Messages</p>
         </div>
-      )}
+        <RequestThread
+          initialNotes={notes}
+          viewerRole="tenant"
+          placeholder="Reply to your landlord… (⌘↵ to send)"
+          onSend={async (content) => {
+            'use server';
+            return addTenantMaintenanceNote(id, content);
+          }}
+        />
+      </div>
 
       <Button asChild variant="outline" size="sm">
         <Link href="/tenant">Back to Dashboard</Link>

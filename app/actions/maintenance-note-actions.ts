@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { insertNotification } from '@/lib/notifications';
 
 export interface MaintenanceNote {
@@ -65,6 +65,66 @@ export async function addMaintenanceNote(
       });
     } catch { /* non-fatal */ }
   }
+
+  return data as MaintenanceNote;
+}
+
+export async function addTenantMaintenanceNote(
+  requestId: string,
+  content: string
+): Promise<MaintenanceNote> {
+  const trimmed = content.trim();
+  if (!trimmed) throw new Error('Note cannot be empty');
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) throw new Error('Not authenticated');
+
+  // RLS "Tenant views own requests" enforces tenant_id = auth.uid() — fetch also
+  // gives us the title and property_id to notify the landlord.
+  const { data: request } = await supabase
+    .from('maintenance_requests')
+    .select('id, title, property_id')
+    .eq('id', requestId)
+    .single();
+
+  if (!request) throw new Error('Request not found');
+
+  const { data, error } = await supabase
+    .from('maintenance_request_notes')
+    .insert({
+      request_id: requestId,
+      author_email: user.email.toLowerCase(),
+      author_role: 'tenant',
+      note_type: 'manual',
+      content: trimmed,
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  // Notify the landlord (non-fatal — note is already saved)
+  try {
+    const admin = createAdminClient();
+    const { data: property } = await admin
+      .from('properties')
+      .select('user_id, name')
+      .eq('id', request.property_id)
+      .single();
+    if (property?.user_id) {
+      const propName = property.name as string | null;
+      await insertNotification({
+        userId: property.user_id as string,
+        type: 'request_note',
+        title: 'Tenant reply',
+        message: `"${request.title}"${propName ? ` at ${propName}` : ''} — your tenant replied.`,
+        link: '/tenants',
+      });
+    }
+  } catch { /* non-fatal */ }
 
   return data as MaintenanceNote;
 }
