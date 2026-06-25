@@ -22,14 +22,24 @@ export async function withdrawTenantRequest(requestId: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
 
-  // RLS enforces tenant_id = auth.uid() — only the submitting tenant can withdraw.
-  // Only allow withdrawal while still Submitted (before landlord acts on it).
-  const { error } = await supabase
+  // Verify the tenant owns this request and it's still Submitted.
+  // Regular client respects RLS so this doubles as an ownership check.
+  const { data: existing } = await supabase
     .from('maintenance_requests')
-    .update({ status: 'Withdrawn' })
+    .select('id, status, tenant_id')
     .eq('id', requestId)
     .eq('tenant_id', user.id)
-    .eq('status', 'Submitted');
+    .single();
+
+  if (!existing) throw new Error('Request not found');
+  if (existing.status !== 'Submitted') throw new Error('Only Submitted requests can be withdrawn');
+
+  // Tenants have INSERT but not UPDATE on maintenance_requests — use admin client.
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from('maintenance_requests')
+    .update({ status: 'Withdrawn' })
+    .eq('id', requestId);
 
   if (error) throw new Error(error.message);
 
@@ -43,7 +53,6 @@ export async function withdrawTenantRequest(requestId: string): Promise<void> {
 
   // Notify the landlord (non-fatal)
   try {
-    const admin = createAdminClient();
     const { data: request } = await admin
       .from('maintenance_requests')
       .select('title, property:property_id(user_id, name)')
