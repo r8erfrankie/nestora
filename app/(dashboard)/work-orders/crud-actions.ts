@@ -168,13 +168,14 @@ export async function updateWorkOrderStatus(id: string, newStatus: string) {
   // Fetch current for ownership + notify details
   const { data: wo, error: fetchErr } = await supabase
     .from('work_orders')
-    .select('user_id, title, status, properties(name)')
+    .select('user_id, title, status, assigned_contractor_email, properties(name)')
     .eq('id', id)
     .single() as {
       data: {
         user_id: string;
         title: string;
         status: string;
+        assigned_contractor_email: string | null;
         properties: { name: string } | null;
       } | null;
       error: any;
@@ -209,20 +210,25 @@ export async function updateWorkOrderStatus(id: string, newStatus: string) {
     } catch { /* non-fatal */ }
   }
 
-  // Send notification via Resend (Server Action only, dynamic import for isolation)
-  if (user.email) {
+  // Notify the assigned contractor when the landlord changes the status.
+  if (wo.assigned_contractor_email) {
     try {
-      const { notifyLandlordStatusChange } = await import('@/app/actions/email');
-      await notifyLandlordStatusChange({
-        title: wo.title,
-        propertyName: wo.properties?.name || null,
-        oldStatus: previousStatus,
-        newStatus,
-        landlordEmail: user.email,
-      });
-    } catch (emailErr) {
-      // non-fatal
-    }
+      const admin = createAdminClient();
+      const { data: contractorProfile } = await admin
+        .from('profiles')
+        .select('id')
+        .eq('email', wo.assigned_contractor_email.toLowerCase())
+        .maybeSingle();
+      if (contractorProfile?.id) {
+        await insertNotification({
+          userId: contractorProfile.id as string,
+          type: 'work_order_status_changed',
+          title: `Work order ${newStatus.toLowerCase()}`,
+          message: `"${wo.title}" has been moved to ${newStatus} by the landlord.`,
+          link: '/contractor',
+        });
+      }
+    } catch { /* non-fatal */ }
   }
 }
 

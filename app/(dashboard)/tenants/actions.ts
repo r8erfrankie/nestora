@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { sendTenantAccessGrantedEmail, sendTenantInviteEmail } from '@/lib/email';
+import { insertNotification } from '@/lib/notifications';
 
 export async function convertToWorkOrder(
   requestId: string
@@ -16,7 +17,7 @@ export async function convertToWorkOrder(
   // RLS: "Landlord views requests on own properties" limits this to the landlord's own data.
   const { data: request } = await supabase
     .from('maintenance_requests')
-    .select('id, property_id, title, description, category, priority, converted_to_work_order_id')
+    .select('id, property_id, title, description, category, priority, converted_to_work_order_id, tenant_id')
     .eq('id', requestId)
     .single();
 
@@ -95,6 +96,21 @@ export async function convertToWorkOrder(
   revalidatePath('/tenants');
   revalidatePath('/work-orders');
 
+  // Non-fatal: let the tenant know their request is being actioned.
+  if (request.tenant_id) {
+    try {
+      await insertNotification({
+        userId: request.tenant_id as string,
+        type: 'request_in_progress',
+        title: 'Your request is in progress',
+        message: `"${request.title}" has been converted to a work order and is now being handled.`,
+        link: `/tenant/requests/${requestId}`,
+      });
+    } catch (err) {
+      console.error('[convertToWorkOrder] tenant notification failed:', err);
+    }
+  }
+
   return { workOrderId: workOrder.id as string, photoWarning };
 }
 
@@ -158,6 +174,27 @@ export async function approveTenantRequest(linkId: string) {
       await sendTenantAccessGrantedEmail({ to: tenantEmail, propertyName, landlordName, otpCode });
     } catch (err) {
       console.error('Approval email failed:', err);
+    }
+
+    // In-app + push notification to the tenant (requires their user_id from profiles).
+    try {
+      const adminClient = createAdminClient();
+      const { data: tenantProfile } = await adminClient
+        .from('profiles')
+        .select('id')
+        .eq('email', tenantEmail.toLowerCase())
+        .maybeSingle();
+      if (tenantProfile?.id) {
+        await insertNotification({
+          userId: tenantProfile.id as string,
+          type: 'access_granted',
+          title: 'Access approved',
+          message: `Your request to access ${propertyName} has been approved.`,
+          link: '/tenant',
+        });
+      }
+    } catch (err) {
+      console.error('Tenant approval notification failed:', err);
     }
   })();
 
@@ -228,6 +265,14 @@ export async function rejectTenantRequest(linkId: string) {
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
+  // Fetch before declining so we have tenant_email + property name for the notification.
+  const { data: link } = await supabase
+    .from('tenant_property_links')
+    .select('tenant_email, property:property_id(name)')
+    .eq('id', linkId)
+    .eq('landlord_id', user.id)
+    .single();
+
   // Set status to 'declined' rather than deleting the row. This preserves
   // history and lets the tenant see a clear "declined" state on their side,
   // with the option to re-request. The (property_id, tenant_email) UNIQUE
@@ -240,6 +285,30 @@ export async function rejectTenantRequest(linkId: string) {
 
   if (error) throw new Error(error.message);
   revalidatePath('/tenants');
+
+  // Non-fatal: notify the tenant if they have an account.
+  if (link?.tenant_email) {
+    const propertyName = (link.property as unknown as { name: string } | null)?.name ?? 'the property';
+    try {
+      const admin = createAdminClient();
+      const { data: tenantProfile } = await admin
+        .from('profiles')
+        .select('id')
+        .eq('email', (link.tenant_email as string).toLowerCase())
+        .maybeSingle();
+      if (tenantProfile?.id) {
+        await insertNotification({
+          userId: tenantProfile.id as string,
+          type: 'access_declined',
+          title: 'Access request declined',
+          message: `Your request to access ${propertyName} was not approved.`,
+          link: '/tenant-onboarding',
+        });
+      }
+    } catch (err) {
+      console.error('Tenant decline notification failed:', err);
+    }
+  }
 }
 
 export async function updateTenantNotes(linkId: string, notes: string) {

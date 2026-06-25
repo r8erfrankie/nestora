@@ -48,6 +48,21 @@ export async function acceptOrCompleteWorkOrder(workOrderId: string) {
     });
   } catch { /* non-fatal */ }
 
+  // Notify the landlord when the contractor accepts (In Progress) or completes the job.
+  if (nextStatus === 'In Progress') {
+    try {
+      if (wo.user_id) {
+        await insertNotification({
+          userId: wo.user_id as string,
+          type: 'work_order_accepted',
+          title: 'Work order accepted',
+          message: `A contractor has accepted and started work on "${wo.title}".`,
+          link: '/work-orders',
+        });
+      }
+    } catch { /* non-fatal */ }
+  }
+
   // When the contractor marks a work order Completed:
   // 1. Resolve the linked maintenance request (contractor RLS can't do this directly).
   // 2. Notify the landlord.
