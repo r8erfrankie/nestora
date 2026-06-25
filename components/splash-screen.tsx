@@ -24,6 +24,7 @@ export function SplashScreen() {
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#ffffff',
+        paddingTop: 'env(safe-area-inset-top)',
         opacity: phase === 'fading' ? 0 : 1,
         transition: phase === 'fading' ? 'opacity 0.25s ease' : undefined,
       }}

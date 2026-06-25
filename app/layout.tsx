@@ -69,7 +69,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="bg-white text-foreground h-full">
+      <body className="bg-background text-foreground h-full" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <SplashScreen />
         {children}
         <Toaster position="top-right" richColors />

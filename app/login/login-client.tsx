@@ -138,7 +138,28 @@ export default function LoginClient() {
         // Hard redirect so only the server-side Supabase client uses the new
         // session — router.push causes both client and server to race on the
         // same refresh token, producing "refresh_token_already_used" errors.
-        window.location.href = redirectTo || '/';
+        //
+        // Resolve the role client-side so we can jump directly to the right
+        // dashboard without an intermediate / → /overview redirect chain,
+        // which can loop on mobile if the profile read is slow.
+        if (redirectTo) {
+          window.location.href = redirectTo;
+          return;
+        }
+        try {
+          const { data: { user: u } } = await supabase.auth.getUser();
+          const { data: prof } = u
+            ? await supabase.from('profiles').select('role').eq('id', u.id).single()
+            : { data: null };
+          const role = (prof as any)?.role as string | null;
+          window.location.href =
+            role === 'contractor' ? '/contractor' :
+            role === 'tenant'     ? '/tenant' :
+            role === 'landlord'   ? '/overview' :
+            '/select-role';
+        } catch {
+          window.location.href = '/';
+        }
       }
     } catch {
       setError('Something went wrong. Please try again.');
