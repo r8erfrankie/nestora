@@ -19,9 +19,18 @@ export async function acceptOrCompleteWorkOrder(workOrderId: string) {
 
   const { data: wo, error: fetchErr } = await supabase
     .from('work_orders')
-    .select('assigned_contractor_email, status, user_id, title')
+    .select('assigned_contractor_email, status, user_id, title, properties(name)')
     .eq('id', workOrderId)
-    .single();
+    .single() as {
+      data: {
+        assigned_contractor_email: string | null;
+        status: string;
+        user_id: string;
+        title: string;
+        properties: { name: string } | null;
+      } | null;
+      error: unknown;
+    };
 
   if (fetchErr || !wo) throw new Error('Work order not found');
   if (wo.assigned_contractor_email?.toLowerCase() !== user.email?.toLowerCase()) throw new Error('Not authorized');
@@ -52,11 +61,12 @@ export async function acceptOrCompleteWorkOrder(workOrderId: string) {
   if (nextStatus === 'In Progress') {
     try {
       if (wo.user_id) {
+        const prop = wo.properties?.name;
         await insertNotification({
           userId: wo.user_id as string,
           type: 'work_order_accepted',
-          title: 'Work order accepted',
-          message: `A contractor has accepted and started work on "${wo.title}".`,
+          title: 'Nestora: Work order accepted',
+          message: `"${wo.title}"${prop ? ` at ${prop}` : ''} has been accepted by the contractor.`,
           link: '/work-orders',
         });
       }
@@ -79,12 +89,13 @@ export async function acceptOrCompleteWorkOrder(workOrderId: string) {
         .select('id, tenant_id');
 
       // Notify landlord
+      const prop = wo.properties?.name;
       if (wo.user_id) {
         await insertNotification({
           userId: wo.user_id as string,
           type: 'work_order_completed',
-          title: 'Work order completed',
-          message: `"${wo.title}" has been marked as completed by the contractor.`,
+          title: 'Nestora: Work order completed',
+          message: `"${wo.title}"${prop ? ` at ${prop}` : ''} has been completed by the contractor.`,
           link: '/work-orders',
         });
       }
@@ -95,8 +106,8 @@ export async function acceptOrCompleteWorkOrder(workOrderId: string) {
         await insertNotification({
           userId: linkedRequest.tenant_id as string,
           type: 'work_order_completed',
-          title: 'Your maintenance request has been completed',
-          message: `"${wo.title}" has been completed.`,
+          title: 'Nestora: Request completed',
+          message: `"${wo.title}"${prop ? ` at ${prop}` : ''} has been completed.`,
           link: `/tenant/requests/${linkedRequest.id}`,
         });
       }
@@ -120,9 +131,17 @@ export async function saveContractorQuote(workOrderId: string, quoteRaw: string)
 
   const { data: wo, error: fetchErr } = await supabase
     .from('work_orders')
-    .select('assigned_contractor_email, user_id, title')
+    .select('assigned_contractor_email, user_id, title, properties(name)')
     .eq('id', workOrderId)
-    .single();
+    .single() as {
+      data: {
+        assigned_contractor_email: string | null;
+        user_id: string;
+        title: string;
+        properties: { name: string } | null;
+      } | null;
+      error: unknown;
+    };
 
   if (fetchErr || !wo) throw new Error('Work order not found');
   if (wo.assigned_contractor_email?.toLowerCase() !== user.email.toLowerCase()) throw new Error('Not authorized');
@@ -146,11 +165,12 @@ export async function saveContractorQuote(workOrderId: string, quoteRaw: string)
 
   // Notify the landlord who owns the work order
   if (wo.user_id) {
+    const prop = wo.properties?.name;
     await insertNotification({
       userId: wo.user_id as string,
       type: 'quote_submitted',
-      title: 'New quote received',
-      message: `A quote of $${quote.toFixed(2)} was submitted for "${wo.title}".`,
+      title: 'Nestora: New quote received',
+      message: `"${wo.title}"${prop ? ` at ${prop}` : ''} — $${quote.toFixed(2)} quote submitted.`,
       link: '/work-orders',
     });
   }

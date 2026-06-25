@@ -223,8 +223,8 @@ export async function updateWorkOrderStatus(id: string, newStatus: string) {
         await insertNotification({
           userId: contractorProfile.id as string,
           type: 'work_order_status_changed',
-          title: `Work order ${newStatus.toLowerCase()}`,
-          message: `"${wo.title}" has been moved to ${newStatus} by the landlord.`,
+          title: `Nestora: Work order ${newStatus.toLowerCase()}`,
+          message: `"${wo.title}"${wo.properties?.name ? ` at ${wo.properties.name}` : ''} has been moved to ${newStatus}.`,
           link: '/contractor',
         });
       }
@@ -346,8 +346,8 @@ export async function updateContractorAssignment(
         await insertNotification({
           userId: contractorProfile.data.id as string,
           type: 'work_order_assigned',
-          title: 'New work order assigned',
-          message: `"${wo.title}"${wo.properties?.name ? ` at ${wo.properties.name}` : ''}.`,
+          title: 'Nestora: Work order assigned',
+          message: `"${wo.title}"${wo.properties?.name ? ` at ${wo.properties.name}` : ''} has been assigned to you.`,
           link: '/contractor',
         });
       } else {
@@ -501,7 +501,7 @@ export async function createWorkOrder(data: {
             userId: contractorProfile.data.id as string,
             type: 'work_order_assigned',
             title: 'New work order assigned',
-            message: `"${inserted.title as string}"${data.propertyName ? ` at ${data.propertyName}` : ''}.`,
+            message: `"${inserted.title as string}"${data.propertyName ? ` at ${data.propertyName}` : ''} has been assigned to you.`,
             link: '/contractor',
           });
         } else {

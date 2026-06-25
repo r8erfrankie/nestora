@@ -17,7 +17,7 @@ export async function convertToWorkOrder(
   // RLS: "Landlord views requests on own properties" limits this to the landlord's own data.
   const { data: request } = await supabase
     .from('maintenance_requests')
-    .select('id, property_id, title, description, category, priority, converted_to_work_order_id, tenant_id')
+    .select('id, property_id, title, description, category, priority, converted_to_work_order_id, tenant_id, property:property_id(name)')
     .eq('id', requestId)
     .single();
 
@@ -98,12 +98,13 @@ export async function convertToWorkOrder(
 
   // Non-fatal: let the tenant know their request is being actioned.
   if (request.tenant_id) {
+    const propName = (request.property as unknown as { name: string } | null)?.name;
     try {
       await insertNotification({
         userId: request.tenant_id as string,
         type: 'request_in_progress',
-        title: 'Your request is in progress',
-        message: `"${request.title}" has been converted to a work order and is now being handled.`,
+        title: 'Nestora: Request in progress',
+        message: `"${request.title}"${propName ? ` at ${propName}` : ''} is now being handled as a work order.`,
         link: `/tenant/requests/${requestId}`,
       });
     } catch (err) {
@@ -188,8 +189,8 @@ export async function approveTenantRequest(linkId: string) {
         await insertNotification({
           userId: tenantProfile.id as string,
           type: 'access_granted',
-          title: 'Access approved',
-          message: `Your request to access ${propertyName} has been approved.`,
+          title: 'Nestora: Access approved',
+          message: `${propertyName} — your access request has been approved.`,
           link: '/tenant',
         });
       }
@@ -300,8 +301,8 @@ export async function rejectTenantRequest(linkId: string) {
         await insertNotification({
           userId: tenantProfile.id as string,
           type: 'access_declined',
-          title: 'Access request declined',
-          message: `Your request to access ${propertyName} was not approved.`,
+          title: 'Nestora: Access request declined',
+          message: `${propertyName} — your access request was not approved.`,
           link: '/tenant-onboarding',
         });
       }

@@ -6,6 +6,14 @@ import { toast } from 'sonner';
 import { Switch } from '@/components/ui/switch';
 import { type NotificationPrefs } from '@/lib/notification-types';
 import { saveNotificationPreferences } from './notification-actions';
+import { savePushSubscription, removePushSubscription } from '@/app/actions/push-actions';
+
+function urlBase64ToUint8Array(base64: string) {
+  const padding = '='.repeat((4 - (base64.length % 4)) % 4);
+  const b64 = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = window.atob(b64);
+  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+}
 
 type PrefKey = keyof NotificationPrefs;
 
@@ -44,19 +52,68 @@ export function NotificationPreferencesSection({ initialPrefs }: Props) {
   const [prefs, setPrefs] = useState<NotificationPrefs>(initialPrefs);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleChange = (key: PrefKey, value: boolean) => {
+  const handleChange = async (key: PrefKey, value: boolean) => {
+    // When the master push toggle is turned ON, trigger the browser permission + subscription flow.
+    if (key === 'push_enabled' && value) {
+      if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+        toast.error('Push notifications are not supported on this browser.');
+        return;
+      }
+      if (Notification.permission === 'denied') {
+        toast.error('Notifications are blocked. Please enable them in your browser settings.');
+        return;
+      }
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          toast.error('Notification permission was not granted.');
+          return;
+        }
+        const reg = await navigator.serviceWorker.ready;
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub) {
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(
+              process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
+            ),
+          });
+        }
+        const json = sub.toJSON();
+        await savePushSubscription({ endpoint: sub.endpoint, p256dh: json.keys!.p256dh, auth: json.keys!.auth });
+        toast.success('Push notifications enabled.');
+      } catch (err) {
+        console.error('[NotificationPrefs] subscribe failed:', err);
+        toast.error('Failed to enable push notifications.');
+        return;
+      }
+    }
+
+    // When the master push toggle is turned OFF, remove the subscription.
+    if (key === 'push_enabled' && !value) {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          await sub.unsubscribe();
+          await removePushSubscription(sub.endpoint);
+        }
+        toast.success('Push notifications disabled.');
+      } catch (err) {
+        console.error('[NotificationPrefs] unsubscribe failed:', err);
+      }
+    }
+
     const next = { ...prefs, [key]: value };
     setPrefs(next);
 
-    // Debounce saves: cancel any pending save and schedule a new one.
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       try {
         await saveNotificationPreferences(next);
-        toast.success('Notification preferences saved.');
+        if (key !== 'push_enabled') toast.success('Notification preferences saved.');
       } catch {
         toast.error('Failed to save preferences. Please try again.');
-        // Revert optimistic update on failure.
         setPrefs((prev) => ({ ...prev, [key]: !value }));
       }
     }, 600);
