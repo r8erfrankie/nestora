@@ -8,14 +8,17 @@ import { type NotificationPrefs } from '@/lib/notification-types';
 import { saveNotificationPreferences } from './notification-actions';
 import { savePushSubscription, removePushSubscription } from '@/app/actions/push-actions';
 
-const SW_READY_TIMEOUT_MS = 8_000;
 const SUBSCRIBE_TIMEOUT_MS = 20_000;
 
-function swReady(): Promise<ServiceWorkerRegistration> {
+async function swReady(): Promise<ServiceWorkerRegistration> {
+  const existing = await navigator.serviceWorker.getRegistration('/');
+  if (existing?.active) return existing;
+
+  await navigator.serviceWorker.register('/sw.js', { scope: '/' });
   return Promise.race([
     navigator.serviceWorker.ready,
     new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('App not ready. Try closing and reopening Nestora.')), SW_READY_TIMEOUT_MS)
+      setTimeout(() => reject(new Error('App not ready. Try closing and reopening Nestora.')), 15_000)
     ),
   ]);
 }
@@ -95,9 +98,12 @@ export function NotificationPreferencesSection({ initialPrefs }: Props) {
     swReady()
       .then(async (reg) => {
         const sub = await reg.pushManager.getSubscription();
-        if (!sub) reset();
+        if (!sub) reset(); // SW ready but no subscription — definitely stale
       })
-      .catch(reset); // SW timed out or failed — reset the toggle
+      .catch(() => {
+        // SW not reachable right now — leave toggle as-is rather than resetting.
+        // The user may have a real subscription; we just can't verify it at this moment.
+      });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = async (key: PrefKey, value: boolean) => {

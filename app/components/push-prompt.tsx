@@ -6,7 +6,6 @@ import { savePushSubscription } from '@/app/actions/push-actions';
 
 const DISMISSED_KEY = 'nestora_push_dismissed_until';
 const SNOOZE_DAYS = 7;
-const SW_READY_TIMEOUT_MS = 8_000;
 const SUBSCRIBE_TIMEOUT_MS = 20_000;
 
 const COPY = {
@@ -31,13 +30,19 @@ function urlBase64ToUint8Array(base64: string) {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
-// iOS Safari can silently stall on pushManager.subscribe() waiting for APNs.
-// Race against a timeout so the UI doesn't freeze indefinitely.
-function swReady(): Promise<ServiceWorkerRegistration> {
+// navigator.serviceWorker.ready requires the SW to *control* the current page,
+// which iOS often delays after rapid SW updates. getRegistration() resolves
+// immediately if a SW is already registered — no controller requirement.
+async function swReady(): Promise<ServiceWorkerRegistration> {
+  const existing = await navigator.serviceWorker.getRegistration('/');
+  if (existing?.active) return existing;
+
+  // Nothing active yet — re-register and wait up to 15s.
+  await navigator.serviceWorker.register('/sw.js', { scope: '/' });
   return Promise.race([
     navigator.serviceWorker.ready,
     new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('App not ready. Try closing and reopening Nestora.')), SW_READY_TIMEOUT_MS)
+      setTimeout(() => reject(new Error('App not ready. Try closing and reopening Nestora.')), 15_000)
     ),
   ]);
 }
