@@ -34,7 +34,7 @@ export default async function TenantsPage({
     supabase
       .from('tenant_property_links')
       .select(
-        'id, tenant_id, tenant_email, status, unit, unit_label_type, initiated_by, notes, created_at, property_id, property:property_id(id, name, address, unit_label_type)'
+        'id, tenant_id, tenant_email, tenant_name, status, unit, unit_label_type, initiated_by, notes, created_at, property_id, property:property_id(id, name, address, unit_label_type)'
       )
       .in('status', ['pending', 'approved'])
       .order('created_at', { ascending: false }),
@@ -59,10 +59,12 @@ export default async function TenantsPage({
   const rawApproved = links.filter((l) => l.status === 'approved');
 
   // Unit lookup built from the already-fetched links — no extra query needed.
-  // Key: "propertyId::lowercaseEmail"
+  // Key: "propertyId::lowercaseEmail" — manual tenants (no email) are skipped.
   const unitMap = new Map<string, string | null>();
   for (const link of links) {
-    unitMap.set(`${link.property_id}::${link.tenant_email.toLowerCase()}`, link.unit);
+    if (link.tenant_email) {
+      unitMap.set(`${link.property_id}::${link.tenant_email.toLowerCase()}`, link.unit);
+    }
   }
 
   type RawRequest = {
@@ -81,8 +83,8 @@ export default async function TenantsPage({
   // profiles RLS is own-row-only; admin client required.
   const allEmails = [
     ...new Set([
-      ...rawApproved.map((l) => l.tenant_email.toLowerCase()),
-      ...rawPending.map((l) => l.tenant_email.toLowerCase()),
+      ...rawApproved.filter((l) => l.tenant_email).map((l) => l.tenant_email!.toLowerCase()),
+      ...rawPending.filter((l) => l.tenant_email).map((l) => l.tenant_email!.toLowerCase()),
       ...rawRequests.map((r) => r.tenant_email.toLowerCase()),
     ]),
   ];
@@ -130,16 +132,21 @@ export default async function TenantsPage({
   } catch { /* table not yet migrated — show no documents */ }
 
   const approvedLinks: TenantLink[] = rawApproved.map((l) => {
-    const key = l.tenant_email.toLowerCase();
+    const email = l.tenant_email as string | null;
+    const key = email?.toLowerCase() ?? null;
+    const isManual = !email;
     return {
       ...l,
-      tenant_name: nameByEmail.get(key) ?? null,
-      // nameByEmail only contains emails present in profiles. If the email is
-      // absent the profile row was deleted after the link was created.
-      profileMissing: !nameByEmail.has(key),
-      phone: phoneByEmail.get(key) ?? null,
-      ec_name: ecNameByEmail.get(key) ?? null,
-      ec_phone: ecPhoneByEmail.get(key) ?? null,
+      // Manual tenants: name comes from the DB column; email tenants: from profile.
+      tenant_name: isManual
+        ? ((l as any).tenant_name as string | null)
+        : (key ? (nameByEmail.get(key) ?? null) : null),
+      // profileMissing: email-invited but not yet signed up (or deleted).
+      // Manual tenants are never flagged — they're intentionally without an account.
+      profileMissing: !isManual && (key === null || !nameByEmail.has(key)),
+      phone: key ? (phoneByEmail.get(key) ?? null) : null,
+      ec_name: key ? (ecNameByEmail.get(key) ?? null) : null,
+      ec_phone: key ? (ecPhoneByEmail.get(key) ?? null) : null,
       lease: leaseByLinkId.get(l.id) ?? null,
       documents: docsByLinkId.get(l.id) ?? [],
     };
@@ -147,7 +154,9 @@ export default async function TenantsPage({
 
   const pendingLinks: TenantLink[] = rawPending.map((l) => ({
     ...l,
-    tenant_name: nameByEmail.get(l.tenant_email.toLowerCase()) ?? null,
+    tenant_name: l.tenant_email
+      ? (nameByEmail.get(l.tenant_email.toLowerCase()) ?? null)
+      : ((l as any).tenant_name as string | null),
     phone: null,
     ec_name: null,
     ec_phone: null,

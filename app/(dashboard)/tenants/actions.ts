@@ -536,3 +536,40 @@ export async function resendTenantInvite(linkId: string) {
 
   await sendTenantInviteEmail({ to: tenantEmail, propertyName, landlordName, otpCode });
 }
+
+export async function addManualTenant(
+  name: string,
+  propertyId: string,
+  unit?: string,
+  unitLabelType?: string,
+) {
+  if (!name.trim() || !propertyId) throw new Error('Name and property are required');
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data: property } = await supabase
+    .from('properties')
+    .select('id')
+    .eq('id', propertyId)
+    .eq('user_id', user.id)
+    .single();
+  if (!property) throw new Error('Property not found');
+
+  const { error } = await supabase
+    .from('tenant_property_links')
+    .insert({
+      landlord_id: user.id,
+      property_id: propertyId,
+      tenant_email: null,
+      tenant_name: name.trim(),
+      status: 'approved',
+      approved_at: new Date().toISOString(),
+      initiated_by: 'landlord',
+      unit: unit?.trim() || null,
+      unit_label_type: unitLabelType?.trim() || null,
+    });
+  if (error) throw new Error(error.message);
+  revalidatePath('/tenants');
+}

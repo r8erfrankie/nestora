@@ -43,9 +43,9 @@ import {
   X,
 } from 'lucide-react';
 import Link from 'next/link';
-import { timeAgo } from '@/lib/utils';
+import { cn, timeAgo } from '@/lib/utils';
 import { PhotoLightbox } from '@/components/PhotoLightbox';
-import { approveTenantRequest, convertToWorkOrder, deleteMaintenanceRequest, inviteTenantByEmail, rejectTenantRequest, removeTenant, resendTenantInvite, updateTenantNotes } from './actions';
+import { addManualTenant, approveTenantRequest, convertToWorkOrder, deleteMaintenanceRequest, inviteTenantByEmail, rejectTenantRequest, removeTenant, resendTenantInvite, updateTenantNotes } from './actions';
 import { LeaseSection } from './lease-section';
 import { type LeaseData } from './lease-actions';
 import { LeaseDocuments } from './lease-documents';
@@ -62,7 +62,7 @@ export type PropertySummary = {
 export type TenantLink = {
   id: string;
   tenant_id: string | null;
-  tenant_email: string;
+  tenant_email: string | null;
   tenant_name: string | null;
   status: string;
   unit: string | null;
@@ -130,7 +130,7 @@ interface TenantsClientProps {
 
 type RemoveTarget = {
   linkId: string;
-  tenantEmail: string;
+  tenantEmail: string | null;
   tenantName: string | null;
   propertyName: string;
 };
@@ -944,8 +944,9 @@ function TenantRow({
   const [saved, setSaved] = useState(false);
 
   const isDirty = notes !== savedNotes;
-  const isInviteSent = (link.profileMissing ?? false) && link.tenant_id === null;
-  const isDeleted = (link.profileMissing ?? false) && link.tenant_id !== null;
+  const isManual = !link.tenant_email;
+  const isInviteSent = !isManual && (link.profileMissing ?? false) && link.tenant_id === null;
+  const isDeleted = !isManual && (link.profileMissing ?? false) && link.tenant_id !== null;
   const [resending, startResend] = useTransition();
   const [resendError, setResendError] = useState('');
   const [resendDone, setResendDone] = useState(false);
@@ -972,7 +973,7 @@ function TenantRow({
         <div className="min-w-0 flex-1">
           {link.profileMissing ? (
             <div className="flex flex-wrap items-center gap-1.5">
-              <p className="text-muted-foreground truncate">{link.tenant_email}</p>
+              <p className="text-muted-foreground truncate">{link.tenant_email ?? link.tenant_name}</p>
               {isInviteSent && (
                 <>
                   <span className="bg-muted text-muted-foreground inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium">
@@ -1010,8 +1011,8 @@ function TenantRow({
               )}
             </div>
           ) : (
-            <p className="truncate" title={link.tenant_name ? link.tenant_email : undefined}>
-              {link.tenant_name ?? link.tenant_email}
+            <p className="truncate" title={link.tenant_name && link.tenant_email ? link.tenant_email : undefined}>
+              {link.tenant_name ?? link.tenant_email ?? '—'}
             </p>
           )}
           {unitLabel && (
@@ -1045,11 +1046,21 @@ function TenantRow({
       <div className={`grid transition-all duration-200 ease-in-out ${isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
         <div className="overflow-hidden">
           <div className="space-y-4 border-t bg-muted/20 px-4 py-4">
+            {isManual && (
+              <p className="text-muted-foreground/60 flex items-center gap-1.5 text-xs">
+                <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/40" />
+                No Nestora account — added manually
+              </p>
+            )}
             {/* Contact info grid */}
             <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
               <div>
                 <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Email</p>
-                <p className="mt-0.5 text-xs">{link.tenant_email}</p>
+                {link.tenant_email ? (
+                  <p className="mt-0.5 text-xs">{link.tenant_email}</p>
+                ) : (
+                  <p className="text-muted-foreground/50 mt-0.5 text-xs italic">None</p>
+                )}
               </div>
               {link.phone && (
                 <div>
@@ -1189,9 +1200,9 @@ function PendingRow({ link }: { link: TenantLink }) {
           <div className="min-w-0">
             <p
               className="truncate text-sm font-medium"
-              title={link.tenant_name ? link.tenant_email : undefined}
+              title={link.tenant_name && link.tenant_email ? link.tenant_email : undefined}
             >
-              {link.tenant_name ?? link.tenant_email}
+              {link.tenant_name ?? link.tenant_email ?? '—'}
             </p>
             <div className="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-1.5 text-xs">
               <span className="flex items-center gap-1">
@@ -1247,7 +1258,9 @@ function InviteModal({
   onOpenChange: (v: boolean) => void;
   properties: PropertyWithCode[];
 }) {
+  const [mode, setMode] = useState<'email' | 'manual'>('email');
   const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
   const [propertyId, setPropertyId] = useState('');
   const [unit, setUnit] = useState('');
   const [unitLabelType, setUnitLabelType] = useState('');
@@ -1261,6 +1274,7 @@ function InviteModal({
 
   const reset = () => {
     setEmail('');
+    setName('');
     setPropertyId('');
     setUnit('');
     setUnitLabelType('');
@@ -1275,11 +1289,29 @@ function InviteModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+
+    if (mode === 'manual') {
+      if (!name.trim() || !propertyId) {
+        setError('Please enter a name and select a property.');
+        return;
+      }
+      startTransition(async () => {
+        try {
+          await addManualTenant(name.trim(), propertyId, unit, effectiveLabelType);
+          setSuccess(true);
+          setTimeout(() => handleOpenChange(false), 1600);
+        } catch (err: unknown) {
+          setError(err instanceof Error ? err.message : 'Failed to add tenant.');
+        }
+      });
+      return;
+    }
+
     if (!email.trim() || !propertyId) {
       setError('Please fill in all fields.');
       return;
     }
-    setError('');
     startTransition(async () => {
       try {
         await inviteTenantByEmail(email.trim(), propertyId, unit, effectiveLabelType);
@@ -1295,10 +1327,11 @@ function InviteModal({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Invite Tenant</DialogTitle>
+          <DialogTitle>{mode === 'email' ? 'Invite Tenant' : 'Add Tenant'}</DialogTitle>
           <DialogDescription>
-            Grant a tenant immediate access to one of your properties. They&apos;ll receive an
-            email with a link to log in.
+            {mode === 'email'
+              ? "Grant a tenant immediate access to one of your properties. They'll receive an email with a link to log in."
+              : 'Add a tenant for record-keeping only. No email or Nestora account required.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -1308,29 +1341,77 @@ function InviteModal({
               <CheckCircle2 className="h-6 w-6 text-emerald-600" />
             </div>
             <div>
-              <p className="font-medium">Invite sent</p>
+              <p className="font-medium">{mode === 'email' ? 'Invite sent' : 'Tenant added'}</p>
               <p className="text-muted-foreground mt-0.5 text-sm">
-                {email} now has access and has been notified by email.
+                {mode === 'email'
+                  ? `${email} now has access and has been notified by email.`
+                  : `${name} has been added to the property.`}
               </p>
             </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Tenant email</label>
-              <Input
-                type="email"
-                placeholder="tenant@example.com"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  setError('');
-                }}
-                disabled={isPending}
-                autoFocus
-                required
-              />
+            {/* Mode toggle */}
+            <div className="flex rounded-lg border p-1 gap-1">
+              <button
+                type="button"
+                onClick={() => { setMode('email'); setError(''); }}
+                className={cn(
+                  'flex-1 rounded-md py-1.5 text-xs font-medium transition-colors',
+                  mode === 'email'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                Send invite
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMode('manual'); setError(''); }}
+                className={cn(
+                  'flex-1 rounded-md py-1.5 text-xs font-medium transition-colors',
+                  mode === 'manual'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                No email
+              </button>
             </div>
+
+            {mode === 'email' ? (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Tenant email</label>
+                <Input
+                  type="email"
+                  placeholder="tenant@example.com"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setError('');
+                  }}
+                  disabled={isPending}
+                  autoFocus
+                  required
+                />
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Tenant name</label>
+                <Input
+                  type="text"
+                  placeholder="e.g. Jane Smith"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setError('');
+                  }}
+                  disabled={isPending}
+                  autoFocus
+                  required
+                />
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Property</label>
