@@ -8,7 +8,17 @@ import { type NotificationPrefs } from '@/lib/notification-types';
 import { saveNotificationPreferences } from './notification-actions';
 import { savePushSubscription, removePushSubscription } from '@/app/actions/push-actions';
 
+const SW_READY_TIMEOUT_MS = 8_000;
 const SUBSCRIBE_TIMEOUT_MS = 20_000;
+
+function swReady(): Promise<ServiceWorkerRegistration> {
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('App not ready. Try closing and reopening Nestora.')), SW_READY_TIMEOUT_MS)
+    ),
+  ]);
+}
 
 function urlBase64ToUint8Array(base64: string) {
   const padding = '='.repeat((4 - (base64.length % 4)) % 4);
@@ -67,23 +77,27 @@ export function NotificationPreferencesSection({ initialPrefs }: Props) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // On mount: sync the push_enabled toggle against the actual browser subscription.
-  // If the DB says enabled but there's no real subscription (e.g. stale state after
-  // clearing the app or reinstalling the PWA), reset it to false so the user can
-  // cleanly re-enable rather than seeing a stuck "on" that does nothing.
+  // If the DB says enabled but there's no real subscription (stale state after
+  // clearing the app, reinstalling the PWA, or a failed subscribe attempt),
+  // reset to false so the user can cleanly re-enable.
   useEffect(() => {
     if (!initialPrefs.push_enabled) return;
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
 
-    navigator.serviceWorker.ready
+    const reset = () => {
+      setPrefs((p) => ({ ...p, push_enabled: false }));
+      saveNotificationPreferences({ ...initialPrefs, push_enabled: false }).catch(() => {});
+    };
+
+    // Fast synchronous check — if permission was never granted, nothing to verify.
+    if (!('Notification' in window) || Notification.permission !== 'granted') { reset(); return; }
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) { reset(); return; }
+
+    swReady()
       .then(async (reg) => {
         const sub = await reg.pushManager.getSubscription();
-        const permissionGranted = 'Notification' in window && Notification.permission === 'granted';
-        if (!sub || !permissionGranted) {
-          setPrefs((p) => ({ ...p, push_enabled: false }));
-          await saveNotificationPreferences({ ...initialPrefs, push_enabled: false });
-        }
+        if (!sub) reset();
       })
-      .catch(() => {});
+      .catch(reset); // SW timed out or failed — reset the toggle
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = async (key: PrefKey, value: boolean) => {
@@ -102,7 +116,7 @@ export function NotificationPreferencesSection({ initialPrefs }: Props) {
           toast.error('Notification permission was not granted.');
           return;
         }
-        const reg = await navigator.serviceWorker.ready;
+        const reg = await swReady();
 
         // Unsubscribe first to clear any stale/broken subscription.
         const existing = await reg.pushManager.getSubscription();
@@ -121,7 +135,7 @@ export function NotificationPreferencesSection({ initialPrefs }: Props) {
 
     if (key === 'push_enabled' && !value) {
       try {
-        const reg = await navigator.serviceWorker.ready;
+        const reg = await swReady();
         const sub = await reg.pushManager.getSubscription();
         if (sub) {
           await sub.unsubscribe();

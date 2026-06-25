@@ -6,6 +6,7 @@ import { savePushSubscription } from '@/app/actions/push-actions';
 
 const DISMISSED_KEY = 'nestora_push_dismissed_until';
 const SNOOZE_DAYS = 7;
+const SW_READY_TIMEOUT_MS = 8_000;
 const SUBSCRIBE_TIMEOUT_MS = 20_000;
 
 const COPY = {
@@ -32,6 +33,15 @@ function urlBase64ToUint8Array(base64: string) {
 
 // iOS Safari can silently stall on pushManager.subscribe() waiting for APNs.
 // Race against a timeout so the UI doesn't freeze indefinitely.
+function swReady(): Promise<ServiceWorkerRegistration> {
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('App not ready. Try closing and reopening Nestora.')), SW_READY_TIMEOUT_MS)
+    ),
+  ]);
+}
+
 function subscribeWithTimeout(reg: ServiceWorkerRegistration): Promise<PushSubscription> {
   return Promise.race([
     reg.pushManager.subscribe({
@@ -54,7 +64,7 @@ export function PushPrompt({ role }: { role: 'landlord' | 'contractor' | 'tenant
 
     // If permission already granted, silently ensure a subscription exists in the DB.
     if (Notification.permission === 'granted') {
-      navigator.serviceWorker.ready.then(async (reg) => {
+      swReady().then(async (reg) => {
         try {
           let sub = await reg.pushManager.getSubscription();
           if (!sub) {
@@ -69,7 +79,7 @@ export function PushPrompt({ role }: { role: 'landlord' | 'contractor' | 'tenant
         } catch {
           // Non-fatal — user can re-enable via settings
         }
-      });
+      }).catch(() => {});
       return;
     }
 
@@ -95,7 +105,7 @@ export function PushPrompt({ role }: { role: 'landlord' | 'contractor' | 'tenant
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') { setShow(false); return; }
 
-      const reg = await navigator.serviceWorker.ready;
+      const reg = await swReady();
 
       // Clear any stale/broken subscription before creating a fresh one.
       const existing = await reg.pushManager.getSubscription();
