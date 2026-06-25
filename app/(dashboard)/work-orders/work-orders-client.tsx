@@ -1189,7 +1189,7 @@ export function WorkOrdersClient({
               <TableRow>
                 <TableHead>Title</TableHead>
                 <TableHead
-                  className="hover:bg-muted/50 cursor-pointer select-none"
+                  className="hover:bg-muted/50 active:bg-muted/80 cursor-pointer select-none"
                   onClick={() => toggleSort('property')}
                 >
                   Property {sortColumn === 'property' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
@@ -1234,7 +1234,7 @@ export function WorkOrdersClient({
                 <button
                   type="button"
                   onClick={() => toggleGroup(key)}
-                  className="flex w-full items-center gap-3 bg-muted px-4 py-2.5 text-left transition-colors hover:bg-muted/80"
+                  className="flex w-full items-center gap-3 bg-muted px-4 py-2.5 text-left transition-colors hover:bg-muted/80 active:bg-muted"
                 >
                   <ChevronDown
                     className={cn(
@@ -1255,7 +1255,7 @@ export function WorkOrdersClient({
                           <TableHead>Title</TableHead>
                           {groupBy !== 'property' && (
                             <TableHead
-                              className="hover:bg-muted/50 cursor-pointer select-none"
+                              className="hover:bg-muted/50 active:bg-muted/80 cursor-pointer select-none"
                               onClick={() => toggleSort('property')}
                             >
                               Property {sortColumn === 'property' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
@@ -2237,6 +2237,7 @@ export function WorkOrdersClient({
                               <img
                                 src={photo.url}
                                 alt={displayName}
+                                loading="lazy"
                                 className="h-full w-full object-cover transition-transform group-hover:scale-105"
                               />
                               {photo.uploaded_by_role === 'contractor' && (
@@ -2398,7 +2399,7 @@ function WorkOrderRow({
   const unitLabelType = wo.properties?.unit_label_type ?? properties.find((p) => p.id === wo.property_id)?.unit_label_type;
 
   return (
-    <TableRow onClick={() => onOpen(wo)} className="hover:bg-muted/50 cursor-pointer">
+    <TableRow onClick={() => onOpen(wo)} className="hover:bg-muted/50 active:bg-muted/80 cursor-pointer">
       <TableCell className="max-w-[160px] font-medium" title={wo.title}>
         <span className="flex min-w-0 items-center gap-1.5">
           <span className="truncate">{wo.title}</span>

@@ -932,6 +932,7 @@ export function ContractorClient({
                           <img
                             src={photo.url}
                             alt={photo.name || ''}
+                            loading="lazy"
                             className="h-full w-full object-cover transition-transform group-hover:scale-105"
                           />
                           {photo.uploaded_by_role === 'landlord' && (

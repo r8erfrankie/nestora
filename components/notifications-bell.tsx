@@ -224,14 +224,14 @@ export function NotificationsBell({
                   onMouseEnter={() => handleMouseEnter(n)}
                   onMouseLeave={() => handleMouseLeave(n.id)}
                   className={cn(
-                    'w-full px-4 py-3.5 text-left transition-colors duration-300 hover:bg-muted/50',
+                    'w-full px-4 py-3.5 text-left transition-colors duration-150 hover:bg-muted/50 active:bg-muted/80',
                     !n.read && 'bg-blue-50/60 dark:bg-blue-950/20'
                   )}
                 >
                   <div className="flex items-start gap-3">
                     <div
                       className={cn(
-                        'mt-[7px] h-2 w-2 shrink-0 rounded-full transition-colors duration-300',
+                        'mt-[7px] h-2 w-2 shrink-0 rounded-full transition-colors duration-150',
                         n.read ? 'bg-transparent' : 'bg-blue-500'
                       )}
                     />

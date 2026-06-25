@@ -102,10 +102,10 @@ export function BottomNav({
                 key={href}
                 href={href}
                 className={cn(
-                  'flex flex-1 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors',
+                  'flex flex-1 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors active:opacity-60',
                   isActive(href)
                     ? 'text-primary'
-                    : 'text-muted-foreground hover:text-foreground'
+                    : 'text-muted-foreground hover:text-foreground active:text-foreground'
                 )}
               >
                 <div className="relative">
@@ -126,8 +126,8 @@ export function BottomNav({
             type="button"
             onClick={() => setMenuOpen(true)}
             className={cn(
-              'flex flex-1 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors',
-              menuOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+              'flex flex-1 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors active:opacity-60',
+              menuOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground active:text-foreground'
             )}
           >
             <MoreHorizontal className="h-5 w-5 shrink-0" />

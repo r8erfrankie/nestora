@@ -121,6 +121,11 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    /* Eliminate 300ms tap delay on all interactive elements.
+       'manipulation' allows pan + pinch-zoom but disables double-tap-zoom wait. */
+    touch-action: manipulation;
+    /* Remove the gray/blue tap highlight flash on iOS Safari. */
+    -webkit-tap-highlight-color: transparent;
   }
   body {
     @apply bg-background text-foreground;

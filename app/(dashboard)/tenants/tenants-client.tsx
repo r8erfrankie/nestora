@@ -325,7 +325,7 @@ function CollapsibleSection({
       <button
         type="button"
         onClick={toggle}
-        className="-mx-1 flex w-full items-center gap-2 rounded-md px-1 py-1 text-left transition-colors hover:bg-muted/40"
+        className="-mx-1 flex w-full items-center gap-2 rounded-md px-1 py-1 text-left transition-colors hover:bg-muted/40 active:bg-muted/60"
       >
         <h2 className="text-sm font-medium">{title}</h2>
         {badge}
@@ -369,7 +369,7 @@ function PropertyGroup({
       <button
         type="button"
         onClick={toggle}
-        className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted/30 ${
+        className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted/30 active:bg-muted/50 ${
           isOpen ? 'border-b' : ''
         }`}
       >
@@ -1017,7 +1017,7 @@ function TenantRow({
         <button
           type="button"
           onClick={() => setIsExpanded(!isExpanded)}
-          className="text-muted-foreground flex h-7 w-7 shrink-0 items-center justify-center rounded p-0 transition-colors hover:bg-muted/60"
+          className="text-muted-foreground flex h-7 w-7 shrink-0 items-center justify-center rounded p-0 transition-colors hover:bg-muted/60 active:bg-muted"
           title={isExpanded ? 'Collapse' : 'Details & notes'}
         >
           <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
