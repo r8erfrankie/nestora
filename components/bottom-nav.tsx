@@ -88,7 +88,7 @@ export function BottomNav({
   return (
     <>
       {/* Bottom navigation bar — hidden on desktop */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden border-t border-border bg-background">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden border-t border-border bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
         <div className="flex h-16 items-stretch">
           {bottomItems.map(({ href, label, icon: Icon }) => {
             const badge = badgeFor(href);
@@ -132,8 +132,7 @@ export function BottomNav({
             </button>
           )}
         </div>
-        {/* Explicit safe-area spacer — more reliable than paddingBottom in iOS PWA standalone */}
-        <div className="bg-background" style={{ height: 'env(safe-area-inset-bottom)' }} />
+        <div style={{ height: 'env(safe-area-inset-bottom)' }} />
       </nav>
 
       {/* Full nav drawer — slides up from bottom */}
