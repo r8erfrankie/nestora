@@ -1064,11 +1064,18 @@ function TenantRow({
             <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
               <div>
                 <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Email</p>
-                {link.tenant_email ? (
-                  <p className="mt-0.5 text-xs">{link.tenant_email}</p>
-                ) : (
-                  <p className="text-muted-foreground/50 mt-0.5 text-xs italic">None</p>
-                )}
+                <div className="mt-0.5 flex items-center gap-2">
+                  {link.tenant_email ? (
+                    <p className="text-xs">{link.tenant_email}</p>
+                  ) : (
+                    <p className="text-muted-foreground/50 text-xs italic">None</p>
+                  )}
+                  {!isManual && !link.profileMissing && (
+                    <span className="inline-flex shrink-0 items-center rounded-full bg-teal-700/10 px-1.5 py-0.5 text-[10px] font-semibold text-teal-700">
+                      Registered
+                    </span>
+                  )}
+                </div>
               </div>
               {link.phone && (
                 <div>
