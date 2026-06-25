@@ -231,7 +231,7 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
       {approvedLinks.length > 0 && (
         <CollapsibleSection
           title="Approved Tenants"
-          badge={<Badge variant="secondary">{approvedLinks.length}</Badge>}
+          badge={<Badge className="bg-primary/10 text-primary hover:bg-primary/15 border-0 text-xs font-semibold">{approvedLinks.length}</Badge>}
           storageKey="tenants-section-approved"
         >
           <div className="space-y-3">
@@ -251,7 +251,7 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
       {/* ── Maintenance requests ─────────────────────────────────────────────── */}
       <CollapsibleSection
         title="Maintenance Requests"
-        badge={requests.length > 0 ? <Badge variant="secondary">{requests.length}</Badge> : undefined}
+        badge={requests.length > 0 ? <Badge className="bg-primary/10 text-primary hover:bg-primary/15 border-0 text-xs font-semibold">{requests.length}</Badge> : undefined}
         storageKey="tenants-section-maintenance"
       >
         {requests.length === 0 ? (
@@ -329,17 +329,21 @@ function CollapsibleSection({
       <button
         type="button"
         onClick={toggle}
-        className="-mx-1 flex w-full items-center gap-2 rounded-md px-1 py-1.5 text-left transition-colors hover:bg-muted/40 active:bg-muted/60"
+        className={cn(
+          '-mx-2 flex w-[calc(100%+1rem)] items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors',
+          isOpen
+            ? 'bg-primary/8 hover:bg-primary/12 active:bg-primary/15'
+            : 'hover:bg-muted/40 active:bg-muted/60',
+        )}
       >
-        <span className={cn('h-3.5 w-1 shrink-0 rounded-full transition-colors', isOpen ? 'bg-primary' : 'bg-muted-foreground/30')} />
-        <h2 className={cn('text-sm font-semibold tracking-tight transition-colors', isOpen && 'text-primary')}>{title}</h2>
+        <span className={cn('h-4 w-1 shrink-0 rounded-full transition-colors', isOpen ? 'bg-primary' : 'bg-muted-foreground/25')} />
+        <h2 className={cn('text-sm font-semibold tracking-tight transition-colors', isOpen ? 'text-primary' : 'text-foreground')}>{title}</h2>
         {badge}
         {trailing}
         <ChevronDown
           className={cn('ml-auto h-4 w-4 shrink-0 transition-transform duration-200', isOpen ? 'rotate-180 text-primary' : 'text-muted-foreground')}
         />
       </button>
-      <Separator className="mt-1" />
       <div
         className={`grid transition-all duration-200 ease-in-out ${
           isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
@@ -380,11 +384,13 @@ function PropertyGroup({
         )}
       >
         <Building2 className={cn('h-3.5 w-3.5 shrink-0 transition-colors', isOpen ? 'text-primary' : 'text-muted-foreground')} />
-        <div className="min-w-0 flex-1">
-          <span className="text-sm font-medium">{property?.name ?? 'Property'}</span>
-          {property?.address && (
-            <span className="text-muted-foreground ml-2 text-xs">{property.address}</span>
-          )}
+        <div className="min-w-0 flex-1 overflow-hidden">
+          <div className="flex items-baseline gap-1.5 overflow-hidden">
+            <span className="shrink-0 text-sm font-medium">{property?.name ?? 'Property'}</span>
+            {property?.address && (
+              <span className="text-muted-foreground truncate text-xs">{property.address}</span>
+            )}
+          </div>
         </div>
         <span className="text-muted-foreground shrink-0 text-xs">
           {tenants.length} {tenants.length === 1 ? 'tenant' : 'tenants'}
