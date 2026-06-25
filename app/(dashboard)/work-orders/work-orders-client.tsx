@@ -8,7 +8,7 @@ import Counter from 'yet-another-react-lightbox/plugins/counter';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { deleteWorkOrder, createWorkOrder, updateWorkOrderStatus, updateContractorAssignment, updateWorkOrderBudget, toggleWorkOrderPaid } from './crud-actions';
+import { deleteWorkOrder, createWorkOrder, updateWorkOrderStatus, updateContractorAssignment, updateWorkOrderBudget, toggleWorkOrderPaid, respondToContractorQuote } from './crud-actions';
 import { createContractor } from '../teams/contractor-actions';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
@@ -49,7 +49,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Eye, Upload, Loader2, ClipboardList, Archive, ArchiveRestore, Trash2, X, Pencil, Phone, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { Plus, Eye, Upload, Loader2, ClipboardList, Archive, ArchiveRestore, Trash2, X, Pencil, Phone, ChevronDown, CheckCircle2, Check, ThumbsDown } from 'lucide-react';
 import { archiveWorkOrderForUser, unarchiveWorkOrderForUser } from '@/app/actions/archive-actions';
 import { ensureJpeg } from '@/lib/convert-heic';
 import { WorkOrderNotes } from '@/app/components/work-order-notes';
@@ -71,6 +71,7 @@ interface WorkOrder {
   notes?: string | null;
   cost?: number | null;
   contractor_quote?: number | null;
+  quote_approved?: boolean | null;
   paid?: boolean | null;
   maintenance_request_id?: string | null;
   created_at: string;
@@ -213,6 +214,7 @@ export function WorkOrdersClient({
   const [budgetDraft, setBudgetDraft] = useState('');
   const [savingBudget, setSavingBudget] = useState(false);
   const [savingPaid, setSavingPaid] = useState(false);
+  const [savingQuote, setSavingQuote] = useState(false);
 
   // Contractor re-assignment state (detail view)
   const [editingContractor, setEditingContractor] = useState(false);
@@ -484,6 +486,21 @@ export function WorkOrdersClient({
       alert('Failed to update budget.');
     } finally {
       setSavingBudget(false);
+    }
+  };
+
+  const handleRespondToQuote = async (approved: boolean | null) => {
+    if (!selectedWorkOrder) return;
+    setSavingQuote(true);
+    try {
+      await respondToContractorQuote(selectedWorkOrder.id, approved);
+      const updated: WorkOrder = { ...selectedWorkOrder, quote_approved: approved };
+      setSelectedWorkOrder(updated);
+      setWorkOrders((prev) => prev.map((w) => (w.id === updated.id ? updated : w)));
+    } catch (err) {
+      console.error('Quote response failed:', err);
+    } finally {
+      setSavingQuote(false);
     }
   };
 
@@ -1787,28 +1804,70 @@ export function WorkOrdersClient({
                   </div>
                   <div>
                     <div className="text-muted-foreground mb-1 text-xs">CONTRACTOR QUOTE</div>
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      <div className="font-mono">
-                        {selectedWorkOrder.contractor_quote != null
-                          ? `$${Number(selectedWorkOrder.contractor_quote).toFixed(2)}`
-                          : <span className="text-muted-foreground font-sans text-sm">No quote submitted yet</span>}
-                      </div>
-                      <button
-                        onClick={handleTogglePaid}
-                        disabled={savingPaid}
-                        className={cn(
-                          'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium transition-colors',
-                          selectedWorkOrder.paid
-                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                            : 'border-border text-muted-foreground hover:border-input hover:text-foreground'
+                    {selectedWorkOrder.contractor_quote != null ? (
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono font-semibold">
+                            ${Number(selectedWorkOrder.contractor_quote).toFixed(2)}
+                          </span>
+                          {selectedWorkOrder.quote_approved === true && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                              <Check className="h-3 w-3" /> Accepted
+                            </span>
+                          )}
+                          {selectedWorkOrder.quote_approved === false && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                              <ThumbsDown className="h-3 w-3" /> Declined
+                            </span>
+                          )}
+                          {selectedWorkOrder.quote_approved === true && (
+                            <button
+                              onClick={handleTogglePaid}
+                              disabled={savingPaid}
+                              className={cn(
+                                'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium transition-colors',
+                                selectedWorkOrder.paid
+                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                  : 'border-border text-muted-foreground hover:border-input hover:text-foreground'
+                              )}
+                            >
+                              {savingPaid ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                              {selectedWorkOrder.paid ? 'Paid' : 'Mark paid'}
+                            </button>
+                          )}
+                        </div>
+                        {selectedWorkOrder.quote_approved == null && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleRespondToQuote(true)}
+                              disabled={savingQuote}
+                              className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400"
+                            >
+                              {savingQuote ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                              Accept
+                            </button>
+                            <button
+                              onClick={() => handleRespondToQuote(false)}
+                              disabled={savingQuote}
+                              className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400"
+                            >
+                              <ThumbsDown className="h-3 w-3" /> Decline
+                            </button>
+                          </div>
                         )}
-                      >
-                        {savingPaid
-                          ? <Loader2 className="h-3 w-3 animate-spin" />
-                          : <CheckCircle2 className="h-3 w-3" />}
-                        {selectedWorkOrder.paid ? 'Paid' : 'Mark paid'}
-                      </button>
-                    </div>
+                        {selectedWorkOrder.quote_approved != null && (
+                          <button
+                            onClick={() => handleRespondToQuote(null)}
+                            disabled={savingQuote}
+                            className="text-muted-foreground text-xs underline-offset-2 hover:underline disabled:opacity-50"
+                          >
+                            Undo decision
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground font-sans text-sm">No quote submitted yet</span>
+                    )}
                   </div>
                   <div className="sm:col-span-2">
                     <div className="text-muted-foreground mb-1 text-xs">ASSIGNED CONTRACTOR</div>

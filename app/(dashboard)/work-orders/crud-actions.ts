@@ -403,6 +403,60 @@ export async function toggleWorkOrderPaid(id: string, paid: boolean) {
   if (error) throw new Error(error.message || 'Failed to update paid status');
 }
 
+export async function respondToContractorQuote(id: string, approved: boolean | null) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data: wo, error: fetchErr } = await supabase
+    .from('work_orders')
+    .select('user_id, title, contractor_quote, assigned_contractor_email, properties(name)')
+    .eq('id', id)
+    .single() as {
+      data: {
+        user_id: string;
+        title: string;
+        contractor_quote: number | null;
+        assigned_contractor_email: string | null;
+        properties: { name: string } | null;
+      } | null;
+      error: unknown;
+    };
+
+  if (fetchErr || !wo || wo.user_id !== user.id) throw new Error('Not authorized');
+
+  const { error } = await supabase
+    .from('work_orders')
+    .update({ quote_approved: approved })
+    .eq('id', id)
+    .eq('user_id', user.id);
+
+  if (error) throw new Error(error.message);
+
+  // Notify contractor — only on an actual decision, not on undo
+  if (approved !== null && wo.assigned_contractor_email && wo.contractor_quote != null) {
+    try {
+      const admin = createAdminClient();
+      const { data: profile } = await admin
+        .from('profiles')
+        .select('id')
+        .eq('email', wo.assigned_contractor_email.toLowerCase())
+        .maybeSingle();
+      if (profile?.id) {
+        const prop = wo.properties?.name;
+        const amount = `$${wo.contractor_quote.toFixed(2)}`;
+        await insertNotification({
+          userId: profile.id as string,
+          type: approved ? 'quote_accepted' : 'quote_declined',
+          title: approved ? 'Nestora: Quote accepted' : 'Nestora: Quote declined',
+          message: `"${wo.title}"${prop ? ` at ${prop}` : ''} — your ${amount} quote has been ${approved ? 'accepted' : 'declined'}.`,
+          link: '/contractor',
+        });
+      }
+    } catch { /* non-fatal */ }
+  }
+}
+
 export async function createWorkOrder(data: {
   title: string;
   description?: string | null;

@@ -46,15 +46,16 @@ export async function submitMaintenanceRequest({
     const admin = createAdminClient();
     const { data: property } = await admin
       .from('properties')
-      .select('user_id')
+      .select('user_id, name')
       .eq('id', propertyId)
       .single();
     if (property?.user_id) {
+      const propName = property.name as string | null;
       await insertNotification({
         userId: property.user_id as string,
         type: 'new_request',
-        title: 'New maintenance request',
-        message: `"${title.trim()}" was submitted for your property.`,
+        title: 'Nestora: New maintenance request',
+        message: `"${title.trim()}"${propName ? ` at ${propName}` : ''} has been submitted.`,
         link: '/tenants',
       });
     }
