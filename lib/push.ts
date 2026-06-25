@@ -15,6 +15,16 @@ export async function sendPushToUser(
   if (!process.env.VAPID_PRIVATE_KEY || !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return;
 
   const admin = createAdminClient();
+
+  // Guard: respect the user's push_enabled preference. This is defensive — disabling
+  // push in settings removes the subscription, but stale subs can survive edge cases.
+  const { data: prefs } = await admin
+    .from('notification_preferences')
+    .select('push_enabled')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (prefs !== null && !prefs.push_enabled) return;
+
   const { data: subs } = await admin
     .from('push_subscriptions')
     .select('endpoint, p256dh, auth')

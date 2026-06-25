@@ -1,6 +1,7 @@
 'use client';
 
-import { useOptimistic, useTransition, useState, useEffect } from 'react';
+import { useOptimistic, useTransition, useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import Lightbox from 'yet-another-react-lightbox';
 import Counter from 'yet-another-react-lightbox/plugins/counter';
 import { createClient } from '@/lib/supabase/client';
@@ -26,6 +27,7 @@ import {
   PlayCircle,
   Archive,
   ArchiveRestore,
+  RefreshCw,
   X,
   MapPin,
 } from 'lucide-react';
@@ -204,6 +206,17 @@ export function ContractorClient({
   archivedWorkOrderIds: string[];
   currentUserId?: string;
 }) {
+  const router = useRouter();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    router.refresh();
+    // router.refresh() is fire-and-forget; use a short delay so the spinner
+    // is visible even on fast connections.
+    setTimeout(() => setIsRefreshing(false), 800);
+  }, [router]);
+
   const [isPending, startTransition] = useTransition();
   // Canonical state — updated with real server results so that when
   // useOptimistic reverts at transition end, it reverts to the new value.
@@ -382,18 +395,29 @@ export function ContractorClient({
   return (
     <div className="space-y-4 sm:space-y-5">
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
-          {greeting}
-          {firstName ? `, ${firstName}` : ''}
-        </h1>
-        <p className="text-muted-foreground mt-0.5 text-sm">
-          {activeOrders.length === 0 && archivedList.length === 0
-            ? 'No work orders assigned to you yet.'
-            : activeOrders.length === 0
-              ? 'All your work orders are archived.'
-              : `You have ${activeOrders.length} active work order${activeOrders.length !== 1 ? 's' : ''}.`}
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
+            {greeting}
+            {firstName ? `, ${firstName}` : ''}
+          </h1>
+          <p className="text-muted-foreground mt-0.5 text-sm">
+            {activeOrders.length === 0 && archivedList.length === 0
+              ? 'No work orders assigned to you yet.'
+              : activeOrders.length === 0
+                ? 'All your work orders are archived.'
+                : `You have ${activeOrders.length} active work order${activeOrders.length !== 1 ? 's' : ''}.`}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          aria-label="Refresh work orders"
+          className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
+        >
+          <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+        </button>
       </div>
 
       {/* Stats */}
