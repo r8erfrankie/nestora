@@ -185,9 +185,7 @@ export default async function WorkOrdersPage({
                     .is('assigned_contractor_id', null) // skip if a concurrent write beat us
                 )
               );
-              console.log(
-                `[WorkOrdersPage] on-demand backfill: linked assigned_contractor_id on ${toWrite.length} work order(s)`
-              );
+
             } catch (writeErr) {
               // Non-fatal — in-memory data is already patched for this render
               console.error('[WorkOrdersPage] backfill write failed (non-fatal):', writeErr);

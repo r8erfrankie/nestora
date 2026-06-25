@@ -6,14 +6,12 @@ import {
   ClipboardList,
   MessageSquare,
   Plus,
-  Wrench,
   User,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { Onboarding } from '@/components/onboarding';
-import { timeAgo, getGreeting } from '@/lib/utils';
+import { timeAgo, getGreeting, cn } from '@/lib/utils';
 import { cookies } from 'next/headers';
-import { cn } from '@/lib/utils';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
