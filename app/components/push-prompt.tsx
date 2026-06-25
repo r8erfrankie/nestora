@@ -30,19 +30,21 @@ function urlBase64ToUint8Array(base64: string) {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
-// Returns the active SW registration. Never attempts its own register() call —
-// the root layout handles that. Calling register() after iOS clears website data
-// throws until the PWA is fully restarted, producing misleading errors.
 async function swReady(): Promise<ServiceWorkerRegistration> {
-  const existing = await navigator.serviceWorker.getRegistration('/');
-  if (existing?.active) return existing;
+  // Check exact scope first, then any active registration as a fallback.
+  const exact = await navigator.serviceWorker.getRegistration('/');
+  if (exact?.active) return exact;
 
-  // SW registered but still installing/waiting (or page just opened) — wait.
+  const all = await navigator.serviceWorker.getRegistrations();
+  const any = all.find((r) => r.active);
+  if (any) return any;
+
+  // Nothing active — wait for the layout's register() to complete.
   return Promise.race([
     navigator.serviceWorker.ready,
     new Promise<never>((_, reject) =>
       setTimeout(
-        () => reject(new Error('Close the app completely, reopen it, then try again.')),
+        () => reject(new Error('Remove Nestora from your Home Screen, re-add it from Safari, then try again.')),
         20_000
       )
     ),
