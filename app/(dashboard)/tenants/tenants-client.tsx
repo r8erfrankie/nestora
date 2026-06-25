@@ -45,7 +45,7 @@ import {
 import Link from 'next/link';
 import { timeAgo } from '@/lib/utils';
 import { PhotoLightbox } from '@/components/PhotoLightbox';
-import { approveTenantRequest, convertToWorkOrder, inviteTenantByEmail, rejectTenantRequest, removeTenant, resendTenantInvite, updateTenantNotes } from './actions';
+import { approveTenantRequest, convertToWorkOrder, deleteMaintenanceRequest, inviteTenantByEmail, rejectTenantRequest, removeTenant, resendTenantInvite, updateTenantNotes } from './actions';
 import { LeaseSection } from './lease-section';
 import { type LeaseData } from './lease-actions';
 import { formatUnit, getLabelWord } from '@/lib/unit-label';
@@ -151,10 +151,11 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
   const router = useRouter();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<RemoveTarget | null>(null);
+  const [requests, setRequests] = useState<MaintenanceRequest[]>(maintenanceRequests);
 
   // Pre-expand the target request when arriving via deep link; verify it exists first.
   const validExpandId =
-    expandRequest && maintenanceRequests.some((r) => r.id === expandRequest)
+    expandRequest && requests.some((r) => r.id === expandRequest)
       ? expandRequest
       : null;
   const [expandedId, setExpandedId] = useState<string | null>(validExpandId);
@@ -245,10 +246,10 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
       {/* ── Maintenance requests ─────────────────────────────────────────────── */}
       <CollapsibleSection
         title="Maintenance Requests"
-        badge={maintenanceRequests.length > 0 ? <Badge variant="secondary">{maintenanceRequests.length}</Badge> : undefined}
+        badge={requests.length > 0 ? <Badge variant="secondary">{requests.length}</Badge> : undefined}
         storageKey="tenants-section-maintenance"
       >
-        {maintenanceRequests.length === 0 ? (
+        {requests.length === 0 ? (
           <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-lg border border-dashed py-10 text-center">
             <Wrench className="h-8 w-8 opacity-40" />
             <p className="text-sm">No maintenance requests yet.</p>
@@ -258,12 +259,16 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
           </div>
         ) : (
           <div className="divide-y rounded-lg border overflow-hidden">
-            {maintenanceRequests.map((req) => (
+            {requests.map((req) => (
               <div key={req.id} id={`request-${req.id}`}>
                 <RequestRow
                   request={req}
                   isExpanded={expandedId === req.id}
                   onToggle={() => setExpandedId(expandedId === req.id ? null : req.id)}
+                  onDeleted={(id) => {
+                    setRequests((prev) => prev.filter((r) => r.id !== id));
+                    setExpandedId((prev) => (prev === id ? null : prev));
+                  }}
                 />
               </div>
             ))}
@@ -419,10 +424,12 @@ function RequestRow({
   request,
   isExpanded,
   onToggle,
+  onDeleted,
 }: {
   request: MaintenanceRequest;
   isExpanded: boolean;
   onToggle: () => void;
+  onDeleted: (id: string) => void;
 }) {
   const [photos, setPhotos] = useState<Photo[] | null>(null);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
@@ -436,6 +443,25 @@ function RequestRow({
   const [converting, startConverting] = useTransition();
   const [convertError, setConvertError] = useState('');
   const [convertWarning, setConvertWarning] = useState('');
+
+  // Delete state.
+  const [deleteState, setDeleteState] = useState<'idle' | 'confirm' | 'deleting'>('idle');
+  const [deleteError, setDeleteError] = useState('');
+  const [, startDelete] = useTransition();
+
+  const handleDelete = () => {
+    setDeleteError('');
+    setDeleteState('deleting');
+    startDelete(async () => {
+      try {
+        await deleteMaintenanceRequest(request.id);
+        onDeleted(request.id);
+      } catch (err) {
+        setDeleteError(err instanceof Error ? err.message : 'Delete failed.');
+        setDeleteState('idle');
+      }
+    });
+  };
 
   // Lazy-load photos the first time the row is expanded.
   useEffect(() => {
@@ -616,64 +642,110 @@ function RequestRow({
               </div>
             )}
 
-            {/* ── Convert to Work Order ─────────────────────────────────────── */}
-            <div className="border-t pt-4">
-              {convertedWoId ? (
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400">
-                    <CheckCircle2 className="h-4 w-4 shrink-0" />
-                    <span>Converted to a work order</span>
-                  </div>
-                  <Button asChild size="sm" variant="outline" className="gap-1.5 text-xs">
-                    <Link href="/work-orders">
-                      View Work Orders
-                      <ExternalLink className="h-3 w-3" />
-                    </Link>
-                  </Button>
-                </div>
-              ) : (
-                <>
+            {/* ── Actions: Convert to Work Order + Delete ───────────────────── */}
+            <div className="flex flex-wrap items-start justify-between gap-3 border-t pt-4">
+              {/* Convert zone */}
+              <div>
+                {convertedWoId ? (
                   <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      <span>Converted to a work order</span>
+                    </div>
+                    <Button asChild size="sm" variant="outline" className="gap-1.5 text-xs">
+                      <Link href="/work-orders">
+                        View Work Orders
+                        <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Button
+                        size="sm"
+                        disabled={converting}
+                        onClick={() => {
+                          setConvertError('');
+                          setConvertWarning('');
+                          startConverting(async () => {
+                            try {
+                              const { workOrderId, photoWarning } = await convertToWorkOrder(
+                                request.id
+                              );
+                              setConvertedWoId(workOrderId);
+                              if (photoWarning) setConvertWarning(photoWarning);
+                            } catch (err: unknown) {
+                              setConvertError(
+                                err instanceof Error ? err.message : 'Conversion failed.'
+                              );
+                            }
+                          });
+                        }}
+                        className="gap-1.5"
+                      >
+                        {converting ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        )}
+                        {converting ? 'Converting…' : 'Convert to Work Order'}
+                      </Button>
+                      {convertError && (
+                        <p className="text-destructive text-xs">{convertError}</p>
+                      )}
+                    </div>
+                    {convertWarning && (
+                      <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                        ⚠ {convertWarning}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Delete zone */}
+              <div className="flex items-center gap-2">
+                {deleteState === 'idle' && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-muted-foreground hover:text-destructive gap-1 h-8"
+                    onClick={() => setDeleteState('confirm')}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete
+                  </Button>
+                )}
+                {deleteState === 'confirm' && (
+                  <>
+                    <span className="text-destructive text-xs font-medium">Delete permanently?</span>
                     <Button
                       size="sm"
-                      disabled={converting}
-                      onClick={() => {
-                        setConvertError('');
-                        setConvertWarning('');
-                        startConverting(async () => {
-                          try {
-                            const { workOrderId, photoWarning } = await convertToWorkOrder(
-                              request.id
-                            );
-                            setConvertedWoId(workOrderId);
-                            if (photoWarning) setConvertWarning(photoWarning);
-                          } catch (err: unknown) {
-                            setConvertError(
-                              err instanceof Error ? err.message : 'Conversion failed.'
-                            );
-                          }
-                        });
-                      }}
-                      className="gap-1.5"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setDeleteState('idle')}
                     >
-                      {converting ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      )}
-                      {converting ? 'Converting…' : 'Convert to Work Order'}
+                      Cancel
                     </Button>
-                    {convertError && (
-                      <p className="text-destructive text-xs">{convertError}</p>
-                    )}
-                  </div>
-                  {convertWarning && (
-                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                      ⚠ {convertWarning}
-                    </p>
-                  )}
-                </>
-              )}
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="h-7 px-2 text-xs"
+                      onClick={handleDelete}
+                    >
+                      Delete
+                    </Button>
+                  </>
+                )}
+                {deleteState === 'deleting' && (
+                  <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Deleting…
+                  </span>
+                )}
+                {deleteError && <p className="text-destructive text-xs">{deleteError}</p>}
+              </div>
             </div>
           </div>
         </div>

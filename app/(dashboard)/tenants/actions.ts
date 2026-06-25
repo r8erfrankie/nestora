@@ -429,6 +429,66 @@ export async function inviteTenantByEmail(email: string, propertyId: string, uni
   revalidatePath('/tenants');
 }
 
+export async function deleteMaintenanceRequest(requestId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Verify the request belongs to a property the current landlord owns.
+  const { data: request } = await supabase
+    .from('maintenance_requests')
+    .select('id, property_id')
+    .eq('id', requestId)
+    .single();
+
+  if (!request) throw new Error('Request not found');
+
+  const { data: property } = await supabase
+    .from('properties')
+    .select('id')
+    .eq('id', request.property_id)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (!property) throw new Error('Not authorized to delete this request');
+
+  // Fetch photos for storage cleanup before deleting rows.
+  const { data: photos } = await supabase
+    .from('maintenance_request_photos')
+    .select('url')
+    .eq('request_id', requestId);
+
+  if (photos && photos.length > 0) {
+    const paths = photos
+      .map((p) => {
+        try {
+          const url = new URL(p.url as string);
+          const marker = '/object/public/maintenance-request-photos/';
+          const idx = url.pathname.indexOf(marker);
+          return idx !== -1 ? decodeURIComponent(url.pathname.slice(idx + marker.length)) : null;
+        } catch { return null; }
+      })
+      .filter(Boolean) as string[];
+
+    if (paths.length > 0) {
+      await supabase.storage.from('maintenance-request-photos').remove(paths).catch(() => null);
+    }
+
+    await supabase.from('maintenance_request_photos').delete().eq('request_id', requestId);
+  }
+
+  // Delete notes (no ON DELETE CASCADE assumed).
+  await supabase.from('maintenance_request_notes').delete().eq('request_id', requestId);
+
+  const { error } = await supabase.from('maintenance_requests').delete().eq('id', requestId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath('/tenants');
+}
+
 export async function resendTenantInvite(linkId: string) {
   const supabase = await createClient();
   const {

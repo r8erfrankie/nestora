@@ -63,10 +63,10 @@ export function LeaseSummaryPanel({ lease }: { lease: LeaseSummary | undefined }
   const details: { label: string; value: string }[] = [
     ...(leaseTypeLabel ? [{ label: 'Type', value: leaseTypeLabel }] : []),
     ...(lease?.lease_start ? [{ label: 'Start', value: formatDate(lease.lease_start) }] : []),
-    ...(endLabel ? [{ label: 'End', value: endLabel }] : []),
     ...(lease?.security_deposit != null
       ? [{ label: 'Deposit', value: formatCurrency(lease.security_deposit) }]
       : []),
+    ...(endLabel ? [{ label: 'End', value: endLabel }] : []),
   ];
 
   return (

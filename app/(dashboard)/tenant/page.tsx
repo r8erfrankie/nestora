@@ -167,22 +167,9 @@ export default async function TenantDashboardPage() {
                         <Building2 className="text-primary h-3.5 w-3.5" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="truncate text-sm font-semibold leading-tight">
-                            {prop?.name ?? 'Property'}
-                          </p>
-                          <Button
-                            asChild
-                            size="sm"
-                            variant="outline"
-                            className="h-7 shrink-0 gap-1 px-2 text-xs"
-                          >
-                            <Link href={`/tenant/new-request?property=${link.property_id}`}>
-                              <Plus className="h-3 w-3" />
-                              New request
-                            </Link>
-                          </Button>
-                        </div>
+                        <p className="truncate text-sm font-semibold leading-tight">
+                          {prop?.name ?? 'Property'}
+                        </p>
                         {prop?.address && (
                           <p className="text-muted-foreground mt-0.5 truncate text-xs">
                             {prop.address}
@@ -195,6 +182,12 @@ export default async function TenantDashboardPage() {
                         )}
                       </div>
                     </div>
+                    <Button asChild size="sm" className="mt-3 w-full">
+                      <Link href={`/tenant/new-request?property=${link.property_id}`}>
+                        <Plus className="mr-1.5 h-3.5 w-3.5" />
+                        Maintenance Request
+                      </Link>
+                    </Button>
                   </Card>
 
                   {/* Lease panel — right of the property card */}
