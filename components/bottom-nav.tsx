@@ -81,6 +81,8 @@ export function BottomNav({
     role === 'tenant'     ? tenantDrawerItems     :
     landlordDrawerItems;
 
+  const showMenu = role !== 'contractor';
+
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
 
   const badgeFor = (href: string): number => {
@@ -121,18 +123,20 @@ export function BottomNav({
             );
           })}
 
-          {/* Menu button */}
-          <button
-            type="button"
-            onClick={() => setMenuOpen(true)}
-            className={cn(
-              'flex flex-1 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors active:opacity-60',
-              menuOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground active:text-foreground'
-            )}
-          >
-            <MoreHorizontal className="h-5 w-5 shrink-0" />
-            <span className="leading-none">Menu</span>
-          </button>
+          {/* Menu button — hidden for roles whose drawer duplicates the bottom bar */}
+          {showMenu && (
+            <button
+              type="button"
+              onClick={() => setMenuOpen(true)}
+              className={cn(
+                'flex flex-1 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors active:opacity-60',
+                menuOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground active:text-foreground'
+              )}
+            >
+              <MoreHorizontal className="h-5 w-5 shrink-0" />
+              <span className="leading-none">Menu</span>
+            </button>
+          )}
         </div>
       </nav>
 
