@@ -10,9 +10,6 @@ import {
   ClipboardList,
   Users,
   UserCheck,
-  BarChart3,
-  FileBarChart,
-  FolderOpen,
   Settings,
   MoreHorizontal,
   Layers,
@@ -39,9 +36,6 @@ const landlordDrawerItems = [
   { href: '/tenants', label: 'Tenants', icon: UserCheck },
   { href: '/work-orders', label: 'Work Orders', icon: ClipboardList },
   { href: '/teams', label: 'Teams', icon: Users },
-  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/reports', label: 'Reports', icon: FileBarChart },
-  { href: '/projects', label: 'Projects', icon: FolderOpen },
   { href: '/settings', label: 'Settings', icon: Settings },
 ] as const;
 

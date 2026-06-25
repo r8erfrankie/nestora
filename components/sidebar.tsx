@@ -6,11 +6,8 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
-  FolderOpen,
   Users,
   UserCheck,
-  BarChart3,
-  FileBarChart,
   Settings,
   Building2,
   ClipboardList,
@@ -28,10 +25,7 @@ const landlordNavItems: NavItem[] = [
   { href: '/properties', label: 'Properties', icon: Building2 },
   { href: '/tenants', label: 'Tenants', icon: UserCheck },
   { href: '/work-orders', label: 'Work Orders', icon: ClipboardList },
-  { href: '/reports', label: 'Reports', icon: FileBarChart },
-  { href: '/projects', label: 'Projects', icon: FolderOpen },
   { href: '/teams', label: 'Teams', icon: Users },
-  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
