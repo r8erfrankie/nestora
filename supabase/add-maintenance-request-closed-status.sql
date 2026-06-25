@@ -7,4 +7,4 @@ ALTER TABLE public.maintenance_requests
 
 ALTER TABLE public.maintenance_requests
   ADD CONSTRAINT maintenance_requests_status_check
-  CHECK (status IN ('Submitted', 'In Progress', 'Resolved', 'Declined', 'Closed'));
+  CHECK (status IN ('Submitted', 'In Progress', 'Resolved', 'Declined', 'Closed', 'Withdrawn'));
