@@ -1,5 +1,5 @@
 import { FileText } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 
 export type LeaseSummary = {
   lease_type: string | null;
@@ -28,11 +28,11 @@ function formatCurrency(n: number) {
   }).format(n);
 }
 
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
+function Detail({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-2">
-      <span className="text-muted-foreground shrink-0 text-xs">{label}</span>
-      <span className="text-right text-xs font-medium">{value}</span>
+    <div>
+      <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{label}</p>
+      <p className="mt-0.5 text-xs font-medium leading-tight">{value}</p>
     </div>
   );
 }
@@ -46,60 +46,63 @@ export function LeaseSummaryPanel({ lease }: { lease: LeaseSummary | undefined }
       lease.security_deposit != null ||
       lease.notes);
 
+  const leaseTypeLabel =
+    lease?.lease_type === 'month_to_month'
+      ? 'Month-to-month'
+      : lease?.lease_type === 'fixed'
+        ? 'Fixed term'
+        : null;
+
+  const endLabel =
+    lease?.lease_end
+      ? formatDate(lease.lease_end)
+      : lease?.lease_type === 'month_to_month'
+        ? 'Ongoing'
+        : null;
+
+  const details: { label: string; value: string }[] = [
+    ...(leaseTypeLabel ? [{ label: 'Type', value: leaseTypeLabel }] : []),
+    ...(lease?.lease_start ? [{ label: 'Start', value: formatDate(lease.lease_start) }] : []),
+    ...(endLabel ? [{ label: 'End', value: endLabel }] : []),
+    ...(lease?.security_deposit != null
+      ? [{ label: 'Deposit', value: formatCurrency(lease.security_deposit) }]
+      : []),
+  ];
+
   return (
-    <Card className="flex flex-col">
-      <CardHeader className="pb-2 pt-4">
-        <CardTitle className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide">
-          <FileText className="h-3.5 w-3.5" />
+    <Card className="p-4">
+      {/* Header row: LEASE chip left, monthly rent right */}
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-muted-foreground flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide">
+          <FileText className="h-3 w-3" />
           Lease
-        </CardTitle>
-      </CardHeader>
-
-      <CardContent className="flex flex-1 flex-col justify-center pb-4 pt-0">
-        {!hasData ? (
-          <p className="text-muted-foreground/60 text-sm">No lease details yet.</p>
-        ) : (
-          <div className="space-y-3">
-            {/* Monthly rent — headline figure */}
-            {lease.monthly_rent != null && (
-              <div>
-                <p className="text-2xl font-bold tracking-tight">
-                  {formatCurrency(lease.monthly_rent)}
-                  <span className="text-muted-foreground ml-1 text-sm font-normal">/mo</span>
-                </p>
-              </div>
-            )}
-
-            {/* Details grid */}
-            <div className="space-y-1.5">
-              {lease.lease_type && (
-                <Row
-                  label="Type"
-                  value={lease.lease_type === 'month_to_month' ? 'Month-to-month' : 'Fixed term'}
-                />
-              )}
-              {lease.lease_start && (
-                <Row label="Start" value={formatDate(lease.lease_start)} />
-              )}
-              {lease.lease_end ? (
-                <Row label="End" value={formatDate(lease.lease_end)} />
-              ) : lease.lease_type === 'month_to_month' ? (
-                <Row label="End" value="Ongoing" />
-              ) : null}
-              {lease.security_deposit != null && (
-                <Row label="Deposit" value={formatCurrency(lease.security_deposit)} />
-              )}
-            </div>
-
-            {/* Notes */}
-            {lease.notes && (
-              <p className="text-muted-foreground border-t pt-2 text-xs leading-relaxed">
-                {lease.notes}
-              </p>
-            )}
-          </div>
+        </span>
+        {lease?.monthly_rent != null && (
+          <span className="text-lg font-bold leading-none">
+            {formatCurrency(lease.monthly_rent)}
+            <span className="text-muted-foreground ml-1 text-xs font-normal">/mo</span>
+          </span>
         )}
-      </CardContent>
+      </div>
+
+      {!hasData ? (
+        <p className="text-muted-foreground/60 text-xs">No lease details yet.</p>
+      ) : (
+        <>
+          {details.length > 0 && (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+              {details.map((d) => (
+                <Detail key={d.label} label={d.label} value={d.value} />
+              ))}
+            </div>
+          )}
+          {lease?.notes && (
+            <p className="text-muted-foreground mt-2.5 border-t pt-2 text-xs leading-relaxed">
+              {lease.notes}
+            </p>
+          )}
+        </>
+      )}
     </Card>
   );
 }

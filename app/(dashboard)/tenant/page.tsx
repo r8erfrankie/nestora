@@ -5,7 +5,7 @@ import { getGreeting } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { PushPrompt } from '@/app/components/push-prompt';
 import { TenantRequestsList } from './tenant-requests-list';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Building2, Clock, Home, Plus } from 'lucide-react';
 import { LeaseSummaryPanel, type LeaseSummary } from './lease-card';
 import { formatUnit } from '@/lib/unit-label';
@@ -161,35 +161,40 @@ export default async function TenantDashboardPage() {
               return (
                 <div key={link.id} className="grid gap-3 sm:grid-cols-2">
                   {/* Property card */}
-                  <Card className="flex flex-col">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start gap-3">
-                        <div className="bg-primary/10 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
-                          <Building2 className="text-primary h-4 w-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <CardTitle className="text-base leading-snug">
-                            {prop?.name ?? 'Property'}
-                          </CardTitle>
-                          {prop?.address && (
-                            <CardDescription className="mt-0.5 truncate">
-                              {prop.address}
-                            </CardDescription>
-                          )}
-                          {link.unit && (
-                            <p className="text-muted-foreground mt-0.5 text-xs">{formatUnit(link.unit, prop?.unit_label_type)}</p>
-                          )}
-                        </div>
+                  <Card className="p-4">
+                    <div className="flex items-start gap-2.5">
+                      <div className="bg-primary/10 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md">
+                        <Building2 className="text-primary h-3.5 w-3.5" />
                       </div>
-                    </CardHeader>
-                    <CardContent className="mt-auto pt-0">
-                      <Button asChild size="sm" className="w-full">
-                        <Link href={`/tenant/new-request?property=${link.property_id}`}>
-                          <Plus className="mr-1.5 h-3.5 w-3.5" />
-                          Maintenance Request
-                        </Link>
-                      </Button>
-                    </CardContent>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="truncate text-sm font-semibold leading-tight">
+                            {prop?.name ?? 'Property'}
+                          </p>
+                          <Button
+                            asChild
+                            size="sm"
+                            variant="outline"
+                            className="h-7 shrink-0 gap-1 px-2 text-xs"
+                          >
+                            <Link href={`/tenant/new-request?property=${link.property_id}`}>
+                              <Plus className="h-3 w-3" />
+                              New request
+                            </Link>
+                          </Button>
+                        </div>
+                        {prop?.address && (
+                          <p className="text-muted-foreground mt-0.5 truncate text-xs">
+                            {prop.address}
+                          </p>
+                        )}
+                        {link.unit && (
+                          <p className="text-muted-foreground mt-0.5 text-xs">
+                            {formatUnit(link.unit, prop?.unit_label_type)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </Card>
 
                   {/* Lease panel — right of the property card */}
