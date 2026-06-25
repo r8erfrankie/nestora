@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Bell, Wrench, MessageSquare, Activity, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Switch } from '@/components/ui/switch';
@@ -8,11 +8,25 @@ import { type NotificationPrefs } from '@/lib/notification-types';
 import { saveNotificationPreferences } from './notification-actions';
 import { savePushSubscription, removePushSubscription } from '@/app/actions/push-actions';
 
+const SUBSCRIBE_TIMEOUT_MS = 20_000;
+
 function urlBase64ToUint8Array(base64: string) {
   const padding = '='.repeat((4 - (base64.length % 4)) % 4);
   const b64 = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
   const raw = window.atob(b64);
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+}
+
+function subscribeWithTimeout(reg: ServiceWorkerRegistration): Promise<PushSubscription> {
+  return Promise.race([
+    reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Timed out. Check iOS notification settings and try again.')), SUBSCRIBE_TIMEOUT_MS)
+    ),
+  ]);
 }
 
 type PrefKey = keyof NotificationPrefs;
@@ -52,8 +66,27 @@ export function NotificationPreferencesSection({ initialPrefs }: Props) {
   const [prefs, setPrefs] = useState<NotificationPrefs>(initialPrefs);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // On mount: sync the push_enabled toggle against the actual browser subscription.
+  // If the DB says enabled but there's no real subscription (e.g. stale state after
+  // clearing the app or reinstalling the PWA), reset it to false so the user can
+  // cleanly re-enable rather than seeing a stuck "on" that does nothing.
+  useEffect(() => {
+    if (!initialPrefs.push_enabled) return;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+    navigator.serviceWorker.ready
+      .then(async (reg) => {
+        const sub = await reg.pushManager.getSubscription();
+        const permissionGranted = 'Notification' in window && Notification.permission === 'granted';
+        if (!sub || !permissionGranted) {
+          setPrefs((p) => ({ ...p, push_enabled: false }));
+          await saveNotificationPreferences({ ...initialPrefs, push_enabled: false });
+        }
+      })
+      .catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleChange = async (key: PrefKey, value: boolean) => {
-    // When the master push toggle is turned ON, trigger the browser permission + subscription flow.
     if (key === 'push_enabled' && value) {
       if (!('Notification' in window) || !('serviceWorker' in navigator)) {
         toast.error('Push notifications are not supported on this browser.');
@@ -70,26 +103,22 @@ export function NotificationPreferencesSection({ initialPrefs }: Props) {
           return;
         }
         const reg = await navigator.serviceWorker.ready;
-        let sub = await reg.pushManager.getSubscription();
-        if (!sub) {
-          sub = await reg.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(
-              process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
-            ),
-          });
-        }
+
+        // Unsubscribe first to clear any stale/broken subscription.
+        const existing = await reg.pushManager.getSubscription();
+        if (existing) await existing.unsubscribe();
+
+        const sub = await subscribeWithTimeout(reg);
         const json = sub.toJSON();
         await savePushSubscription({ endpoint: sub.endpoint, p256dh: json.keys!.p256dh, auth: json.keys!.auth });
         toast.success('Push notifications enabled.');
       } catch (err) {
         console.error('[NotificationPrefs] subscribe failed:', err);
-        toast.error('Failed to enable push notifications.');
+        toast.error(err instanceof Error ? err.message : 'Failed to enable push notifications.');
         return;
       }
     }
 
-    // When the master push toggle is turned OFF, remove the subscription.
     if (key === 'push_enabled' && !value) {
       try {
         const reg = await navigator.serviceWorker.ready;

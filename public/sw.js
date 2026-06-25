@@ -6,6 +6,12 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+// iOS 16.x requires a fetch listener to be present for push subscriptions to
+// work. We register the handler but do NOT call event.respondWith(), so the
+// browser handles all navigations and sub-resources natively (including
+// following server-side redirects correctly in the PWA).
+self.addEventListener('fetch', () => {});
+
 // ── Push notifications ────────────────────────────────────────────────────────
 
 self.addEventListener('push', (event) => {

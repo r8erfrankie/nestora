@@ -6,6 +6,7 @@ import { savePushSubscription } from '@/app/actions/push-actions';
 
 const DISMISSED_KEY = 'nestora_push_dismissed_until';
 const SNOOZE_DAYS = 7;
+const SUBSCRIBE_TIMEOUT_MS = 20_000;
 
 const COPY = {
   landlord: {
@@ -29,27 +30,35 @@ function urlBase64ToUint8Array(base64: string) {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
+// iOS Safari can silently stall on pushManager.subscribe() waiting for APNs.
+// Race against a timeout so the UI doesn't freeze indefinitely.
+function subscribeWithTimeout(reg: ServiceWorkerRegistration): Promise<PushSubscription> {
+  return Promise.race([
+    reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Push subscription timed out. Check iOS notification settings and try again.')), SUBSCRIBE_TIMEOUT_MS)
+    ),
+  ]);
+}
+
 export function PushPrompt({ role }: { role: 'landlord' | 'contractor' | 'tenant' }) {
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
 
     // If permission already granted, silently ensure a subscription exists in the DB.
-    // Handles the case where the user granted permission but the subscribe() call
-    // failed (e.g. VAPID key missing at deploy time), leaving no stored subscription.
     if (Notification.permission === 'granted') {
       navigator.serviceWorker.ready.then(async (reg) => {
         try {
           let sub = await reg.pushManager.getSubscription();
           if (!sub) {
-            sub = await reg.pushManager.subscribe({
-              userVisibleOnly: true,
-              applicationServerKey: urlBase64ToUint8Array(
-                process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
-              ),
-            });
+            sub = await subscribeWithTimeout(reg);
           }
           const json = sub.toJSON();
           await savePushSubscription({
@@ -58,7 +67,7 @@ export function PushPrompt({ role }: { role: 'landlord' | 'contractor' | 'tenant
             auth: json.keys!.auth,
           });
         } catch {
-          // Non-fatal — user can re-enable via browser settings
+          // Non-fatal — user can re-enable via settings
         }
       });
       return;
@@ -69,7 +78,6 @@ export function PushPrompt({ role }: { role: 'landlord' | 'contractor' | 'tenant
     const dismissedUntil = localStorage.getItem(DISMISSED_KEY);
     if (dismissedUntil && Date.now() < Number(dismissedUntil)) return;
 
-    // Small delay so the page content loads first
     const t = setTimeout(() => setShow(true), 1500);
     return () => clearTimeout(t);
   }, []);
@@ -81,19 +89,19 @@ export function PushPrompt({ role }: { role: 'landlord' | 'contractor' | 'tenant
   };
 
   const enable = async () => {
+    setError('');
     setLoading(true);
     try {
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') { setShow(false); return; }
 
       const reg = await navigator.serviceWorker.ready;
-      const subscription = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(
-          process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
-        ),
-      });
 
+      // Clear any stale/broken subscription before creating a fresh one.
+      const existing = await reg.pushManager.getSubscription();
+      if (existing) await existing.unsubscribe();
+
+      const subscription = await subscribeWithTimeout(reg);
       const json = subscription.toJSON();
       await savePushSubscription({
         endpoint: subscription.endpoint,
@@ -104,6 +112,7 @@ export function PushPrompt({ role }: { role: 'landlord' | 'contractor' | 'tenant
       setShow(false);
     } catch (err) {
       console.error('[PushPrompt] subscribe failed:', err);
+      setError(err instanceof Error ? err.message : 'Failed to enable notifications. Try again.');
     } finally {
       setLoading(false);
     }
@@ -122,6 +131,7 @@ export function PushPrompt({ role }: { role: 'landlord' | 'contractor' | 'tenant
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-gray-900">{heading}</p>
         <p className="mt-0.5 text-xs leading-relaxed text-gray-500">{body}</p>
+        {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             type="button"
