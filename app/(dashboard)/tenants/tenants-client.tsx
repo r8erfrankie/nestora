@@ -66,6 +66,7 @@ export type TenantLink = {
   tenant_name: string | null;
   status: string;
   unit: string | null;
+  unit_label_type: string | null;
   initiated_by: string;
   created_at: string;
   property_id: string;
@@ -948,7 +949,7 @@ function TenantRow({
   const [resending, startResend] = useTransition();
   const [resendError, setResendError] = useState('');
   const [resendDone, setResendDone] = useState(false);
-  const unitLabel = formatUnit(link.unit, link.property?.unit_label_type);
+  const unitLabel = formatUnit(link.unit, link.unit_label_type ?? link.property?.unit_label_type);
 
   const handleSaveNotes = () => {
     setSaveError('');
@@ -1197,7 +1198,7 @@ function PendingRow({ link }: { link: TenantLink }) {
                 <Building2 className="h-3 w-3" />
                 {link.property?.name ?? 'Unknown property'}
               </span>
-              {link.unit && <span>· {formatUnit(link.unit, link.property?.unit_label_type)}</span>}
+              {link.unit && <span>· {formatUnit(link.unit, link.unit_label_type ?? link.property?.unit_label_type)}</span>}
               {ago && <span>· {ago}</span>}
             </div>
             {error && <p className="text-destructive mt-1 text-xs">{error}</p>}
@@ -1249,14 +1250,20 @@ function InviteModal({
   const [email, setEmail] = useState('');
   const [propertyId, setPropertyId] = useState('');
   const [unit, setUnit] = useState('');
+  const [unitLabelType, setUnitLabelType] = useState('');
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  // When property changes, default the label type dropdown to that property's setting.
+  const selectedProperty = properties.find((p) => p.id === propertyId) ?? null;
+  const effectiveLabelType = unitLabelType || selectedProperty?.unit_label_type || 'unit';
 
   const reset = () => {
     setEmail('');
     setPropertyId('');
     setUnit('');
+    setUnitLabelType('');
     setError('');
     setSuccess(false);
   };
@@ -1275,7 +1282,7 @@ function InviteModal({
     setError('');
     startTransition(async () => {
       try {
-        await inviteTenantByEmail(email.trim(), propertyId, unit);
+        await inviteTenantByEmail(email.trim(), propertyId, unit, effectiveLabelType);
         setSuccess(true);
         setTimeout(() => handleOpenChange(false), 1600);
       } catch (err: unknown) {
@@ -1366,16 +1373,37 @@ function InviteModal({
 
             <div className="space-y-1.5">
               <label className="text-sm font-medium">
-                {getLabelWord(properties.find((p) => p.id === propertyId)?.unit_label_type)}{' '}
+                Unit{' '}
                 <span className="text-muted-foreground font-normal">(optional)</span>
               </label>
-              <Input
-                type="text"
-                placeholder="e.g. 12, B, Main House"
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                disabled={isPending}
-              />
+              <div className="flex gap-2">
+                <Select
+                  value={effectiveLabelType}
+                  onValueChange={(v) => setUnitLabelType(v ?? '')}
+                  disabled={isPending}
+                >
+                  <SelectTrigger className="w-32 shrink-0">
+                    <span className="text-sm">{getLabelWord(effectiveLabelType)}</span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unit">Unit</SelectItem>
+                    <SelectItem value="apt">Apt</SelectItem>
+                    <SelectItem value="room">Room</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="text"
+                  placeholder="e.g. 12, B, 3A"
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  disabled={isPending}
+                />
+              </div>
+              {unit && (
+                <p className="text-muted-foreground text-xs">
+                  Will display as: <span className="font-medium text-foreground">{getLabelWord(effectiveLabelType)} {unit}</span>
+                </p>
+              )}
             </div>
 
             {error && <p className="text-destructive text-sm">{error}</p>}

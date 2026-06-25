@@ -34,7 +34,7 @@ export default async function TenantsPage({
     supabase
       .from('tenant_property_links')
       .select(
-        'id, tenant_id, tenant_email, status, unit, initiated_by, notes, created_at, property_id, property:property_id(id, name, address, unit_label_type)'
+        'id, tenant_id, tenant_email, status, unit, unit_label_type, initiated_by, notes, created_at, property_id, property:property_id(id, name, address, unit_label_type)'
       )
       .in('status', ['pending', 'approved'])
       .order('created_at', { ascending: false }),

@@ -329,7 +329,7 @@ export async function updateTenantNotes(linkId: string, notes: string) {
   revalidatePath('/tenants');
 }
 
-export async function inviteTenantByEmail(email: string, propertyId: string, unit?: string) {
+export async function inviteTenantByEmail(email: string, propertyId: string, unit?: string, unitLabelType?: string) {
   const normalizedEmail = email.trim().toLowerCase();
   if (!normalizedEmail || !propertyId) throw new Error('Email and property are required');
 
@@ -352,10 +352,11 @@ export async function inviteTenantByEmail(email: string, propertyId: string, uni
   if (!property) throw new Error('Property not found');
 
   const unitValue = unit?.trim() || null;
+  const unitLabelValue = unitLabelType?.trim() || null;
 
   const { data: existing } = await supabase
     .from('tenant_property_links')
-    .select('id, status, unit')
+    .select('id, status, unit, unit_label_type')
     .eq('property_id', propertyId)
     .eq('tenant_email', normalizedEmail)
     .maybeSingle();
@@ -377,6 +378,7 @@ export async function inviteTenantByEmail(email: string, propertyId: string, uni
         approved_at: now,
         initiated_by: 'landlord',
         unit: unitValue ?? (existing.unit as string | null),
+        unit_label_type: unitLabelValue ?? ((existing as any).unit_label_type as string | null),
         tenant_id: null,
       })
       .eq('id', existing.id);
@@ -392,6 +394,7 @@ export async function inviteTenantByEmail(email: string, propertyId: string, uni
         approved_at: now,
         initiated_by: 'landlord',
         unit: unitValue,
+        unit_label_type: unitLabelValue,
       });
     if (error) throw new Error(error.message);
   }
