@@ -48,6 +48,7 @@ import { PhotoLightbox } from '@/components/PhotoLightbox';
 import { approveTenantRequest, convertToWorkOrder, deleteMaintenanceRequest, inviteTenantByEmail, rejectTenantRequest, removeTenant, resendTenantInvite, updateTenantNotes } from './actions';
 import { LeaseSection } from './lease-section';
 import { type LeaseData } from './lease-actions';
+import { LeaseDocuments } from './lease-documents';
 import { formatUnit, getLabelWord } from '@/lib/unit-label';
 import { MaintenanceRequestNotes } from '@/app/components/maintenance-request-notes';
 
@@ -75,6 +76,7 @@ export type TenantLink = {
   ec_phone: string | null;
   notes: string | null;
   lease: LeaseData | null;
+  documents: { id: string; link_id: string; name: string; url: string; size: number | null; created_at: string }[];
 };
 
 export type PropertyWithCode = {
@@ -1111,6 +1113,9 @@ function TenantRow({
 
             {/* Lease information */}
             <LeaseSection linkId={link.id} initialLease={link.lease} />
+
+            {/* Lease documents */}
+            <LeaseDocuments linkId={link.id} initialDocs={link.documents} />
           </div>
         </div>
       </div>

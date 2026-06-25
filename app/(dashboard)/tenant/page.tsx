@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { PushPrompt } from '@/app/components/push-prompt';
 import { TenantRequestsList } from './tenant-requests-list';
 import { Card } from '@/components/ui/card';
-import { Building2, Clock, Home, Plus } from 'lucide-react';
+import { Building2, Clock, ExternalLink, FileText, Home, Plus } from 'lucide-react';
 import { LeaseSummaryPanel, type LeaseSummary } from './lease-card';
 import { formatUnit } from '@/lib/unit-label';
 
@@ -104,6 +104,25 @@ export default async function TenantDashboardPage() {
   const requests = (rawRequests ?? []) as MaintenanceRequest[];
   const archivedIds = (rawArchives ?? []).map((a) => a.request_id as string);
 
+  // Fetch lease documents for approved links.
+  const approvedLinkIds = (rawLinks ?? []).filter((l) => l.status === 'approved').map((l) => l.id as string);
+  type TenantDoc = { id: string; link_id: string; name: string; url: string; size: number | null };
+  let rawDocs: TenantDoc[] = [];
+  if (approvedLinkIds.length > 0) {
+    const { data } = await supabase
+      .from('lease_documents')
+      .select('id, link_id, name, url, size')
+      .in('link_id', approvedLinkIds)
+      .order('created_at', { ascending: true });
+    rawDocs = (data ?? []) as TenantDoc[];
+  }
+  const docsByLinkId = new Map<string, TenantDoc[]>();
+  for (const d of rawDocs) {
+    const arr = docsByLinkId.get(d.link_id) ?? [];
+    arr.push(d);
+    docsByLinkId.set(d.link_id, arr);
+  }
+
   const leaseByLinkId = new Map<string, LeaseSummary>();
   for (const l of (rawLeases ?? []) as unknown as (LeaseSummary & { link_id: string })[]) {
     leaseByLinkId.set(l.link_id, l);
@@ -158,8 +177,10 @@ export default async function TenantDashboardPage() {
             {approvedLinks.map((link) => {
               const prop = propertyMap[link.property_id];
               const lease = leaseByLinkId.get(link.id);
+              const docs = docsByLinkId.get(link.id) ?? [];
               return (
-                <div key={link.id} className="grid gap-3 sm:grid-cols-2">
+                <div key={link.id} className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
                   {/* Property card */}
                   <Card className="p-4">
                     <div className="flex items-start gap-2.5">
@@ -192,6 +213,29 @@ export default async function TenantDashboardPage() {
 
                   {/* Lease panel — right of the property card */}
                   <LeaseSummaryPanel lease={lease} />
+                </div>
+
+                  {/* Lease documents */}
+                  {docs.length > 0 && (
+                    <div className="rounded-lg border bg-card p-4 space-y-2">
+                      <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Documents</p>
+                      <div className="space-y-1.5">
+                        {docs.map((doc) => (
+                          <a
+                            key={doc.id}
+                            href={doc.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2.5 rounded-md border bg-background px-3 py-2 text-sm hover:bg-muted/40 transition-colors active:bg-muted/60"
+                          >
+                            <FileText className="text-muted-foreground h-4 w-4 shrink-0" />
+                            <span className="min-w-0 flex-1 truncate font-medium">{doc.name}</span>
+                            <ExternalLink className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
