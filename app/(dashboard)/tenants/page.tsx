@@ -92,18 +92,28 @@ export default async function TenantsPage({
   const phoneByEmail = new Map<string, string | null>();
   const ecNameByEmail = new Map<string, string | null>();
   const ecPhoneByEmail = new Map<string, string | null>();
+  // Emails where the tenant has clicked their magic link / confirmed their account.
+  const confirmedEmails = new Set<string>();
   if (allEmails.length > 0) {
     const admin = createAdminClient();
-    const { data: tenantProfiles } = await admin
-      .from('profiles')
-      .select('email, full_name, phone, emergency_contact_name, emergency_contact_phone')
-      .in('email', allEmails);
+    const [{ data: tenantProfiles }, { data: { users: authUsers } }] = await Promise.all([
+      admin
+        .from('profiles')
+        .select('email, full_name, phone, emergency_contact_name, emergency_contact_phone')
+        .in('email', allEmails),
+      admin.auth.admin.listUsers({ perPage: 1000 }),
+    ]);
     for (const p of tenantProfiles ?? []) {
       const key = (p.email as string).toLowerCase();
       nameByEmail.set(key, (p.full_name as string | null) ?? null);
       phoneByEmail.set(key, (p.phone as string | null) ?? null);
       ecNameByEmail.set(key, (p.emergency_contact_name as string | null) ?? null);
       ecPhoneByEmail.set(key, (p.emergency_contact_phone as string | null) ?? null);
+    }
+    for (const u of authUsers ?? []) {
+      if (u.email && u.email_confirmed_at) {
+        confirmedEmails.add(u.email.toLowerCase());
+      }
     }
   }
 
@@ -144,6 +154,7 @@ export default async function TenantsPage({
       // profileMissing: email-invited but not yet signed up (or deleted).
       // Manual tenants are never flagged — they're intentionally without an account.
       profileMissing: !isManual && (key === null || !nameByEmail.has(key)),
+      confirmed: key !== null && confirmedEmails.has(key),
       phone: key ? (phoneByEmail.get(key) ?? null) : null,
       ec_name: key ? (ecNameByEmail.get(key) ?? null) : null,
       ec_phone: key ? (ecPhoneByEmail.get(key) ?? null) : null,

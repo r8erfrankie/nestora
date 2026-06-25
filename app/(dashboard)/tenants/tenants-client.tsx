@@ -72,6 +72,7 @@ export type TenantLink = {
   property_id: string;
   property: PropertySummary | null;
   profileMissing?: boolean;
+  confirmed?: boolean;
   phone: string | null;
   ec_name: string | null;
   ec_phone: string | null;
@@ -1070,7 +1071,7 @@ function TenantRow({
                   ) : (
                     <p className="text-muted-foreground/50 text-xs italic">None</p>
                   )}
-                  {!isManual && !link.profileMissing && (
+                  {link.confirmed && (
                     <span className="inline-flex shrink-0 items-center rounded-full bg-teal-700/10 px-1.5 py-0.5 text-[10px] font-semibold text-teal-700">
                       Registered
                     </span>
