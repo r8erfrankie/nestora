@@ -2,7 +2,7 @@ import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Building2 } from 'lucide-react';
+import { ArrowLeft, Building2, MessageSquare } from 'lucide-react';
 import { timeAgo } from '@/lib/utils';
 
 export const metadata = { title: 'Request Details' };
@@ -67,13 +67,19 @@ export default async function RequestDetailPage({
     .eq('request_id', id)
     .order('created_at', { ascending: true });
 
-  // Property name via admin — tenant RLS blocks reading other users' properties.
+  // Property name + manual notes via admin — tenant RLS blocks direct access.
   const admin = createAdminClient();
-  const { data: property } = await admin
-    .from('properties')
-    .select('name, address')
-    .eq('id', request.property_id)
-    .single();
+  const [{ data: property }, { data: rawNotes }] = await Promise.all([
+    admin.from('properties').select('name, address').eq('id', request.property_id).single(),
+    admin
+      .from('maintenance_request_notes')
+      .select('id, content, created_at')
+      .eq('request_id', id)
+      .eq('note_type', 'manual')
+      .order('created_at', { ascending: true }),
+  ]);
+
+  const notes = (rawNotes ?? []) as { id: string; content: string; created_at: string }[];
 
   const statusStyle = STATUS_STYLES[request.status] ?? STATUS_STYLES['Submitted'];
   const priorityStyle = PRIORITY_STYLES[request.priority] ?? PRIORITY_STYLES['Medium'];
@@ -151,6 +157,24 @@ export default async function RequestDetailPage({
                   className="h-full w-full object-cover transition-opacity group-hover:opacity-90"
                 />
               </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Notes from landlord */}
+      {notes.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5">
+            <MessageSquare className="text-muted-foreground h-3.5 w-3.5" />
+            <p className="text-sm font-medium">Notes from your landlord</p>
+          </div>
+          <div className="space-y-2">
+            {notes.map((note) => (
+              <div key={note.id} className="rounded-lg border bg-card px-4 py-3">
+                <p className="whitespace-pre-wrap text-sm">{note.content}</p>
+                <p className="text-muted-foreground mt-1.5 text-xs">{timeAgo(note.created_at)}</p>
+              </div>
             ))}
           </div>
         </div>

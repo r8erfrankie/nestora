@@ -49,6 +49,7 @@ import { approveTenantRequest, convertToWorkOrder, deleteMaintenanceRequest, inv
 import { LeaseSection } from './lease-section';
 import { type LeaseData } from './lease-actions';
 import { formatUnit, getLabelWord } from '@/lib/unit-label';
+import { MaintenanceRequestNotes } from '@/app/components/maintenance-request-notes';
 
 export type PropertySummary = {
   id: string;
@@ -641,6 +642,9 @@ function RequestRow({
                 />
               </div>
             )}
+
+            {/* ── Notes to tenant ───────────────────────────────────────────── */}
+            {isExpanded && <MaintenanceRequestNotes requestId={request.id} />}
 
             {/* ── Actions: Convert to Work Order + Delete ───────────────────── */}
             <div className="flex flex-wrap items-start justify-between gap-3 border-t pt-4">
