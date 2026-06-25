@@ -114,6 +114,7 @@ const STATUS_STYLES: Record<string, string> = {
   'In Progress': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
   Resolved:     'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
   Declined:     'bg-destructive/10 text-destructive',
+  Withdrawn:    'bg-secondary text-muted-foreground',
 };
 
 interface TenantsClientProps {

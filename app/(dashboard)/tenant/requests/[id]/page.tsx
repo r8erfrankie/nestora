@@ -6,13 +6,15 @@ import { ArrowLeft, Building2, MessageSquare } from 'lucide-react';
 import { timeAgo } from '@/lib/utils';
 import { RequestThread } from '@/app/components/request-thread';
 import { addTenantMaintenanceNote, type MaintenanceNote } from '@/app/actions/maintenance-note-actions';
+import { WithdrawButton } from './withdraw-button';
 
 export const metadata = { title: 'Request Details' };
 
 const STATUS_STYLES: Record<string, string> = {
-  Submitted:   'bg-secondary text-secondary-foreground',
+  Submitted:     'bg-secondary text-secondary-foreground',
   'In Progress': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-  Resolved:    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+  Resolved:      'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+  Withdrawn:     'bg-secondary text-muted-foreground',
   Declined:    'bg-destructive/10 text-destructive',
 };
 
@@ -130,6 +132,11 @@ export default async function RequestDetailPage({
           </Row>
         )}
       </div>
+
+      {/* Withdraw — only available while still Submitted */}
+      {request.status === 'Submitted' && (
+        <WithdrawButton requestId={id} />
+      )}
 
       {/* Description */}
       {request.description && (

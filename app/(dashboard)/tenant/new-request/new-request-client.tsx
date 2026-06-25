@@ -60,14 +60,30 @@ export function NewRequestClient({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
+  const MAX_PHOTOS = 5;
+  const MAX_MB = 10;
+
   const handlePhotoFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = Array.from(e.target.files || []);
     if (raw.length === 0) return;
     e.target.value = '';
-    // Convert any HEIC/HEIF files to JPEG before generating previews or uploading.
-    const files = await Promise.all(raw.map(ensureJpeg));
-    setPhotoFiles((prev) => [...prev, ...files]);
-    setPhotoPreviews((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
+
+    const oversize = raw.filter((f) => f.size > MAX_MB * 1024 * 1024);
+    if (oversize.length > 0) {
+      setError(`Photos must be under ${MAX_MB} MB each.`);
+      return;
+    }
+
+    const converted = await Promise.all(raw.map(ensureJpeg));
+    const next = [...photoFiles, ...converted];
+    if (next.length > MAX_PHOTOS) {
+      setError(`You can upload up to ${MAX_PHOTOS} photos per request.`);
+      return;
+    }
+
+    setError('');
+    setPhotoFiles(next);
+    setPhotoPreviews((prev) => [...prev, ...converted.map((f) => URL.createObjectURL(f))]);
   };
 
   const removePhoto = (index: number) => {
@@ -285,7 +301,7 @@ export function NewRequestClient({
         <div className="space-y-2">
           <label className="text-sm font-medium">
             Photos{' '}
-            <span className="text-muted-foreground font-normal">(optional)</span>
+            <span className="text-muted-foreground font-normal">(optional, up to 5 · 10 MB each)</span>
           </label>
           <Input
             type="file"
