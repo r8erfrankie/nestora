@@ -169,8 +169,8 @@ export async function saveContractorQuote(workOrderId: string, quoteRaw: string)
     await insertNotification({
       userId: wo.user_id as string,
       type: 'quote_submitted',
-      title: 'Nestora: New quote received',
-      message: `"${wo.title}"${prop ? ` at ${prop}` : ''} — $${quote.toFixed(2)} quote submitted.`,
+      title: 'Nestora: New quote',
+      message: `"${wo.title}"${prop ? ` at ${prop}` : ''} — $${quote.toFixed(2)}`,
       link: '/work-orders',
     });
   }
