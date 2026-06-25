@@ -65,7 +65,7 @@ export async function acceptOrCompleteWorkOrder(workOrderId: string) {
         await insertNotification({
           userId: wo.user_id as string,
           type: 'work_order_accepted',
-          title: 'Nestora: Work order accepted',
+          title: 'Work order accepted',
           message: `"${wo.title}"${prop ? ` at ${prop}` : ''} has been accepted by the contractor.`,
           link: '/work-orders',
         });
@@ -94,7 +94,7 @@ export async function acceptOrCompleteWorkOrder(workOrderId: string) {
         await insertNotification({
           userId: wo.user_id as string,
           type: 'work_order_completed',
-          title: 'Nestora: Work order completed',
+          title: 'Work order completed',
           message: `"${wo.title}"${prop ? ` at ${prop}` : ''} has been completed by the contractor.`,
           link: '/work-orders',
         });
@@ -106,7 +106,7 @@ export async function acceptOrCompleteWorkOrder(workOrderId: string) {
         await insertNotification({
           userId: linkedRequest.tenant_id as string,
           type: 'work_order_completed',
-          title: 'Nestora: Request completed',
+          title: 'Request completed',
           message: `"${wo.title}"${prop ? ` at ${prop}` : ''} has been completed.`,
           link: `/tenant/requests/${linkedRequest.id}`,
         });
@@ -169,7 +169,7 @@ export async function saveContractorQuote(workOrderId: string, quoteRaw: string)
     await insertNotification({
       userId: wo.user_id as string,
       type: 'quote_submitted',
-      title: 'Nestora: New quote',
+      title: 'New quote',
       message: `"${wo.title}"${prop ? ` at ${prop}` : ''} — $${quote.toFixed(2)}`,
       link: '/work-orders',
     });

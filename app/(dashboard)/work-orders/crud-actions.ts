@@ -223,7 +223,7 @@ export async function updateWorkOrderStatus(id: string, newStatus: string) {
         await insertNotification({
           userId: contractorProfile.id as string,
           type: 'work_order_status_changed',
-          title: `Nestora: Work order ${newStatus.toLowerCase()}`,
+          title: `Work order ${newStatus.toLowerCase()}`,
           message: `"${wo.title}"${wo.properties?.name ? ` at ${wo.properties.name}` : ''} has been moved to ${newStatus}.`,
           link: '/contractor',
         });
@@ -346,7 +346,7 @@ export async function updateContractorAssignment(
         await insertNotification({
           userId: contractorProfile.data.id as string,
           type: 'work_order_assigned',
-          title: 'Nestora: Work order assigned',
+          title: 'Work order assigned',
           message: `"${wo.title}"${wo.properties?.name ? ` at ${wo.properties.name}` : ''} has been assigned to you.`,
           link: '/contractor',
         });
@@ -448,7 +448,7 @@ export async function respondToContractorQuote(id: string, approved: boolean | n
         await insertNotification({
           userId: profile.id as string,
           type: approved ? 'quote_accepted' : 'quote_declined',
-          title: approved ? 'Nestora: Quote accepted' : 'Nestora: Quote declined',
+          title: approved ? 'Quote accepted' : 'Quote declined',
           message: `"${wo.title}"${prop ? ` at ${prop}` : ''} — your ${amount} quote has been ${approved ? 'accepted' : 'declined'}.`,
           link: '/contractor',
         });
@@ -554,7 +554,7 @@ export async function createWorkOrder(data: {
           await insertNotification({
             userId: contractorProfile.data.id as string,
             type: 'work_order_assigned',
-            title: 'New work order assigned',
+            title: 'Work order assigned',
             message: `"${inserted.title as string}"${data.propertyName ? ` at ${data.propertyName}` : ''} has been assigned to you.`,
             link: '/contractor',
           });

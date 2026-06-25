@@ -59,7 +59,7 @@ export async function addMaintenanceNote(
       await insertNotification({
         userId: request.tenant_id as string,
         type: 'request_note',
-        title: 'Nestora: Note on your request',
+        title: 'Note on your request',
         message: `"${request.title}"${propName ? ` at ${propName}` : ''} — your landlord left a note.`,
         link: `/tenant/requests/${requestId}`,
       });
