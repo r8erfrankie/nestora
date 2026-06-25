@@ -7,6 +7,7 @@ import { PushPrompt } from '@/app/components/push-prompt';
 import { TenantRequestsList } from './tenant-requests-list';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Building2, Clock, Home, Plus } from 'lucide-react';
+import { LeaseCard } from './lease-card';
 
 export const metadata = { title: 'My Properties' };
 
@@ -76,8 +77,8 @@ export default async function TenantDashboardPage() {
   const firstName = fullName ? fullName.trim().split(/\s+/)[0] : null;
   const greeting = getGreeting();
 
-  // Parallel fetch — links, requests, and this tenant's archived request IDs.
-  const [{ data: rawLinks }, { data: rawRequests }, { data: rawArchives }] = await Promise.all([
+  // Parallel fetch — links, requests, archived IDs, and lease data.
+  const [{ data: rawLinks }, { data: rawRequests }, { data: rawArchives }, { data: rawLeases }] = await Promise.all([
     supabase
       .from('tenant_property_links')
       .select('id, property_id, status, initiated_by, unit, created_at')
@@ -90,6 +91,9 @@ export default async function TenantDashboardPage() {
     supabase
       .from('tenant_request_archives')
       .select('request_id'),
+    supabase
+      .from('leases')
+      .select('link_id, lease_type, lease_start, lease_end, security_deposit, notes'),
   ]);
 
   const allLinks = (rawLinks ?? []) as PropertyLink[];
@@ -97,6 +101,13 @@ export default async function TenantDashboardPage() {
   const pendingLinks = allLinks.filter((l) => l.status === 'pending');
   const requests = (rawRequests ?? []) as MaintenanceRequest[];
   const archivedIds = (rawArchives ?? []).map((a) => a.request_id as string);
+
+  // Build a map of link_id → lease for the LeaseCard.
+  type RawLease = { link_id: string; lease_type: string | null; lease_start: string | null; lease_end: string | null; security_deposit: number | null; notes: string | null };
+  const leaseByLinkId = new Map<string, RawLease>();
+  for (const l of (rawLeases ?? []) as unknown as RawLease[]) {
+    leaseByLinkId.set(l.link_id, l);
+  }
 
   // If there are any pending landlord-initiated invites, route through onboarding
   // so the auto-approval logic can accept them and link the tenant's account.
@@ -247,6 +258,26 @@ export default async function TenantDashboardPage() {
               <Link href="/tenant-onboarding">+ Add another property</Link>
             </Button>
           </div>
+        </section>
+      )}
+
+      {/* ── Lease information ────────────────────────────────────────────────── */}
+      {approvedLinks.length > 0 && (
+        <section>
+          <LeaseCard
+            leases={approvedLinks.map((link) => {
+              const lease = leaseByLinkId.get(link.id);
+              return {
+                lease_type: lease?.lease_type ?? null,
+                lease_start: lease?.lease_start ?? null,
+                lease_end: lease?.lease_end ?? null,
+                security_deposit: lease?.security_deposit ?? null,
+                notes: lease?.notes ?? null,
+                propertyName: propertyMap[link.property_id]?.name,
+                showPropertyName: approvedLinks.length > 1,
+              };
+            })}
+          />
         </section>
       )}
 

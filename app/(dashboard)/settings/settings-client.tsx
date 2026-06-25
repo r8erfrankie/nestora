@@ -20,7 +20,7 @@ import { updateProfile, requestEmailChange } from './actions';
 import { DeleteAccountButton } from './delete-account-button';
 import { SupportSection } from './support-section';
 import { NotificationPreferencesSection } from './notification-preferences';
-import { type NotificationPrefs } from './notification-actions';
+import { type NotificationPrefs } from '@/lib/notification-types';
 
 const CONTRACTOR_TRADES = [
   'Plumbing',

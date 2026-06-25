@@ -4,7 +4,8 @@ import { useState, useRef } from 'react';
 import { Bell, Wrench, MessageSquare, Activity, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Switch } from '@/components/ui/switch';
-import { type NotificationPrefs, saveNotificationPreferences } from './notification-actions';
+import { type NotificationPrefs } from '@/lib/notification-types';
+import { saveNotificationPreferences } from './notification-actions';
 
 type PrefKey = keyof NotificationPrefs;
 

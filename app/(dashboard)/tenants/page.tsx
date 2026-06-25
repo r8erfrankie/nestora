@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { TenantsClient, type TenantLink, type MaintenanceRequest } from './tenants-client';
+import { type LeaseData } from './lease-actions';
 import { MarkVisited } from '@/components/mark-visited';
 
 export const metadata = { title: 'Tenants' };
@@ -26,10 +27,10 @@ export default async function TenantsPage({
 
   if (profile?.role !== 'landlord') redirect('/');
 
-  // Parallel fetch — links (with property join), property list, and maintenance requests.
+  // Parallel fetch — links (with property join), property list, maintenance requests, and leases.
   // RLS handles scoping: tenant_property_links by landlord_id, maintenance_requests by
   // "property_id IN (SELECT id FROM properties WHERE user_id = auth.uid())".
-  const [{ data: rawLinks }, { data: properties }, { data: rawRequestsData }] = await Promise.all([
+  const [{ data: rawLinks }, { data: properties }, { data: rawRequestsData }, { data: rawLeases }] = await Promise.all([
     supabase
       .from('tenant_property_links')
       .select(
@@ -48,6 +49,9 @@ export default async function TenantsPage({
       )
       .order('created_at', { ascending: false })
       .limit(100),
+    supabase
+      .from('leases')
+      .select('id, link_id, lease_type, lease_start, lease_end, security_deposit, notes'),
   ]);
 
   const links = (rawLinks ?? []) as unknown as TenantLink[];
@@ -101,6 +105,11 @@ export default async function TenantsPage({
     }
   }
 
+  const leaseByLinkId = new Map<string, LeaseData>();
+  for (const l of rawLeases ?? []) {
+    leaseByLinkId.set(l.link_id as string, l as unknown as LeaseData);
+  }
+
   const approvedLinks: TenantLink[] = rawApproved.map((l) => {
     const key = l.tenant_email.toLowerCase();
     return {
@@ -112,6 +121,7 @@ export default async function TenantsPage({
       phone: phoneByEmail.get(key) ?? null,
       ec_name: ecNameByEmail.get(key) ?? null,
       ec_phone: ecPhoneByEmail.get(key) ?? null,
+      lease: leaseByLinkId.get(l.id) ?? null,
     };
   });
 
@@ -121,6 +131,7 @@ export default async function TenantsPage({
     phone: null,
     ec_name: null,
     ec_phone: null,
+    lease: null,
   }));
 
   const maintenanceRequests: MaintenanceRequest[] = rawRequests.map((r) => ({

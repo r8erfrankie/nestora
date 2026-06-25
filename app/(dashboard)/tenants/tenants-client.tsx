@@ -46,6 +46,8 @@ import Link from 'next/link';
 import { timeAgo } from '@/lib/utils';
 import { PhotoLightbox } from '@/components/PhotoLightbox';
 import { approveTenantRequest, convertToWorkOrder, inviteTenantByEmail, rejectTenantRequest, removeTenant, resendTenantInvite, updateTenantNotes } from './actions';
+import { LeaseSection } from './lease-section';
+import { type LeaseData } from './lease-actions';
 
 export type PropertySummary = {
   id: string;
@@ -69,6 +71,7 @@ export type TenantLink = {
   ec_name: string | null;
   ec_phone: string | null;
   notes: string | null;
+  lease: LeaseData | null;
 };
 
 export type PropertyWithCode = {
@@ -1025,6 +1028,9 @@ function TenantRow({
                 {saveError && <p className="text-destructive text-xs">{saveError}</p>}
               </div>
             </div>
+
+            {/* Lease information */}
+            <LeaseSection linkId={link.id} initialLease={link.lease} />
           </div>
         </div>
       </div>
