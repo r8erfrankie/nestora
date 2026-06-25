@@ -4,10 +4,8 @@ import { useOptimistic, useTransition, useState, useEffect } from 'react';
 import Lightbox from 'yet-another-react-lightbox';
 import Counter from 'yet-another-react-lightbox/plugins/counter';
 import { createClient } from '@/lib/supabase/client';
-import { ensureJpeg } from '@/lib/convert-heic';
-import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -28,14 +26,13 @@ import {
   PlayCircle,
   Archive,
   ArchiveRestore,
-  Upload,
-  Loader2,
   X,
   MapPin,
 } from 'lucide-react';
 import { acceptOrCompleteWorkOrder, saveContractorQuote } from './contractor-actions';
 import { archiveWorkOrderForUser, unarchiveWorkOrderForUser } from '@/app/actions/archive-actions';
 import { WorkOrderNotes } from '@/app/components/work-order-notes';
+import { WorkOrderPhotoUploader, type UploadedPhoto } from '@/app/components/work-order-photo-uploader';
 import { formatUnit } from '@/lib/unit-label';
 
 export interface ContractorWorkOrder {
@@ -224,8 +221,6 @@ export function ContractorClient({
   // Photo state
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
-  const [uploadingPhotos, setUploadingPhotos] = useState(false);
-  const [pendingPhotos, setPendingPhotos] = useState<Array<{ file: File; preview: string }>>([]);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
@@ -295,10 +290,6 @@ export function ContractorClient({
   useEffect(() => {
     if (!selectedId) {
       setPhotos([]);
-      setPendingPhotos((prev) => {
-        prev.forEach((p) => URL.revokeObjectURL(p.preview));
-        return [];
-      });
       setLightboxOpen(false);
       setNotesRefreshKey(0);
       return;
@@ -323,63 +314,6 @@ export function ContractorClient({
   // supabase is stable within the render cycle; selectedId is the real trigger
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
-
-  const PHOTO_LIMIT = 30;
-
-  const handlePhotoFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = Array.from(e.target.files || []);
-    if (raw.length === 0) return;
-    e.target.value = '';
-    // Convert any HEIC/HEIF files to JPEG before generating previews or uploading.
-    const converted = await Promise.all(raw.map(ensureJpeg));
-    const remaining = PHOTO_LIMIT - photos.length - pendingPhotos.length;
-    const allowed = converted.slice(0, Math.max(0, remaining));
-    const newPending = allowed.map((file) => ({ file, preview: URL.createObjectURL(file) }));
-    setPendingPhotos((prev) => [...prev, ...newPending]);
-  };
-
-  const removePendingPhoto = (index: number) => {
-    setPendingPhotos((prev) => {
-      URL.revokeObjectURL(prev[index].preview);
-      return prev.filter((_, i) => i !== index);
-    });
-  };
-
-  const uploadPendingPhotos = async () => {
-    if (!selectedId || pendingPhotos.length === 0) return;
-    setUploadingPhotos(true);
-    try {
-      const newPhotos: Photo[] = [];
-      for (let i = 0; i < pendingPhotos.length; i++) {
-        const { file, preview } = pendingPhotos[i];
-        const filePath = `${selectedId}/${Date.now()}-${i}-${file.name.replace(/\s+/g, '_')}`;
-        const { error: uploadError } = await supabase.storage
-          .from('work-order-photos')
-          .upload(filePath, file);
-        if (uploadError) throw uploadError;
-        const { data: urlData } = supabase.storage.from('work-order-photos').getPublicUrl(filePath);
-        const { data: photoRecord, error: dbError } = await supabase
-          .from('work_order_photos')
-          .insert({
-            work_order_id: selectedId,
-            url: urlData.publicUrl,
-            uploaded_by_role: 'contractor',
-            uploaded_by: currentUserId || null,
-          })
-          .select()
-          .single();
-        if (dbError) throw dbError;
-        if (photoRecord) newPhotos.push(photoRecord as Photo);
-        URL.revokeObjectURL(preview);
-      }
-      setPhotos((prev) => [...prev, ...newPhotos]);
-      setPendingPhotos([]);
-    } catch {
-      alert('Failed to upload photos. Check your Supabase storage setup (see supabase/work-orders.sql).');
-    } finally {
-      setUploadingPhotos(false);
-    }
-  };
 
   const deleteSinglePhoto = async (photo: Photo) => {
     if (!confirm('Delete this photo?')) return;
@@ -847,66 +781,23 @@ export function ContractorClient({
 
               {/* Photos */}
               <div>
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-                    Photos ({photos.length}/{PHOTO_LIMIT})
-                  </div>
-                  {photos.length + pendingPhotos.length < PHOTO_LIMIT && (
-                    <label className="cursor-pointer">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        className="hidden"
-                        onChange={handlePhotoFiles}
-                        disabled={uploadingPhotos}
-                      />
-                      <span
-                        className={cn(
-                          buttonVariants({ variant: 'outline', size: 'sm' }),
-                          'cursor-pointer',
-                          uploadingPhotos && 'pointer-events-none opacity-50'
-                        )}
-                      >
-                        <Upload className="mr-1.5 h-3.5 w-3.5" />
-                        Add Photos
-                      </span>
-                    </label>
-                  )}
+                <div className="text-muted-foreground mb-3 text-xs font-medium uppercase tracking-wider">
+                  Photos ({photos.length} / 10)
                 </div>
 
-                {/* Pending — confirm before uploading */}
-                {pendingPhotos.length > 0 && (
-                  <div className="bg-muted/30 mb-3 rounded-lg border p-3">
-                    <div className="grid grid-cols-3 gap-2">
-                      {pendingPhotos.map((p, idx) => (
-                        <div key={idx} className="relative aspect-square overflow-hidden rounded-md bg-muted">
-                          <img src={p.preview} alt="" className="h-full w-full object-cover" />
-                          <button
-                            type="button"
-                            onClick={() => removePendingPhoto(idx)}
-                            className="absolute top-1 right-1 rounded-full bg-black/70 p-0.5 text-white hover:bg-black"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    <Button
-                      size="sm"
-                      className="mt-2.5 w-full gap-2"
-                      onClick={uploadPendingPhotos}
-                      disabled={uploadingPhotos}
-                    >
-                      {uploadingPhotos && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                      Upload {pendingPhotos.length} photo{pendingPhotos.length !== 1 ? 's' : ''}
-                    </Button>
-                  </div>
-                )}
+                {/* Handles Add Photos button, pending preview, concurrency upload, per-photo status */}
+                <WorkOrderPhotoUploader
+                  workOrderId={selected.id}
+                  existingPhotoCount={photos.length}
+                  currentUserId={currentUserId}
+                  onUploaded={(newPhotos: UploadedPhoto[]) =>
+                    setPhotos((prev) => [...prev, ...newPhotos])
+                  }
+                />
 
                 {/* Loading skeleton */}
                 {loadingPhotos && (
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="mt-3 grid grid-cols-3 gap-2">
                     {[0, 1, 2].map((i) => (
                       <div key={i} className="aspect-square animate-pulse rounded-md bg-muted" />
                     ))}
@@ -915,7 +806,7 @@ export function ContractorClient({
 
                 {/* Uploaded photos grid */}
                 {!loadingPhotos && photos.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="mt-3 grid grid-cols-3 gap-2">
                     {photos.map((photo, idx) => (
                       <div
                         key={photo.id}
@@ -940,8 +831,7 @@ export function ContractorClient({
                               Owner
                             </div>
                           )}
-                          {/* Only show delete for photos this contractor uploaded.
-                              Landlord-uploaded photos can only be deleted by the landlord. */}
+                          {/* Only show delete for photos this contractor uploaded */}
                           {photo.uploaded_by === currentUserId && (
                             <button
                               type="button"
@@ -982,8 +872,8 @@ export function ContractorClient({
                   </div>
                 )}
 
-                {!loadingPhotos && photos.length === 0 && pendingPhotos.length === 0 && (
-                  <div className="text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm">
+                {!loadingPhotos && photos.length === 0 && (
+                  <div className="text-muted-foreground mt-3 rounded-lg border border-dashed p-6 text-center text-sm">
                     No photos yet. Tap Add Photos to attach images from your camera or gallery.
                   </div>
                 )}
