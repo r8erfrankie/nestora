@@ -1508,7 +1508,9 @@ function InviteModal({
                 ) : (
                   <UserPlus className="h-4 w-4" />
                 )}
-                {isPending ? 'Sending…' : 'Send Invite'}
+                {isPending
+                  ? (mode === 'email' ? 'Sending…' : 'Adding…')
+                  : (mode === 'email' ? 'Send Invite' : 'Add Tenant')}
               </Button>
             </DialogFooter>
           </form>
