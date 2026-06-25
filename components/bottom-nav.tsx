@@ -27,6 +27,7 @@ const landlordBottomItems = [
   { href: '/overview', label: 'Home', icon: LayoutDashboard },
   { href: '/work-orders', label: 'Work Orders', icon: ClipboardList },
   { href: '/tenants', label: 'Tenants', icon: UserCheck },
+  { href: '/properties', label: 'Properties', icon: Building2 },
   { href: '/teams', label: 'Team', icon: Users },
 ] as const;
 
@@ -75,7 +76,7 @@ export function BottomNav({
     role === 'tenant'     ? tenantDrawerItems     :
     landlordDrawerItems;
 
-  const showMenu = role !== 'contractor';
+  const showMenu = role === 'tenant';
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
 
