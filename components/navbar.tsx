@@ -40,8 +40,11 @@ export async function Navbar({
   const initials = getInitials(fullName, resolvedEmail);
 
   return (
-    <header className="border-border bg-background/95 supports-[backdrop-filter]:bg-background/60 z-40 flex h-14 items-center justify-end border-b px-6 backdrop-blur">
-      <div className="flex items-center gap-1.5">
+    <header
+      className="border-border bg-background/95 supports-[backdrop-filter]:bg-background/60 z-40 border-b backdrop-blur"
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+    >
+      <div className="flex h-14 items-center justify-end px-6 gap-1.5">
 
         <NotificationsBell userId={userId} initialNotifications={initialNotifications} />
 
@@ -58,3 +61,4 @@ export async function Navbar({
     </header>
   );
 }
+

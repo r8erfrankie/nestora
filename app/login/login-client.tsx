@@ -199,7 +199,7 @@ export default function LoginClient() {
   const codeComplete = digits.every(d => d);
 
   return (
-    <div className="flex min-h-svh flex-col bg-white sm:bg-gray-50">
+    <div className="flex min-h-svh flex-col bg-white sm:bg-gray-50" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       {/* Install banner — full width at the very top, all screen sizes */}
       <InstallBanner />
 
