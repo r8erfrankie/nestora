@@ -104,24 +104,25 @@ export default async function TenantDashboardPage() {
   const requests = (rawRequests ?? []) as MaintenanceRequest[];
   const archivedIds = (rawArchives ?? []).map((a) => a.request_id as string);
 
-  // Fetch lease documents for approved links.
-  const approvedLinkIds = (rawLinks ?? []).filter((l) => l.status === 'approved').map((l) => l.id as string);
+  // Fetch lease documents — wrapped in try/catch so a missing table (migration
+  // not yet run) degrades gracefully rather than crashing the page.
   type TenantDoc = { id: string; link_id: string; name: string; url: string; size: number | null };
-  let rawDocs: TenantDoc[] = [];
-  if (approvedLinkIds.length > 0) {
-    const { data } = await supabase
-      .from('lease_documents')
-      .select('id, link_id, name, url, size')
-      .in('link_id', approvedLinkIds)
-      .order('created_at', { ascending: true });
-    rawDocs = (data ?? []) as TenantDoc[];
-  }
   const docsByLinkId = new Map<string, TenantDoc[]>();
-  for (const d of rawDocs) {
-    const arr = docsByLinkId.get(d.link_id) ?? [];
-    arr.push(d);
-    docsByLinkId.set(d.link_id, arr);
-  }
+  try {
+    const approvedLinkIds = approvedLinks.map((l) => l.id);
+    if (approvedLinkIds.length > 0) {
+      const { data } = await supabase
+        .from('lease_documents')
+        .select('id, link_id, name, url, size')
+        .in('link_id', approvedLinkIds)
+        .order('created_at', { ascending: true });
+      for (const d of (data ?? []) as TenantDoc[]) {
+        const arr = docsByLinkId.get(d.link_id) ?? [];
+        arr.push(d);
+        docsByLinkId.set(d.link_id, arr);
+      }
+    }
+  } catch { /* table not yet migrated — show no documents */ }
 
   const leaseByLinkId = new Map<string, LeaseSummary>();
   for (const l of (rawLeases ?? []) as unknown as (LeaseSummary & { link_id: string })[]) {

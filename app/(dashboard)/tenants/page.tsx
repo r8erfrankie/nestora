@@ -110,24 +110,24 @@ export default async function TenantsPage({
     leaseByLinkId.set(l.link_id as string, l as unknown as LeaseData);
   }
 
-  // Fetch lease documents for all approved links in one query.
-  const approvedLinkIds = rawApproved.map((l) => l.id);
+  // Fetch lease documents — try/catch so a missing table degrades gracefully.
   type RawDoc = { id: string; link_id: string; name: string; url: string; size: number | null; created_at: string };
-  let rawDocs: RawDoc[] = [];
-  if (approvedLinkIds.length > 0) {
-    const { data } = await supabase
-      .from('lease_documents')
-      .select('id, link_id, name, url, size, created_at')
-      .in('link_id', approvedLinkIds)
-      .order('created_at', { ascending: true });
-    rawDocs = (data ?? []) as RawDoc[];
-  }
   const docsByLinkId = new Map<string, RawDoc[]>();
-  for (const d of rawDocs) {
-    const existing = docsByLinkId.get(d.link_id) ?? [];
-    existing.push(d);
-    docsByLinkId.set(d.link_id, existing);
-  }
+  try {
+    const approvedLinkIds = rawApproved.map((l) => l.id);
+    if (approvedLinkIds.length > 0) {
+      const { data } = await supabase
+        .from('lease_documents')
+        .select('id, link_id, name, url, size, created_at')
+        .in('link_id', approvedLinkIds)
+        .order('created_at', { ascending: true });
+      for (const d of (data ?? []) as RawDoc[]) {
+        const existing = docsByLinkId.get(d.link_id) ?? [];
+        existing.push(d);
+        docsByLinkId.set(d.link_id, existing);
+      }
+    }
+  } catch { /* table not yet migrated — show no documents */ }
 
   const approvedLinks: TenantLink[] = rawApproved.map((l) => {
     const key = l.tenant_email.toLowerCase();
