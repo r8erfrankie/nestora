@@ -136,9 +136,10 @@ export default async function DashboardPage() {
     }
   }
 
-  // 3. Overdue active work orders
+  // 3. Overdue active work orders (any non-terminal status, including Open with contractor assigned)
   for (const wo of attentionWOs ?? []) {
-    if (wo.due_date && wo.due_date < today && wo.status !== 'Open') {
+    const alreadyShownAsUnassigned = wo.status === 'Open' && !wo.assigned_contractor_email;
+    if (wo.due_date && wo.due_date < today && !alreadyShownAsUnassigned) {
       attentionItems.push({
         kind: 'overdue',
         id: wo.id,

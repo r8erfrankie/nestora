@@ -283,6 +283,14 @@ export async function updateWorkOrderStatus(
             link: `/tenant/requests/${linked.id}`,
           });
         }
+      } else if (newStatus === 'In Progress') {
+        await insertNotification({
+          userId: wo.user_id,
+          type: 'work_order_accepted',
+          title: 'Work order accepted',
+          message: `"${wo.title}"${prop ? ` at ${prop}` : ''} has been accepted by the contractor.`,
+          link: '/work-orders',
+        });
       } else if (newStatus === 'On Hold' || newStatus === 'Needs Materials') {
         await insertNotification({
           userId: wo.user_id,
