@@ -10,7 +10,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from '@/components/ui/select';
 import { type LeaseData, type LeaseInput, upsertLease } from './lease-actions';
 
@@ -105,7 +104,11 @@ export function LeaseSection({
             disabled={saving}
           >
             <SelectTrigger className="h-8 text-sm">
-              <SelectValue placeholder="Select type…" />
+              {form.leaseType === 'fixed'
+                ? 'Fixed term'
+                : form.leaseType === 'month_to_month'
+                  ? 'Month-to-month'
+                  : <span className="text-muted-foreground">Select type…</span>}
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="fixed">Fixed term</SelectItem>
