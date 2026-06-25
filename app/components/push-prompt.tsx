@@ -35,7 +35,36 @@ export function PushPrompt({ role }: { role: 'landlord' | 'contractor' | 'tenant
 
   useEffect(() => {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
-    if (Notification.permission !== 'default') return; // already granted or denied
+
+    // If permission already granted, silently ensure a subscription exists in the DB.
+    // Handles the case where the user granted permission but the subscribe() call
+    // failed (e.g. VAPID key missing at deploy time), leaving no stored subscription.
+    if (Notification.permission === 'granted') {
+      navigator.serviceWorker.ready.then(async (reg) => {
+        try {
+          let sub = await reg.pushManager.getSubscription();
+          if (!sub) {
+            sub = await reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(
+                process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
+              ),
+            });
+          }
+          const json = sub.toJSON();
+          await savePushSubscription({
+            endpoint: sub.endpoint,
+            p256dh: json.keys!.p256dh,
+            auth: json.keys!.auth,
+          });
+        } catch {
+          // Non-fatal — user can re-enable via browser settings
+        }
+      });
+      return;
+    }
+
+    if (Notification.permission === 'denied') return;
 
     const dismissedUntil = localStorage.getItem(DISMISSED_KEY);
     if (dismissedUntil && Date.now() < Number(dismissedUntil)) return;
