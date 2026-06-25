@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { X, Upload, Loader2, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
+import { X, Upload, Loader2, AlertCircle, CheckCircle2, RefreshCw, Camera, ImagePlus } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -42,6 +42,9 @@ interface Props {
   currentUserId: string;
   onUploaded: (photos: UploadedPhoto[]) => void;
   disabled?: boolean;
+  // Show a dedicated "Camera" button that opens the device camera directly,
+  // alongside the usual "Gallery" picker. Useful in field contractor contexts.
+  cameraEnabled?: boolean;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -104,6 +107,7 @@ export function WorkOrderPhotoUploader({
   currentUserId,
   onUploaded,
   disabled = false,
+  cameraEnabled = false,
 }: Props) {
   const supabase = createClient();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -296,22 +300,56 @@ export function WorkOrderPhotoUploader({
 
   if (items.length === 0) {
     return (
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         {canAdd && (
-          <label className="cursor-pointer">
-            <input
-              ref={inputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-            <span className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'cursor-pointer gap-1.5')}>
-              <Upload className="h-3.5 w-3.5" />
-              Add Photos
-            </span>
-          </label>
+          cameraEnabled ? (
+            <div className="flex gap-2">
+              {/* Camera — opens device camera directly */}
+              <label className="flex-1 cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
+                <span className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'w-full cursor-pointer justify-center gap-1.5')}>
+                  <Camera className="h-3.5 w-3.5" />
+                  Camera
+                </span>
+              </label>
+              {/* Gallery — file picker (no capture) */}
+              <label className="flex-1 cursor-pointer">
+                <input
+                  ref={inputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
+                <span className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'w-full cursor-pointer justify-center gap-1.5')}>
+                  <ImagePlus className="h-3.5 w-3.5" />
+                  Gallery
+                </span>
+              </label>
+            </div>
+          ) : (
+            <label className="cursor-pointer">
+              <input
+                ref={inputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+              <span className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'cursor-pointer gap-1.5')}>
+                <Upload className="h-3.5 w-3.5" />
+                Add Photos
+              </span>
+            </label>
+          )
         )}
         {selectionErrors.map((err, i) => (
           <p key={i} className="flex items-center gap-1.5 text-xs text-destructive">
@@ -334,24 +372,32 @@ export function WorkOrderPhotoUploader({
             : `${totalSelected} / ${MAX_PHOTOS} photos selected`}
         </span>
         {canAdd && (
-          <label className="cursor-pointer">
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-            <span
-              className={cn(
-                buttonVariants({ variant: 'ghost', size: 'sm' }),
-                'h-7 cursor-pointer gap-1 text-xs'
-              )}
-            >
-              <Upload className="h-3 w-3" />
-              Add more
-            </span>
-          </label>
+          cameraEnabled ? (
+            <div className="flex gap-1.5">
+              <label className="cursor-pointer">
+                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileSelect} />
+                <span className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'h-7 cursor-pointer gap-1 text-xs')}>
+                  <Camera className="h-3 w-3" />
+                  Camera
+                </span>
+              </label>
+              <label className="cursor-pointer">
+                <input type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} />
+                <span className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'h-7 cursor-pointer gap-1 text-xs')}>
+                  <ImagePlus className="h-3 w-3" />
+                  Gallery
+                </span>
+              </label>
+            </div>
+          ) : (
+            <label className="cursor-pointer">
+              <input type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} />
+              <span className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'h-7 cursor-pointer gap-1 text-xs')}>
+                <Upload className="h-3 w-3" />
+                Add more
+              </span>
+            </label>
+          )
         )}
       </div>
 
