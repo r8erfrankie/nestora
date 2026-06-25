@@ -181,7 +181,7 @@ export default async function TenantsPage({
   }));
 
   return (
-    <div className="max-w-3xl p-6">
+    <div className="max-w-3xl p-4 sm:p-6">
       <MarkVisited section="tenants" />
       <TenantsClient
         pendingLinks={pendingLinks}

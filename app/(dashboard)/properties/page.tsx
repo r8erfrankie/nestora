@@ -15,7 +15,7 @@ export default async function PropertiesPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <PropertiesClient initialProperties={properties || []} loadError={error} />
     </div>
   );

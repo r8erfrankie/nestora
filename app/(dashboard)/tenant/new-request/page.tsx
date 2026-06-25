@@ -62,7 +62,7 @@ export default async function NewRequestPage({
     defaultPropertyId && propertyIds.includes(defaultPropertyId) ? defaultPropertyId : null;
 
   return (
-    <div className="max-w-2xl p-6">
+    <div className="max-w-2xl p-4 sm:p-6">
       <NewRequestClient properties={properties} defaultPropertyId={validDefaultId} />
     </div>
   );

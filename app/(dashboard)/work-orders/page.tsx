@@ -265,7 +265,7 @@ export default async function WorkOrdersPage({
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <MarkVisited section="work_orders" />
       <PushPrompt role="landlord" />
       <WorkOrdersClient

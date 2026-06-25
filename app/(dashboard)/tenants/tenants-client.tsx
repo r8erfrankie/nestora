@@ -329,15 +329,14 @@ function CollapsibleSection({
       <button
         type="button"
         onClick={toggle}
-        className="-mx-1 flex w-full items-center gap-2 rounded-md px-1 py-1 text-left transition-colors hover:bg-muted/40 active:bg-muted/60"
+        className="-mx-1 flex w-full items-center gap-2 rounded-md px-1 py-1.5 text-left transition-colors hover:bg-muted/40 active:bg-muted/60"
       >
-        <h2 className="text-sm font-medium">{title}</h2>
+        <span className={cn('h-3.5 w-1 shrink-0 rounded-full transition-colors', isOpen ? 'bg-primary' : 'bg-muted-foreground/30')} />
+        <h2 className={cn('text-sm font-semibold tracking-tight transition-colors', isOpen && 'text-primary')}>{title}</h2>
         {badge}
         {trailing}
         <ChevronDown
-          className={`text-muted-foreground ml-auto h-4 w-4 shrink-0 transition-transform duration-200 ${
-            isOpen ? 'rotate-180' : ''
-          }`}
+          className={cn('ml-auto h-4 w-4 shrink-0 transition-transform duration-200', isOpen ? 'rotate-180 text-primary' : 'text-muted-foreground')}
         />
       </button>
       <Separator className="mt-1" />
@@ -373,11 +372,14 @@ function PropertyGroup({
       <button
         type="button"
         onClick={toggle}
-        className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted/30 active:bg-muted/50 ${
-          isOpen ? 'border-b' : ''
-        }`}
+        className={cn(
+          'flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors',
+          isOpen
+            ? 'border-b bg-primary/5 hover:bg-primary/8 active:bg-primary/10'
+            : 'hover:bg-muted/30 active:bg-muted/50',
+        )}
       >
-        <Building2 className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
+        <Building2 className={cn('h-3.5 w-3.5 shrink-0 transition-colors', isOpen ? 'text-primary' : 'text-muted-foreground')} />
         <div className="min-w-0 flex-1">
           <span className="text-sm font-medium">{property?.name ?? 'Property'}</span>
           {property?.address && (

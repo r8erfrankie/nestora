@@ -23,7 +23,7 @@ export default async function SettingsPage() {
   ]);
 
   return (
-    <div className="p-6 max-w-2xl">
+    <div className="p-4 sm:p-6 max-w-2xl">
       <SettingsClient
         email={user.email ?? ''}
         role={(profile?.role as string | null) ?? null}
