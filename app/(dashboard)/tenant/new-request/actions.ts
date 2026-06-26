@@ -55,8 +55,8 @@ export async function submitMaintenanceRequest({
       await insertNotification({
         userId: landlordId,
         type: 'new_request',
-        title: 'New maintenance request',
-        message: `"${title.trim()}"${propName ? ` at ${propName}` : ''} has been submitted.`,
+        title: 'Nestora: New Request',
+        message: `"${title.trim()}" has been submitted`,
         link: '/tenants',
       });
 

@@ -1387,7 +1387,7 @@ export function WorkOrdersClient({
                   type="date"
                   value={form.due_date}
                   onChange={(e) => updateForm('due_date', e.target.value)}
-                  className="!h-11 sm:!h-8"
+                  className="!h-11 sm:!h-8 bg-background"
                 />
               </div>
             </div>

@@ -59,8 +59,8 @@ export async function addMaintenanceNote(
       await insertNotification({
         userId: request.tenant_id as string,
         type: 'request_note',
-        title: 'Note on your request',
-        message: `"${request.title}"${propName ? ` at ${propName}` : ''} — your landlord left a note.`,
+        title: 'Nestora: New Note',
+        message: `"${request.title}" — your landlord left a note`,
         link: `/tenant/requests/${requestId}`,
       });
     } catch { /* non-fatal */ }
@@ -119,8 +119,8 @@ export async function addTenantMaintenanceNote(
       await insertNotification({
         userId: property.user_id as string,
         type: 'request_note',
-        title: 'Tenant reply',
-        message: `"${request.title}"${propName ? ` at ${propName}` : ''} — your tenant replied.`,
+        title: 'Nestora: Tenant Reply',
+        message: `"${request.title}" — your tenant replied`,
         link: '/tenants',
       });
     }
