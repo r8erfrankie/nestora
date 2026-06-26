@@ -216,7 +216,7 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
             <Clock className="h-8 w-8 opacity-40" />
             <p className="text-sm">No pending requests</p>
             <p className="text-xs opacity-70">
-              Tenants who scan your property QR code will appear here.
+              Tenants you invite or who scan your property QR code will appear here.
             </p>
           </div>
         ) : (
@@ -229,12 +229,22 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
       </CollapsibleSection>
 
       {/* ── Approved tenants ─────────────────────────────────────────────────── */}
-      {approvedLinks.length > 0 && (
-        <CollapsibleSection
-          title="Approved Tenants"
-          badge={<Badge className="bg-primary/10 text-primary hover:bg-primary/15 border-0 text-xs font-semibold">{approvedLinks.length}</Badge>}
-          storageKey="tenants-section-approved"
-        >
+      <CollapsibleSection
+        title="Approved Tenants"
+        badge={approvedLinks.length > 0 ? <Badge className="bg-primary/10 text-primary hover:bg-primary/15 border-0 text-xs font-semibold">{approvedLinks.length}</Badge> : undefined}
+        storageKey="tenants-section-approved"
+      >
+        {approvedLinks.length === 0 ? (
+          <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-lg border border-dashed py-10 text-center">
+            <UserCheck className="h-8 w-8 opacity-40" />
+            <p className="text-sm">No approved tenants yet</p>
+            <p className="text-xs opacity-70">Invite a tenant to link them to one of your properties.</p>
+            <Button size="sm" variant="outline" className="mt-2 gap-1.5" onClick={() => setInviteOpen(true)}>
+              <UserPlus className="h-3.5 w-3.5" />
+              Invite Tenant
+            </Button>
+          </div>
+        ) : (
           <div className="space-y-3">
             {Object.entries(approvedByProperty).map(([propertyId, { property, tenants }]) => (
               <PropertyGroup
@@ -246,8 +256,8 @@ export function TenantsClient({ pendingLinks, approvedLinks, properties, mainten
               />
             ))}
           </div>
-        </CollapsibleSection>
-      )}
+        )}
+      </CollapsibleSection>
 
       {/* ── Maintenance requests ─────────────────────────────────────────────── */}
       <CollapsibleSection

@@ -417,9 +417,9 @@ export default function LoginClient() {
 
           <p className="mt-6 hidden text-center text-xs text-gray-400 sm:block">
             By continuing you agree to our{' '}
-            <span className="cursor-pointer underline underline-offset-2 hover:text-gray-600">Terms</span>
+            <a href="/terms" className="underline underline-offset-2 hover:text-gray-600">Terms</a>
             {' '}and{' '}
-            <span className="cursor-pointer underline underline-offset-2 hover:text-gray-600">Privacy Policy</span>.
+            <a href="/privacy" className="underline underline-offset-2 hover:text-gray-600">Privacy Policy</a>.
           </p>
 
         </div>

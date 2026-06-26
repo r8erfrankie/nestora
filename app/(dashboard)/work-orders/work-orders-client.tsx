@@ -1170,8 +1170,7 @@ export function WorkOrdersClient({
               <>
                 <h3 className="mb-2 text-lg font-semibold">No work orders yet</h3>
                 <p className="text-muted-foreground mb-6 max-w-sm text-sm">
-                  No work orders yet. Create one to start tracking maintenance and repairs across your
-                  properties.
+                  Create your first work order to start tracking maintenance and repairs across your properties.
                 </p>
                 <Button onClick={() => openCreate()}>
                   <Plus className="mr-2 h-4 w-4" />
