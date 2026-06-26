@@ -74,8 +74,8 @@ export async function acceptOrCompleteWorkOrder(workOrderId: string) {
         await insertNotification({
           userId: wo.user_id as string,
           type: 'work_order_accepted',
-          title: 'Work Order Accepted',
-          message: `"${wo.title}" has been accepted`,
+          title: 'Nestora: Work Order Accepted',
+          message: `"${wo.title}" has been accepted by contractor${wo.properties?.name ? ` at ${wo.properties.name}` : ''}`,
           link: '/work-orders',
         });
       }
@@ -103,8 +103,8 @@ export async function acceptOrCompleteWorkOrder(workOrderId: string) {
         await insertNotification({
           userId: wo.user_id as string,
           type: 'work_order_completed',
-          title: 'Work Order Completed',
-          message: `"${wo.title}" has been completed`,
+          title: 'Nestora: Work Order Completed',
+          message: `"${wo.title}" has been completed by contractor${prop ? ` at ${prop}` : ''}`,
           link: '/work-orders',
         });
       }
@@ -115,8 +115,8 @@ export async function acceptOrCompleteWorkOrder(workOrderId: string) {
         await insertNotification({
           userId: linkedRequest.tenant_id as string,
           type: 'work_order_completed',
-          title: 'Request Completed',
-          message: `"${wo.title}" has been completed`,
+          title: 'Nestora: Request Completed',
+          message: `"${wo.title}" has been completed${prop ? ` at ${prop}` : ''}`,
           link: `/tenant/requests/${linkedRequest.id}`,
         });
       }
@@ -178,8 +178,8 @@ export async function saveContractorQuote(workOrderId: string, quoteRaw: string)
     await insertNotification({
       userId: wo.user_id as string,
       type: 'quote_submitted',
-      title: 'New Quote',
-      message: `"${wo.title}" — $${quote.toFixed(2)}`,
+      title: 'Nestora: New Quote',
+      message: `"${wo.title}"${prop ? ` at ${prop}` : ''} — $${quote.toFixed(2)}`,
       link: '/work-orders',
     });
   }
@@ -270,8 +270,8 @@ export async function updateWorkOrderStatus(
         await insertNotification({
           userId: wo.user_id,
           type: 'work_order_completed',
-          title: 'Work Order Completed',
-          message: `"${wo.title}" has been completed`,
+          title: 'Nestora: Work Order Completed',
+          message: `"${wo.title}" has been completed by contractor${prop ? ` at ${prop}` : ''}`,
           link: '/work-orders',
         });
 
@@ -280,8 +280,8 @@ export async function updateWorkOrderStatus(
           await insertNotification({
             userId: linked.tenant_id as string,
             type: 'work_order_completed',
-            title: 'Request Completed',
-            message: `"${wo.title}" has been completed`,
+            title: 'Nestora: Request Completed',
+            message: `"${wo.title}" has been completed${prop ? ` at ${prop}` : ''}`,
             link: `/tenant/requests/${linked.id}`,
           });
         }
@@ -289,32 +289,32 @@ export async function updateWorkOrderStatus(
         await insertNotification({
           userId: wo.user_id,
           type: 'work_order_accepted',
-          title: 'Work Order Accepted',
-          message: `"${wo.title}" has been accepted`,
+          title: 'Nestora: Work Order Accepted',
+          message: `"${wo.title}" has been accepted by contractor${prop ? ` at ${prop}` : ''}`,
           link: '/work-orders',
         });
       } else if (newStatus === 'In Progress') {
         await insertNotification({
           userId: wo.user_id,
           type: 'work_order_status',
-          title: 'Work Order In Progress',
-          message: `"${wo.title}" is now in progress`,
+          title: 'Nestora: Work Order In Progress',
+          message: `"${wo.title}" is now in progress${prop ? ` at ${prop}` : ''}`,
           link: '/work-orders',
         });
       } else if (newStatus === 'On Hold') {
         await insertNotification({
           userId: wo.user_id,
           type: 'work_order_status',
-          title: 'Work Order On Hold',
-          message: `"${wo.title}" is on hold`,
+          title: 'Nestora: Work Order On Hold',
+          message: `"${wo.title}" is on hold${prop ? ` at ${prop}` : ''}`,
           link: '/work-orders',
         });
       } else if (newStatus === 'Needs Materials') {
         await insertNotification({
           userId: wo.user_id,
           type: 'work_order_status',
-          title: 'Needs Materials',
-          message: `"${wo.title}" needs materials`,
+          title: 'Nestora: Needs Materials',
+          message: `"${wo.title}" needs materials${prop ? ` at ${prop}` : ''}`,
           link: '/work-orders',
         });
       }

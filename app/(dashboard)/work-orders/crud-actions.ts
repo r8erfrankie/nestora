@@ -223,7 +223,7 @@ export async function updateWorkOrderStatus(id: string, newStatus: string) {
         await insertNotification({
           userId: contractorProfile.id as string,
           type: 'work_order_status_changed',
-          title: `Work Order ${newStatus}`,
+          title: `Nestora: Work Order ${newStatus}`,
           message: `"${wo.title}" has been moved to ${newStatus}`,
           link: '/contractor',
         });
@@ -346,8 +346,8 @@ export async function updateContractorAssignment(
         await insertNotification({
           userId: contractorProfile.data.id as string,
           type: 'work_order_assigned',
-          title: 'Work Order Assigned',
-          message: `"${wo.title}" has been assigned to you`,
+          title: 'Nestora: Work Order Assigned',
+          message: `"${wo.title}"${wo.properties?.name ? ` at ${wo.properties.name}` : ''} has been assigned to you`,
           link: '/contractor',
         });
       } else {
@@ -449,7 +449,7 @@ export async function respondToContractorQuote(id: string, approved: boolean | n
           userId: profile.id as string,
           type: approved ? 'quote_accepted' : 'quote_declined',
           title: approved ? 'Nestora: Quote Accepted' : 'Nestora: Quote Declined',
-          message: `"${wo.title}" — your ${amount} quote has been ${approved ? 'accepted' : 'declined'}`,
+          message: `"${wo.title}"${prop ? ` at ${prop}` : ''} — your ${amount} quote has been ${approved ? 'accepted' : 'declined'}`,
           link: '/contractor',
         });
       }
@@ -554,8 +554,8 @@ export async function createWorkOrder(data: {
           await insertNotification({
             userId: contractorProfile.data.id as string,
             type: 'work_order_assigned',
-            title: 'Work Order Assigned',
-            message: `"${inserted.title as string}" has been assigned to you`,
+            title: 'Nestora: Work Order Assigned',
+            message: `"${inserted.title as string}"${data.propertyName ? ` at ${data.propertyName}` : ''} has been assigned to you`,
             link: '/contractor',
           });
         } else {
