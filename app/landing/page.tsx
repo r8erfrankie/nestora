@@ -19,11 +19,53 @@ export const metadata = {
   title: 'Nestora — Maintenance made simple for small landlords',
   description:
     'The simple pipeline that connects tenants, landlords, and contractors. Submit requests with photos, assign work orders, and keep everyone in sync.',
+  alternates: {
+    canonical: 'https://gonestora.app',
+  },
+  openGraph: {
+    title: 'Nestora — Maintenance made simple for small landlords',
+    description:
+      'The simple pipeline that connects tenants, landlords, and contractors. Submit requests with photos, assign work orders, and keep everyone in sync.',
+    url: 'https://gonestora.app',
+    siteName: 'Nestora',
+    type: 'website',
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Nestora — Maintenance made simple for small landlords',
+    description:
+      'The simple pipeline that connects tenants, landlords, and contractors. Submit requests with photos, assign work orders, and keep everyone in sync.',
+  },
+};
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Nestora',
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Web, iOS, Android',
+  url: 'https://gonestora.app',
+  description:
+    'Property maintenance management platform connecting landlords, tenants, and contractors. Submit maintenance requests with photos, assign work orders, and track progress.',
+  offers: {
+    '@type': 'Offer',
+    price: '0',
+    priceCurrency: 'USD',
+  },
+  audience: {
+    '@type': 'Audience',
+    audienceType: 'Small landlords, property managers, tenants, contractors',
+  },
 };
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white font-sans text-gray-900 antialiased">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
 
       {/* ── Navbar ── */}
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/95 backdrop-blur">

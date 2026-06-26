@@ -6,6 +6,24 @@ export const metadata = {
   title: 'Nestora — Maintenance made simple for small landlords',
   description:
     'The simple pipeline that connects tenants, landlords, and contractors. Submit requests with photos, assign work orders, and keep everyone in sync.',
+  alternates: {
+    canonical: 'https://gonestora.app',
+  },
+  openGraph: {
+    title: 'Nestora — Maintenance made simple for small landlords',
+    description:
+      'The simple pipeline that connects tenants, landlords, and contractors. Submit requests with photos, assign work orders, and keep everyone in sync.',
+    url: 'https://gonestora.app',
+    siteName: 'Nestora',
+    type: 'website',
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Nestora — Maintenance made simple for small landlords',
+    description:
+      'The simple pipeline that connects tenants, landlords, and contractors. Submit requests with photos, assign work orders, and keep everyone in sync.',
+  },
 };
 
 export default async function RootPage() {
