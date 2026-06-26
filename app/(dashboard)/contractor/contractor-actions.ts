@@ -6,13 +6,15 @@ import { insertNotification } from '@/lib/notifications';
 // Contractors may only move status forward along this chain (used by the list quick-action).
 // Landlords control Open→Archived and have full edit access via crud-actions.ts.
 const VALID_TRANSITIONS: Record<string, string> = {
-  Open: 'In Progress',
+  Open: 'Accepted',
+  Accepted: 'In Progress',
   'In Progress': 'Completed',
 };
 
 // All valid targets a contractor can reach from each status (used by the detail view).
 const CONTRACTOR_ALLOWED_TARGETS: Record<string, string[]> = {
-  Open: ['In Progress'],
+  Open: ['Accepted'],
+  Accepted: ['In Progress', 'On Hold', 'Needs Materials', 'Completed'],
   'In Progress': ['On Hold', 'Needs Materials', 'Completed'],
   'On Hold': ['In Progress', 'Needs Materials', 'Completed'],
   'Needs Materials': ['In Progress', 'On Hold', 'Completed'],
@@ -65,11 +67,10 @@ export async function acceptOrCompleteWorkOrder(workOrderId: string) {
     });
   } catch { /* non-fatal */ }
 
-  // Notify the landlord when the contractor accepts (In Progress) or completes the job.
-  if (nextStatus === 'In Progress') {
+  // Notify the landlord when the contractor accepts the job.
+  if (nextStatus === 'Accepted') {
     try {
       if (wo.user_id) {
-        const prop = wo.properties?.name;
         await insertNotification({
           userId: wo.user_id as string,
           type: 'work_order_accepted',
@@ -284,12 +285,20 @@ export async function updateWorkOrderStatus(
             link: `/tenant/requests/${linked.id}`,
           });
         }
-      } else if (newStatus === 'In Progress') {
+      } else if (newStatus === 'Accepted') {
         await insertNotification({
           userId: wo.user_id,
           type: 'work_order_accepted',
           title: 'Nestora: Work Order Accepted',
           message: `"${wo.title}" has been accepted`,
+          link: '/work-orders',
+        });
+      } else if (newStatus === 'In Progress') {
+        await insertNotification({
+          userId: wo.user_id,
+          type: 'work_order_status',
+          title: 'Nestora: Work Order In Progress',
+          message: `"${wo.title}" is now in progress`,
           link: '/work-orders',
         });
       } else if (newStatus === 'On Hold') {
@@ -311,7 +320,7 @@ export async function updateWorkOrderStatus(
       }
 
       // Email the landlord for the two most actionable transitions.
-      if (newStatus === 'In Progress' || newStatus === 'Completed') {
+      if (newStatus === 'Accepted' || newStatus === 'Completed') {
         const [{ data: landlordAuth }, { data: contractorProfile }] = await Promise.all([
           admin.auth.admin.getUserById(wo.user_id),
           admin.from('profiles').select('full_name').eq('email', user.email.toLowerCase()).maybeSingle(),

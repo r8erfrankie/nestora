@@ -38,6 +38,7 @@ export interface ContractorWorkOrder {
 
 const STATUS_BADGE: Record<string, string> = {
   Open: 'bg-amber-100 text-amber-800',
+  Accepted: 'bg-teal-100 text-teal-800',
   'In Progress': 'bg-blue-100 text-blue-800',
   'On Hold': 'bg-orange-100 text-orange-800',
   'Needs Materials': 'bg-purple-100 text-purple-800',
@@ -50,10 +51,11 @@ const URGENT_BADGE = 'bg-red-100 text-red-700';
 
 const STATUS_ORDER: Record<string, number> = {
   Open: 0,
-  'In Progress': 1,
-  'On Hold': 2,
-  'Needs Materials': 3,
-  Completed: 4,
+  Accepted: 1,
+  'In Progress': 2,
+  'On Hold': 3,
+  'Needs Materials': 4,
+  Completed: 5,
   Archived: 5,
 };
 
@@ -138,7 +140,7 @@ export function ContractorClient({
   function handleAcceptJob(wo: ContractorWorkOrder) {
     setActionError(null);
     startTransition(async () => {
-      applyOptimistic({ id: wo.id, changes: { status: 'In Progress' } });
+      applyOptimistic({ id: wo.id, changes: { status: 'Accepted' } });
       try {
         const result = await acceptOrCompleteWorkOrder(wo.id);
         setOrders((prev) =>
@@ -337,6 +339,22 @@ export function ContractorClient({
                         >
                           <PlayCircle className="h-3.5 w-3.5" />
                           Accept Job
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Start Job — Accepted status only */}
+                    {wo.status === 'Accepted' && (
+                      <div className="border-t px-4 pb-3 pt-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={isPending}
+                          onClick={(e) => { e.stopPropagation(); handleAcceptJob(wo); }}
+                          className="h-8 gap-1.5 text-xs"
+                        >
+                          <PlayCircle className="h-3.5 w-3.5" />
+                          Start Job
                         </Button>
                       </div>
                     )}

@@ -82,6 +82,7 @@ interface Props {
 
 const STATUS_STYLES: Record<string, string> = {
   Open: 'bg-amber-100 text-amber-800',
+  Accepted: 'bg-teal-100 text-teal-800',
   'In Progress': 'bg-blue-100 text-blue-800',
   'On Hold': 'bg-orange-100 text-orange-800',
   'Needs Materials': 'bg-purple-100 text-purple-800',
@@ -98,6 +99,11 @@ const PRIORITY_STYLES: Record<string, string> = {
 
 // Status options available from each active state (excludes Completed — handled by sticky bar).
 const STATUS_CHIPS: Record<string, { label: string; icon: React.ReactNode; style: string }[]> = {
+  Accepted: [
+    { label: 'In Progress', icon: <PlayCircle className="h-3.5 w-3.5" />, style: 'bg-blue-100 text-blue-800 hover:bg-blue-200' },
+    { label: 'On Hold', icon: <PauseCircle className="h-3.5 w-3.5" />, style: 'bg-orange-100 text-orange-800 hover:bg-orange-200' },
+    { label: 'Needs Materials', icon: <ShoppingCart className="h-3.5 w-3.5" />, style: 'bg-purple-100 text-purple-800 hover:bg-purple-200' },
+  ],
   'In Progress': [
     { label: 'On Hold', icon: <PauseCircle className="h-3.5 w-3.5" />, style: 'bg-orange-100 text-orange-800 hover:bg-orange-200' },
     { label: 'Needs Materials', icon: <ShoppingCart className="h-3.5 w-3.5" />, style: 'bg-purple-100 text-purple-800 hover:bg-purple-200' },
@@ -202,10 +208,10 @@ export function WorkOrderDetailClient({ workOrder, initialPhotos, isArchived: in
   async function handleAccept() {
     setStatusError('');
     const prev = status;
-    setStatus('In Progress');
+    setStatus('Accepted');
     startTransition(async () => {
       try {
-        const result = await updateWorkOrderStatus(workOrder.id, 'In Progress');
+        const result = await updateWorkOrderStatus(workOrder.id, 'Accepted');
         setStatus(result.newStatus);
         setNotesRefreshKey((k) => k + 1);
       } catch (err) {
