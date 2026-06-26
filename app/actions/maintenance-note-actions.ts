@@ -59,7 +59,7 @@ export async function addMaintenanceNote(
       await insertNotification({
         userId: request.tenant_id as string,
         type: 'request_note',
-        title: 'Nestora: New Note',
+        title: 'New Note',
         message: `"${request.title}" — your landlord left a note`,
         link: `/tenant/requests/${requestId}`,
       });
@@ -119,7 +119,7 @@ export async function addTenantMaintenanceNote(
       await insertNotification({
         userId: property.user_id as string,
         type: 'request_note',
-        title: 'Nestora: Tenant Reply',
+        title: 'Tenant Reply',
         message: `"${request.title}" — your tenant replied`,
         link: '/tenants',
       });

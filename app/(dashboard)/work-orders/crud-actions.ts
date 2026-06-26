@@ -223,7 +223,7 @@ export async function updateWorkOrderStatus(id: string, newStatus: string) {
         await insertNotification({
           userId: contractorProfile.id as string,
           type: 'work_order_status_changed',
-          title: `Nestora: Work Order ${newStatus}`,
+          title: `Work Order ${newStatus}`,
           message: `"${wo.title}" has been moved to ${newStatus}`,
           link: '/contractor',
         });
@@ -346,7 +346,7 @@ export async function updateContractorAssignment(
         await insertNotification({
           userId: contractorProfile.data.id as string,
           type: 'work_order_assigned',
-          title: 'Nestora: Work Order Assigned',
+          title: 'Work Order Assigned',
           message: `"${wo.title}" has been assigned to you`,
           link: '/contractor',
         });
@@ -554,7 +554,7 @@ export async function createWorkOrder(data: {
           await insertNotification({
             userId: contractorProfile.data.id as string,
             type: 'work_order_assigned',
-            title: 'Nestora: Work Order Assigned',
+            title: 'Work Order Assigned',
             message: `"${inserted.title as string}" has been assigned to you`,
             link: '/contractor',
           });

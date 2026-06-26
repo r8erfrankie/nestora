@@ -1389,6 +1389,7 @@ export function WorkOrdersClient({
                   value={form.due_date}
                   onChange={(e) => updateForm('due_date', e.target.value)}
                   className="border-input bg-background text-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-11 w-full rounded-lg border px-2.5 py-1 text-base outline-none focus-visible:ring-3 sm:h-8 sm:text-sm"
+                  style={{ colorScheme: 'light' }}
                 />
               </div>
             </div>

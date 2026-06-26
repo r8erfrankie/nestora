@@ -63,7 +63,7 @@ export async function withdrawTenantRequest(requestId: string): Promise<void> {
       await insertNotification({
         userId: property.user_id,
         type: 'request_withdrawn',
-        title: 'Nestora: Request Withdrawn',
+        title: 'Request Withdrawn',
         message: `"${request!.title}" — tenant withdrew this request`,
         link: '/tenants',
       });

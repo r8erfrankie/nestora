@@ -74,7 +74,7 @@ export async function acceptOrCompleteWorkOrder(workOrderId: string) {
         await insertNotification({
           userId: wo.user_id as string,
           type: 'work_order_accepted',
-          title: 'Nestora: Work Order Accepted',
+          title: 'Work Order Accepted',
           message: `"${wo.title}" has been accepted`,
           link: '/work-orders',
         });
@@ -103,7 +103,7 @@ export async function acceptOrCompleteWorkOrder(workOrderId: string) {
         await insertNotification({
           userId: wo.user_id as string,
           type: 'work_order_completed',
-          title: 'Nestora: Work Order Completed',
+          title: 'Work Order Completed',
           message: `"${wo.title}" has been completed`,
           link: '/work-orders',
         });
@@ -115,7 +115,7 @@ export async function acceptOrCompleteWorkOrder(workOrderId: string) {
         await insertNotification({
           userId: linkedRequest.tenant_id as string,
           type: 'work_order_completed',
-          title: 'Nestora: Request Completed',
+          title: 'Request Completed',
           message: `"${wo.title}" has been completed`,
           link: `/tenant/requests/${linkedRequest.id}`,
         });
@@ -178,7 +178,7 @@ export async function saveContractorQuote(workOrderId: string, quoteRaw: string)
     await insertNotification({
       userId: wo.user_id as string,
       type: 'quote_submitted',
-      title: 'Nestora: New Quote',
+      title: 'New Quote',
       message: `"${wo.title}" — $${quote.toFixed(2)}`,
       link: '/work-orders',
     });
@@ -270,7 +270,7 @@ export async function updateWorkOrderStatus(
         await insertNotification({
           userId: wo.user_id,
           type: 'work_order_completed',
-          title: 'Nestora: Work Order Completed',
+          title: 'Work Order Completed',
           message: `"${wo.title}" has been completed`,
           link: '/work-orders',
         });
@@ -280,7 +280,7 @@ export async function updateWorkOrderStatus(
           await insertNotification({
             userId: linked.tenant_id as string,
             type: 'work_order_completed',
-            title: 'Nestora: Request Completed',
+            title: 'Request Completed',
             message: `"${wo.title}" has been completed`,
             link: `/tenant/requests/${linked.id}`,
           });
@@ -289,7 +289,7 @@ export async function updateWorkOrderStatus(
         await insertNotification({
           userId: wo.user_id,
           type: 'work_order_accepted',
-          title: 'Nestora: Work Order Accepted',
+          title: 'Work Order Accepted',
           message: `"${wo.title}" has been accepted`,
           link: '/work-orders',
         });
@@ -297,7 +297,7 @@ export async function updateWorkOrderStatus(
         await insertNotification({
           userId: wo.user_id,
           type: 'work_order_status',
-          title: 'Nestora: Work Order In Progress',
+          title: 'Work Order In Progress',
           message: `"${wo.title}" is now in progress`,
           link: '/work-orders',
         });
@@ -305,7 +305,7 @@ export async function updateWorkOrderStatus(
         await insertNotification({
           userId: wo.user_id,
           type: 'work_order_status',
-          title: 'Nestora: Work Order On Hold',
+          title: 'Work Order On Hold',
           message: `"${wo.title}" is on hold`,
           link: '/work-orders',
         });
@@ -313,7 +313,7 @@ export async function updateWorkOrderStatus(
         await insertNotification({
           userId: wo.user_id,
           type: 'work_order_status',
-          title: 'Nestora: Needs Materials',
+          title: 'Needs Materials',
           message: `"${wo.title}" needs materials`,
           link: '/work-orders',
         });
