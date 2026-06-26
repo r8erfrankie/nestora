@@ -1384,11 +1384,11 @@ export function WorkOrdersClient({
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Due Date</label>
-                <Input
+                <input
                   type="date"
                   value={form.due_date}
                   onChange={(e) => updateForm('due_date', e.target.value)}
-                  className="!h-11 sm:!h-8 bg-background"
+                  className="border-input bg-background text-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-11 w-full rounded-lg border px-2.5 py-1 text-base outline-none focus-visible:ring-3 sm:h-8 sm:text-sm"
                 />
               </div>
             </div>
