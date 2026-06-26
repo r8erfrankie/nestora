@@ -35,6 +35,9 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://gonestora.app'),
+  verification: {
+    google: 'm1XmyEbxVTvkCdgkj26wHw5fqZtZzbKevTDT7Wqm5yM',
+  },
   title: {
     default: 'Nestora',
     template: '%s | Nestora',
