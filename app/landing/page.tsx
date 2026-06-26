@@ -366,9 +366,11 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 text-xs text-gray-400 sm:flex-row sm:px-6">
           <span className="font-semibold text-teal-700">Nestora</span>
           <span>Built for small landlords who value clarity and simplicity.</span>
-          <Link href="/sign-in" className="transition-colors hover:text-teal-700">
-            Sign In →
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/privacy" className="transition-colors hover:text-teal-700">Privacy</Link>
+            <Link href="/terms" className="transition-colors hover:text-teal-700">Terms</Link>
+            <Link href="/sign-in" className="transition-colors hover:text-teal-700">Sign In →</Link>
+          </div>
         </div>
       </footer>
 
