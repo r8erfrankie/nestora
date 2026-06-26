@@ -546,3 +546,98 @@ export async function notifyLandlordWorkOrderUpdate(data: {
   });
   if (error) console.error('[notifyLandlordWorkOrderUpdate] Resend error:', error.message);
 }
+
+export async function notifyTenantNewNote(data: {
+  tenantEmail: string;
+  requestTitle: string;
+  propertyName?: string | null;
+  noteContent: string;
+  requestId: string;
+}) {
+  const resend = await getResendClient();
+  if (!data.tenantEmail) return;
+
+  const ctaUrl = `${APP_URL}/tenant/requests/${data.requestId}`;
+  const propLine = data.propertyName ? ` at ${escapeHtml(data.propertyName)}` : '';
+  const notePreview = data.noteContent.length > 300
+    ? escapeHtml(data.noteContent.slice(0, 297)) + '…'
+    : escapeHtml(data.noteContent);
+
+  const body = `
+    <tr>
+      <td style="padding:32px 32px 24px">
+        <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:${BRAND_COLOR};letter-spacing:0.06em;text-transform:uppercase">Note from your landlord</p>
+        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#111827;line-height:1.3">
+          ${escapeHtml(data.requestTitle)}
+        </h1>
+        <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.65">
+          Your landlord left a note on your maintenance request${propLine}. Open Nestora to read and reply.
+        </p>
+
+        <table cellpadding="0" cellspacing="0" style="width:100%;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;margin-bottom:28px">
+          <tr><td style="padding:16px 20px">
+            <table cellpadding="0" cellspacing="0" style="width:100%">
+              <tr>
+                <td style="padding:0 0 12px;font-size:11px;font-weight:600;color:#6b7280;letter-spacing:0.06em;text-transform:uppercase">Note</td>
+              </tr>
+              ${data.propertyName ? detailRow('Property', escapeHtml(data.propertyName)) : ''}
+              <tr>
+                <td colspan="2" style="padding:6px 0;font-size:13px;color:#111827;line-height:1.65;white-space:pre-wrap">${notePreview}</td>
+              </tr>
+            </table>
+          </td></tr>
+        </table>
+
+        <a href="${ctaUrl}"
+           style="display:inline-block;padding:13px 28px;background:${BRAND_COLOR};color:#ffffff;font-size:14px;font-weight:600;border-radius:8px;text-decoration:none;letter-spacing:0.01em">
+          View Request
+        </a>
+      </td>
+    </tr>${INSTALL_BLOCK}`;
+
+  const footerHtml = `
+    <tr><td style="padding:0 32px"><div style="height:1px;background:#f3f4f6"></div></td></tr>
+    <tr>
+      <td style="padding:20px 32px">
+        <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.6">
+          You're receiving this because your landlord left a note on your maintenance request in Nestora.
+        </p>
+      </td>
+    </tr>`;
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f0fdf4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdf4;padding:40px 16px">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;border:1px solid #d1fae5;overflow:hidden">
+        <tr>
+          <td style="background:${BRAND_COLOR};padding:16px 32px">
+            <table cellpadding="0" cellspacing="0" border="0" role="presentation"><tr>
+              <td style="padding-right:10px;vertical-align:middle">
+                <img src="${APP_URL}/icons/icon-192.png" width="30" height="30" alt="" style="display:block;border-radius:6px">
+              </td>
+              <td style="vertical-align:middle">
+                <img src="${APP_URL}/nestora-wordmark-white.png" width="84" height="28" alt="Nestora" style="display:block">
+              </td>
+            </tr></table>
+          </td>
+        </tr>
+        ${body}
+        ${footerHtml}
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`.trim();
+
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to: data.tenantEmail,
+    subject: `Your landlord left a note on "${data.requestTitle}"${data.propertyName ? ` at ${data.propertyName}` : ''}`,
+    html,
+  });
+  if (error) console.error('[notifyTenantNewNote] Resend error:', error.message);
+}

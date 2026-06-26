@@ -63,6 +63,21 @@ export async function addMaintenanceNote(
         message: `"${request.title}"${propName ? ` at ${propName}` : ''} — your landlord left a note`,
         link: `/tenant/requests/${requestId}`,
       });
+
+      // Also email the tenant so they're notified even when not in the app.
+      const admin = createAdminClient();
+      const { data: tenantAuth } = await admin.auth.admin.getUserById(request.tenant_id as string);
+      const tenantEmail = tenantAuth?.user?.email;
+      if (tenantEmail) {
+        const { notifyTenantNewNote } = await import('@/app/actions/email');
+        await notifyTenantNewNote({
+          tenantEmail,
+          requestTitle: request.title as string,
+          propertyName: propName ?? null,
+          noteContent: trimmed,
+          requestId,
+        });
+      }
     } catch { /* non-fatal */ }
   }
 
