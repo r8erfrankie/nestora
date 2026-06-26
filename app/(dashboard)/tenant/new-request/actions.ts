@@ -44,20 +44,36 @@ export async function submitMaintenanceRequest({
   // Notify the landlord who owns the property (non-fatal)
   try {
     const admin = createAdminClient();
-    const { data: property } = await admin
-      .from('properties')
-      .select('user_id, name')
-      .eq('id', propertyId)
-      .single();
+    const [{ data: property }, { data: tenantProfile }] = await Promise.all([
+      admin.from('properties').select('user_id, name').eq('id', propertyId).single(),
+      admin.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
+    ]);
     if (property?.user_id) {
       const propName = property.name as string | null;
+      const landlordId = property.user_id as string;
+
       await insertNotification({
-        userId: property.user_id as string,
+        userId: landlordId,
         type: 'new_request',
         title: 'New maintenance request',
         message: `"${title.trim()}"${propName ? ` at ${propName}` : ''} has been submitted.`,
         link: '/tenants',
       });
+
+      // Also send an email so the landlord is alerted even when not in the app.
+      const { data: landlordAuth } = await admin.auth.admin.getUserById(landlordId);
+      const landlordEmail = landlordAuth?.user?.email;
+      if (landlordEmail) {
+        const { notifyLandlordNewRequest } = await import('@/app/actions/email');
+        await notifyLandlordNewRequest({
+          landlordEmail,
+          tenantEmail: (tenantProfile as any)?.full_name ?? user.email!,
+          requestTitle: title.trim(),
+          propertyName: propName,
+          description: description?.trim() || null,
+          priority,
+        });
+      }
     }
   } catch { /* non-fatal */ }
 

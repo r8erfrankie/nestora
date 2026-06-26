@@ -357,3 +357,192 @@ export async function sendContractorWorkOrderInvitation(data: {
   });
   if (error) console.error('[sendContractorWorkOrderInvitation] Resend error:', error.message);
 }
+
+export async function notifyLandlordNewRequest(data: {
+  landlordEmail: string;
+  tenantEmail: string;
+  requestTitle: string;
+  propertyName?: string | null;
+  description?: string | null;
+  priority: string;
+}) {
+  const resend = await getResendClient();
+  if (!data.landlordEmail) return;
+
+  const dashboardUrl = `${APP_URL}/tenants`;
+  const pColor = priorityColor(data.priority);
+  const propLine = data.propertyName ? ` at ${escapeHtml(data.propertyName)}` : '';
+
+  const body = `
+    <tr>
+      <td style="padding:32px 32px 24px">
+        <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:${BRAND_COLOR};letter-spacing:0.06em;text-transform:uppercase">New maintenance request</p>
+        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#111827;line-height:1.3">
+          ${escapeHtml(data.requestTitle)}
+        </h1>
+        <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.65">
+          A tenant has submitted a new maintenance request${propLine}. Log in to review it and create a work order.
+        </p>
+
+        <table cellpadding="0" cellspacing="0" style="width:100%;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;margin-bottom:28px">
+          <tr><td style="padding:16px 20px">
+            <table cellpadding="0" cellspacing="0" style="width:100%">
+              <tr>
+                <td style="padding:0 0 12px;font-size:11px;font-weight:600;color:#6b7280;letter-spacing:0.06em;text-transform:uppercase">Request details</td>
+              </tr>
+              ${data.propertyName ? detailRow('Property', escapeHtml(data.propertyName)) : ''}
+              ${detailRow('Submitted by', escapeHtml(data.tenantEmail))}
+              ${detailRow('Priority', escapeHtml(data.priority), `color:${pColor};font-weight:600`)}
+              ${data.description ? detailRow('Description', escapeHtml(data.description)) : ''}
+            </table>
+          </td></tr>
+        </table>
+
+        <a href="${dashboardUrl}"
+           style="display:inline-block;padding:13px 28px;background:${BRAND_COLOR};color:#ffffff;font-size:14px;font-weight:600;border-radius:8px;text-decoration:none;letter-spacing:0.01em">
+          View Request
+        </a>
+      </td>
+    </tr>${INSTALL_BLOCK}`;
+
+  const footerHtml = `
+    <tr><td style="padding:0 32px"><div style="height:1px;background:#f3f4f6"></div></td></tr>
+    <tr>
+      <td style="padding:20px 32px">
+        <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.6">
+          You're receiving this because a tenant submitted a maintenance request on a property you manage in Nestora.
+        </p>
+      </td>
+    </tr>`;
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f0fdf4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdf4;padding:40px 16px">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;border:1px solid #d1fae5;overflow:hidden">
+        <tr>
+          <td style="background:${BRAND_COLOR};padding:16px 32px">
+            <table cellpadding="0" cellspacing="0" border="0" role="presentation"><tr>
+              <td style="padding-right:10px;vertical-align:middle">
+                <img src="${APP_URL}/icons/icon-192.png" width="30" height="30" alt="" style="display:block;border-radius:6px">
+              </td>
+              <td style="vertical-align:middle">
+                <img src="${APP_URL}/nestora-wordmark-white.png" width="84" height="28" alt="Nestora" style="display:block">
+              </td>
+            </tr></table>
+          </td>
+        </tr>
+        ${body}
+        ${footerHtml}
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`.trim();
+
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to: data.landlordEmail,
+    subject: `New maintenance request: "${data.requestTitle}"${data.propertyName ? ` at ${data.propertyName}` : ''}`,
+    html,
+  });
+  if (error) console.error('[notifyLandlordNewRequest] Resend error:', error.message);
+}
+
+export async function notifyLandlordWorkOrderUpdate(data: {
+  landlordEmail: string;
+  workOrderTitle: string;
+  propertyName?: string | null;
+  newStatus: string;
+  contractorName?: string | null;
+}) {
+  const resend = await getResendClient();
+  if (!data.landlordEmail) return;
+
+  const dashboardUrl = `${APP_URL}/work-orders`;
+  const eyebrow = data.contractorName
+    ? `Update from ${escapeHtml(data.contractorName)}`
+    : 'Work order update';
+  const intro = data.contractorName
+    ? `<strong>${escapeHtml(data.contractorName)}</strong> updated the status of a work order on your property.`
+    : 'The status of a work order on your property has been updated.';
+
+  const body = `
+    <tr>
+      <td style="padding:32px 32px 24px">
+        <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:${BRAND_COLOR};letter-spacing:0.06em;text-transform:uppercase">${eyebrow}</p>
+        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#111827;line-height:1.3">
+          ${escapeHtml(data.workOrderTitle)}
+        </h1>
+        <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.65">${intro}</p>
+
+        <table cellpadding="0" cellspacing="0" style="width:100%;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;margin-bottom:28px">
+          <tr><td style="padding:16px 20px">
+            <table cellpadding="0" cellspacing="0" style="width:100%">
+              <tr>
+                <td style="padding:0 0 12px;font-size:11px;font-weight:600;color:#6b7280;letter-spacing:0.06em;text-transform:uppercase">Status update</td>
+              </tr>
+              ${data.propertyName ? detailRow('Property', escapeHtml(data.propertyName)) : ''}
+              ${detailRow('New status', `<strong>${escapeHtml(data.newStatus)}</strong>`)}
+            </table>
+          </td></tr>
+        </table>
+
+        <a href="${dashboardUrl}"
+           style="display:inline-block;padding:13px 28px;background:${BRAND_COLOR};color:#ffffff;font-size:14px;font-weight:600;border-radius:8px;text-decoration:none;letter-spacing:0.01em">
+          View in Nestora
+        </a>
+      </td>
+    </tr>`;
+
+  const footerHtml = `
+    <tr><td style="padding:0 32px"><div style="height:1px;background:#f3f4f6"></div></td></tr>
+    <tr>
+      <td style="padding:20px 32px">
+        <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.6">
+          You're receiving this because a contractor updated a work order on a property you manage in Nestora.
+        </p>
+      </td>
+    </tr>`;
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f0fdf4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdf4;padding:40px 16px">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;border:1px solid #d1fae5;overflow:hidden">
+        <tr>
+          <td style="background:${BRAND_COLOR};padding:16px 32px">
+            <table cellpadding="0" cellspacing="0" border="0" role="presentation"><tr>
+              <td style="padding-right:10px;vertical-align:middle">
+                <img src="${APP_URL}/icons/icon-192.png" width="30" height="30" alt="" style="display:block;border-radius:6px">
+              </td>
+              <td style="vertical-align:middle">
+                <img src="${APP_URL}/nestora-wordmark-white.png" width="84" height="28" alt="Nestora" style="display:block">
+              </td>
+            </tr></table>
+          </td>
+        </tr>
+        ${body}
+        ${footerHtml}
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`.trim();
+
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to: data.landlordEmail,
+    subject: data.contractorName
+      ? `${data.contractorName} updated "${data.workOrderTitle}" → ${data.newStatus}`
+      : `Work order update: "${data.workOrderTitle}" is now ${data.newStatus}`,
+    html,
+  });
+  if (error) console.error('[notifyLandlordWorkOrderUpdate] Resend error:', error.message);
+}

@@ -256,8 +256,9 @@ export async function updateWorkOrderStatus(
   // Notify landlord of relevant status changes.
   if (wo.user_id) {
     try {
+      const admin = createAdminClient();
+
       if (newStatus === 'Completed') {
-        const admin = createAdminClient();
         // Resolve any linked maintenance request.
         const { data: resolved } = await admin
           .from('maintenance_requests')
@@ -299,6 +300,25 @@ export async function updateWorkOrderStatus(
           message: `"${wo.title}"${prop ? ` at ${prop}` : ''} — ${newStatus}.`,
           link: '/work-orders',
         });
+      }
+
+      // Email the landlord for the two most actionable transitions.
+      if (newStatus === 'In Progress' || newStatus === 'Completed') {
+        const [{ data: landlordAuth }, { data: contractorProfile }] = await Promise.all([
+          admin.auth.admin.getUserById(wo.user_id),
+          admin.from('profiles').select('full_name').eq('email', user.email.toLowerCase()).maybeSingle(),
+        ]);
+        const landlordEmail = landlordAuth?.user?.email;
+        if (landlordEmail) {
+          const { notifyLandlordWorkOrderUpdate } = await import('@/app/actions/email');
+          await notifyLandlordWorkOrderUpdate({
+            landlordEmail,
+            workOrderTitle: wo.title,
+            propertyName: prop ?? null,
+            newStatus,
+            contractorName: (contractorProfile as any)?.full_name ?? null,
+          });
+        }
       }
     } catch { /* non-fatal */ }
   }
