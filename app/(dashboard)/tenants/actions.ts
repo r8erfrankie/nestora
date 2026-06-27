@@ -103,7 +103,7 @@ export async function convertToWorkOrder(
       await insertNotification({
         userId: request.tenant_id as string,
         type: 'request_in_progress',
-        title: 'Nestora: Request In Progress',
+        title: 'Request In Progress',
         message: `"${request.title}" is being handled as a work order${propName ? ` at ${propName}` : ''}`,
         link: `/tenant/requests/${requestId}`,
       });
@@ -189,7 +189,7 @@ export async function approveTenantRequest(linkId: string) {
         await insertNotification({
           userId: tenantProfile.id as string,
           type: 'access_granted',
-          title: 'Nestora: Access Approved',
+          title: 'Access Approved',
           message: `${propertyName} — your access has been approved`,
           link: '/tenant',
         });
@@ -301,7 +301,7 @@ export async function rejectTenantRequest(linkId: string) {
         await insertNotification({
           userId: tenantProfile.id as string,
           type: 'access_declined',
-          title: 'Nestora: Access Declined',
+          title: 'Access Declined',
           message: `${propertyName} — your access request was not approved`,
           link: '/tenant-onboarding',
         });
