@@ -135,7 +135,7 @@ export async function addTenantMaintenanceNote(
         userId: property.user_id as string,
         type: 'request_note',
         title: 'Nestora: Tenant Reply',
-        message: `"${request.title}"${propName ? ` at ${propName}` : ''} — your tenant replied`,
+        message: `"${request.title}"${propName ? ` at ${propName}` : ''}`,
         link: '/tenants',
       });
     }
