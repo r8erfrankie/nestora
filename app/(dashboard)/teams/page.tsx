@@ -36,7 +36,12 @@ export default async function TeamsPage() {
   if (contractorEmails.length > 0) {
     const admin = createAdminClient();
     const { data: { users } } = await admin.auth.admin.listUsers({ perPage: 1000 });
-    const matched = users.filter((u) => u.email && contractorEmails.includes(u.email.toLowerCase()));
+    // Only count a contractor as registered once they've actually signed in —
+    // sending an invite auto-creates a stub auth user (generateLink side effect)
+    // that must not be mistaken for a completed signup.
+    const matched = users.filter(
+      (u) => u.email && contractorEmails.includes(u.email.toLowerCase()) && !!u.last_sign_in_at
+    );
 
     if (matched.length > 0) {
       const { data: profiles } = await admin
