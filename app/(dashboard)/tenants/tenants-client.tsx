@@ -102,6 +102,7 @@ export type MaintenanceRequest = {
   phone: string | null;
   unit: string | null;
   converted_to_work_order_id: string | null;
+  work_order_status: string | null;
   created_at: string;
   property: PropertySummary | null;
 };
@@ -119,6 +120,17 @@ const STATUS_STYLES: Record<string, string> = {
   Resolved:     'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
   Declined:     'bg-destructive/10 text-destructive',
   Withdrawn:    'bg-zinc-100 text-zinc-400 line-through dark:bg-zinc-800 dark:text-zinc-500',
+};
+
+// Status of the linked work order (distinct domain from maintenance_requests.status above).
+const WORK_ORDER_STATUS_STYLES: Record<string, string> = {
+  Open:             'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  Accepted:         'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
+  'In Progress':    'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+  'On Hold':        'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+  'Needs Materials': 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
+  Completed:        'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+  Archived:         'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400',
 };
 
 interface TenantsClientProps {
@@ -679,6 +691,15 @@ function RequestRow({
                       <CheckCircle2 className="h-4 w-4 shrink-0" />
                       <span>Converted to a work order</span>
                     </div>
+                    {request.work_order_status && (
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          WORK_ORDER_STATUS_STYLES[request.work_order_status] ?? 'bg-secondary text-secondary-foreground'
+                        }`}
+                      >
+                        {request.work_order_status}
+                      </span>
+                    )}
                     <Button asChild size="sm" variant="outline" className="gap-1.5 text-xs">
                       <Link href="/work-orders">
                         View Work Orders

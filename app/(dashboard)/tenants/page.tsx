@@ -76,6 +76,22 @@ export default async function TenantsPage({
   };
   const rawRequests = (rawRequestsData ?? []) as unknown as RawRequest[];
 
+  // Fetch live status for requests that have already been converted to a work order,
+  // so the badge here doesn't go stale the moment a contractor updates it.
+  const workOrderIds = [
+    ...new Set(rawRequests.map((r) => r.converted_to_work_order_id).filter((id): id is string => !!id)),
+  ];
+  const workOrderStatusById = new Map<string, string>();
+  if (workOrderIds.length > 0) {
+    const { data: workOrders } = await supabase
+      .from('work_orders')
+      .select('id, status')
+      .in('id', workOrderIds);
+    for (const wo of workOrders ?? []) {
+      workOrderStatusById.set(wo.id as string, wo.status as string);
+    }
+  }
+
   // Look up names by email, not by tenant_id.
   // tenant_property_links.tenant_id is null for landlord-invited tenants (inserted with
   // tenant_id = null). profiles.email is always populated by the handle_new_user() trigger,
@@ -187,6 +203,9 @@ export default async function TenantsPage({
     phone: phoneByEmail.get(r.tenant_email.toLowerCase()) ?? null,
     unit: unitMap.get(`${r.property_id}::${r.tenant_email.toLowerCase()}`) ?? null,
     converted_to_work_order_id: r.converted_to_work_order_id,
+    work_order_status: r.converted_to_work_order_id
+      ? (workOrderStatusById.get(r.converted_to_work_order_id) ?? null)
+      : null,
     created_at: r.created_at,
     property: r.property,
   }));

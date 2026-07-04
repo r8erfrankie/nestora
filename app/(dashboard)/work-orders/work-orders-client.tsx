@@ -108,7 +108,15 @@ interface Photo {
 }
 
 const PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'] as const;
-const STATUSES = ['Open', 'Accepted', 'In Progress', 'Completed', 'Archived'] as const;
+const STATUSES = [
+  'Open',
+  'Accepted',
+  'In Progress',
+  'On Hold',
+  'Needs Materials',
+  'Completed',
+  'Archived',
+] as const;
 const TRADES = [
   'General',
   'Plumbing',
@@ -1068,6 +1076,8 @@ export function WorkOrdersClient({
       Open: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300',
       Accepted: 'bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300',
       'In Progress': 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300',
+      'On Hold': 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300',
+      'Needs Materials': 'bg-pink-100 text-pink-800 dark:bg-pink-950 dark:text-pink-300',
       Completed: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
       Archived: 'bg-gray-100 text-gray-800 dark:bg-gray-950 dark:text-gray-300',
     };
