@@ -103,7 +103,7 @@ export default function LandingPage() {
           <span className="text-teal-600">in under 5 minutes.</span>
         </h1>
 
-        <h2 className="mx-auto mt-4 max-w-2xl text-lg font-semibold text-teal-700 sm:text-xl">
+        <h2 className="mx-auto mt-4 max-w-2xl text-lg font-semibold text-gray-500 sm:text-xl">
           The no hassle maintenance and work-order software for small landlords.
         </h2>
 
