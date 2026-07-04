@@ -1670,7 +1670,7 @@ export function WorkOrdersClient({
 
       {/* Detail / View Dialog */}
       <Dialog open={isDetailOpen} onOpenChange={(open) => !open && closeDetail()}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[620px]">
+        <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-[620px]">
           {selectedWorkOrder && (
             <>
               <DialogHeader>

@@ -129,10 +129,14 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Prevent iOS rubber-band bounce from revealing blank canvas below the
+       fixed bottom nav on short pages (e.g. Work Orders with few rows). */
+    overscroll-behavior-y: none;
   }
   html {
     @apply font-sans;
     scroll-behavior: smooth;
+    overscroll-behavior-y: none;
   }
 }
 
