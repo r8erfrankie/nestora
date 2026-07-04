@@ -107,12 +107,6 @@ export default function LandingPage() {
           The no hassle maintenance and work-order software for small landlords.
         </h2>
 
-        <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-gray-500 sm:text-lg">
-          Maintenance and work-order software for landlords who&rsquo;d rather fix problems
-          than fight with software. No app to download. No accounts for your tenants or
-          contractors.
-        </p>
-
         <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
           <Link
             href="/sign-in"
