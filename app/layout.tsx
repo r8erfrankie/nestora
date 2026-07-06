@@ -49,6 +49,14 @@ export const metadata: Metadata = {
     title: 'Nestora',
     statusBarStyle: 'black-translucent',
   },
+  // Next.js's appleWebApp.capable only emits the modern unprefixed
+  // `mobile-web-app-capable` tag. iOS's own splash-screen / standalone-mode
+  // detection has long relied specifically on the apple-prefixed tag, so we
+  // set it explicitly rather than depending on iOS falling back to the
+  // unprefixed one.
+  other: {
+    'apple-mobile-web-app-capable': 'yes',
+  },
   icons: {
     icon: [
       { url: '/icons/icon-16.png', sizes: '16x16', type: 'image/png' },
