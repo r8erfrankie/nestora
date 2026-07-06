@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import { MobileFocusHandler } from '@/app/components/mobile-focus-handler';
 import { ServiceWorkerRegistration } from '@/app/components/service-worker-registration';
 import { StandaloneDetector } from '@/app/components/standalone-detector';
+import { AppMountedMarker } from '@/components/app-mounted-marker';
 import { SplashScreen } from '@/components/splash-screen';
 import './globals.css';
 import 'yet-another-react-lightbox/styles.css';
@@ -65,9 +66,7 @@ export const metadata: Metadata = {
       { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
       { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
     ],
-    apple: [
-      { url: '/icons/icon-180.png', sizes: '180x180', type: 'image/png' },
-    ],
+    apple: [{ url: '/icons/icon-180.png', sizes: '180x180', type: 'image/png' }],
     shortcut: '/icons/icon-192.png',
   },
   formatDetection: {
@@ -89,6 +88,7 @@ export default function RootLayout({
         <MobileFocusHandler />
         <ServiceWorkerRegistration />
         <StandaloneDetector />
+        <AppMountedMarker />
       </body>
     </html>
   );
