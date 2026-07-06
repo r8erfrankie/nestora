@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, ClipboardList, ShieldCheck, Smartphone } from 'lucide-react';
+import { ArrowRight, ClipboardList, Plus, ShieldCheck, Smartphone } from 'lucide-react';
 import { MaintenanceRequestToolClient } from './maintenance-request-tool-client';
 
 export const metadata = {
@@ -120,8 +120,15 @@ export default function MaintenanceRequestFormPage() {
       {/* ── Soft context line above the tool ── */}
       <div className="mx-auto max-w-3xl px-4 sm:px-6 print:hidden">
         <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-gray-500">
-          This is the free, one-off version. Nestora does this automatically — with photo intake,
-          contractor dispatch, and status tracking built in.
+          This is the free, one-off version.{' '}
+          <Link
+            href="/landing"
+            className="font-medium text-teal-700 underline underline-offset-2 hover:text-teal-800"
+          >
+            Nestora
+          </Link>{' '}
+          does this automatically — with photo intake, contractor dispatch, and status tracking
+          built in.
         </div>
       </div>
 
@@ -182,9 +189,7 @@ export default function MaintenanceRequestFormPage() {
               <details key={f.q} className="group p-5">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium text-gray-900">
                   {f.q}
-                  <span className="shrink-0 text-gray-400 transition-transform group-open:rotate-45">
-                    +
-                  </span>
+                  <Plus className="h-4 w-4 shrink-0 text-gray-400 transition-transform group-open:rotate-45" />
                 </summary>
                 <p className="mt-3 text-sm leading-relaxed text-gray-500">{f.a}</p>
               </details>
@@ -204,7 +209,10 @@ export default function MaintenanceRequestFormPage() {
             contractor dispatch, and status tracking. Your first work order is live in under 5
             minutes.
           </p>
-          <div className="mt-8">
+          <p className="mt-6 text-xs text-teal-300">
+            Built by a landlord who got tired of tracking repairs in text threads.
+          </p>
+          <div className="mt-4">
             <Link
               href="/sign-in"
               className="inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-sm font-semibold text-teal-900 shadow-sm transition-colors hover:bg-teal-50"
