@@ -75,6 +75,42 @@ function openMailto(mailto: string) {
   window.location.href = mailto;
 }
 
+// Print-only field rendering: browsers commonly paint an empty/disabled input's
+// `placeholder` attribute as real text when printing, which can't be reliably
+// suppressed with print CSS since it's native control rendering, not decorable
+// content. So printed output never touches the actual <input>/<textarea> — it
+// renders this parallel, plain-text view instead: real value, or a blank ruled
+// line to write on.
+function PrintField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-gray-700">{label}</p>
+      {value ? (
+        <p className="mt-1 text-sm text-gray-900">{value}</p>
+      ) : (
+        <div className="mt-3 border-b border-gray-400" />
+      )}
+    </div>
+  );
+}
+
+function PrintTextArea({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-gray-700">{label}</p>
+      {value ? (
+        <p className="mt-1 text-sm whitespace-pre-wrap text-gray-900">{value}</p>
+      ) : (
+        <div className="mt-3 space-y-4">
+          <div className="border-b border-gray-400" />
+          <div className="border-b border-gray-400" />
+          <div className="border-b border-gray-400" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function buildShareUrl(fields: {
   propertyName: string;
   propertyAddress: string;
@@ -366,155 +402,174 @@ export function MaintenanceRequestToolClient() {
               </div>
             </div>
           ) : (
-            <form onSubmit={handleTenantSubmit} className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
+            <>
+              <form onSubmit={handleTenantSubmit} className="space-y-4 print:hidden">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                      Tenant name
+                    </label>
+                    <input
+                      type="text"
+                      required={isTenant}
+                      disabled={!isTenant}
+                      value={tenantName}
+                      onChange={(e) => setTenantName(e.target.value)}
+                      placeholder="Jane Doe"
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-teal-400 focus:ring-1 focus:ring-teal-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                      Unit / apt #
+                    </label>
+                    <input
+                      type="text"
+                      disabled={!isTenant}
+                      value={unit}
+                      onChange={(e) => setUnit(e.target.value)}
+                      placeholder="Unit 2B"
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-teal-400 focus:ring-1 focus:ring-teal-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                    Tenant name
+                    Phone or email
                   </label>
                   <input
                     type="text"
                     required={isTenant}
                     disabled={!isTenant}
-                    value={tenantName}
-                    onChange={(e) => setTenantName(e.target.value)}
-                    placeholder="Jane Doe"
+                    value={tenantContact}
+                    onChange={(e) => setTenantContact(e.target.value)}
+                    placeholder="How the landlord can reach you"
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-teal-400 focus:ring-1 focus:ring-teal-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
                   />
                 </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                      Issue category
+                    </label>
+                    <select
+                      disabled={!isTenant}
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-teal-400 focus:ring-1 focus:ring-teal-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
+                    >
+                      {CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                      Urgency
+                    </label>
+                    <select
+                      disabled={!isTenant}
+                      value={urgency}
+                      onChange={(e) => setUrgency(e.target.value)}
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-teal-400 focus:ring-1 focus:ring-teal-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
+                    >
+                      {URGENCY.map((u) => (
+                        <option key={u} value={u}>
+                          {u}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                    Unit / apt #
+                    Describe the issue
+                  </label>
+                  <textarea
+                    required={isTenant}
+                    disabled={!isTenant}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={3}
+                    placeholder="What's wrong, and where?"
+                    className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-teal-400 focus:ring-1 focus:ring-teal-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
+                  />
+                </div>
+
+                <div className="print:hidden">
+                  <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                    <Camera className="h-4 w-4 text-gray-400" />
+                    Photo (optional)
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={!isTenant}
+                    onChange={handlePhotoChange}
+                    className="block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-teal-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-teal-700 hover:file:bg-teal-100 disabled:opacity-50"
+                  />
+                  {photoPreview && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={photoPreview}
+                      alt="Attached issue"
+                      className="mt-2 h-24 w-24 rounded-lg object-cover"
+                    />
+                  )}
+                </div>
+
+                <div>
+                  <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                    <Clock className="h-4 w-4 text-gray-400" />
+                    Preferred access times
                   </label>
                   <input
                     type="text"
                     disabled={!isTenant}
-                    value={unit}
-                    onChange={(e) => setUnit(e.target.value)}
-                    placeholder="Unit 2B"
+                    value={accessTimes}
+                    onChange={(e) => setAccessTimes(e.target.value)}
+                    placeholder="Weekdays after 5pm, or anytime with 1 hour notice"
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-teal-400 focus:ring-1 focus:ring-teal-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                  Phone or email
-                </label>
-                <input
-                  type="text"
-                  required={isTenant}
-                  disabled={!isTenant}
-                  value={tenantContact}
-                  onChange={(e) => setTenantContact(e.target.value)}
-                  placeholder="How the landlord can reach you"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-teal-400 focus:ring-1 focus:ring-teal-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
-                />
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                    Issue category
-                  </label>
-                  <select
-                    disabled={!isTenant}
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-teal-400 focus:ring-1 focus:ring-teal-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
-                  >
-                    {CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
+                <div className="pt-2 print:hidden">
+                  {isTenant ? (
+                    <button
+                      type="submit"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-teal-700 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-teal-800"
+                    >
+                      Send request
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <div className="rounded-lg bg-slate-50 px-3 py-2.5 text-center text-xs text-gray-400">
+                      Live preview — this is what your tenant fills out from the shared link.
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Urgency</label>
-                  <select
-                    disabled={!isTenant}
-                    value={urgency}
-                    onChange={(e) => setUrgency(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-teal-400 focus:ring-1 focus:ring-teal-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
-                  >
-                    {URGENCY.map((u) => (
-                      <option key={u} value={u}>
-                        {u}
-                      </option>
-                    ))}
-                  </select>
+              </form>
+
+              {/* Print-only static view — see PrintField/PrintTextArea comment above. */}
+              <div className="hidden print:block print:space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <PrintField label="Tenant name" value={tenantName} />
+                  <PrintField label="Unit / apt #" value={unit} />
                 </div>
+                <PrintField label="Phone or email" value={tenantContact} />
+                <div className="grid grid-cols-2 gap-4">
+                  <PrintField label="Issue category" value={category} />
+                  <PrintField label="Urgency" value={urgency} />
+                </div>
+                <PrintTextArea label="Describe the issue" value={description} />
+                <PrintField label="Preferred access times" value={accessTimes} />
               </div>
-
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                  Describe the issue
-                </label>
-                <textarea
-                  required={isTenant}
-                  disabled={!isTenant}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                  placeholder="What's wrong, and where?"
-                  className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-teal-400 focus:ring-1 focus:ring-teal-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
-                />
-              </div>
-
-              <div className="print:hidden">
-                <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-gray-700">
-                  <Camera className="h-4 w-4 text-gray-400" />
-                  Photo (optional)
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  disabled={!isTenant}
-                  onChange={handlePhotoChange}
-                  className="block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-teal-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-teal-700 hover:file:bg-teal-100 disabled:opacity-50"
-                />
-                {photoPreview && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={photoPreview}
-                    alt="Attached issue"
-                    className="mt-2 h-24 w-24 rounded-lg object-cover"
-                  />
-                )}
-              </div>
-
-              <div>
-                <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-gray-700">
-                  <Clock className="h-4 w-4 text-gray-400" />
-                  Preferred access times
-                </label>
-                <input
-                  type="text"
-                  disabled={!isTenant}
-                  value={accessTimes}
-                  onChange={(e) => setAccessTimes(e.target.value)}
-                  placeholder="Weekdays after 5pm, or anytime with 1 hour notice"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-teal-400 focus:ring-1 focus:ring-teal-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
-                />
-              </div>
-
-              <div className="pt-2 print:hidden">
-                {isTenant ? (
-                  <button
-                    type="submit"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-teal-700 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-teal-800"
-                  >
-                    Send request
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
-                ) : (
-                  <div className="rounded-lg bg-slate-50 px-3 py-2.5 text-center text-xs text-gray-400">
-                    Live preview — this is what your tenant fills out from the shared link.
-                  </div>
-                )}
-              </div>
-            </form>
+            </>
           )}
         </div>
 
