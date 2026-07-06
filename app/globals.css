@@ -242,7 +242,14 @@
    In PWA standalone mode env(safe-area-inset-bottom) is just the home
    indicator (~34px). In Safari browser mode it balloons to ~83px because
    it includes the browser chrome. We apply the inset ONLY in standalone
-   so that browser users never get inflated padding.                        */
+   so that browser users never get inflated padding.
+
+   Standalone is detected two ways: the `display-mode: standalone` media
+   query (below), and — as a fallback, since that media feature has a
+   history of inconsistent support across iOS Safari versions — a
+   `standalone-pwa` class that StandaloneDetector adds to <html> at runtime
+   using the older, iOS-specific `navigator.standalone` API. Either one
+   applies the same rules.                                                 */
 
 /* Main content: clears the fixed bottom nav + home indicator in PWA */
 .pb-nav {
@@ -252,6 +259,9 @@
   .pb-nav {
     padding-bottom: calc(4rem + env(safe-area-inset-bottom) + 0.75rem);
   }
+}
+html.standalone-pwa .pb-nav {
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom) + 0.75rem);
 }
 
 /* Bottom nav spacer below icons: home indicator in PWA, nothing in browser */
@@ -263,6 +273,9 @@
     height: env(safe-area-inset-bottom);
   }
 }
+html.standalone-pwa .h-nav-spacer {
+  height: env(safe-area-inset-bottom);
+}
 
 /* Navbar top padding: status bar in PWA, nothing in browser */
 .pt-nav-safe {
@@ -272,6 +285,9 @@
   .pt-nav-safe {
     padding-top: env(safe-area-inset-top);
   }
+}
+html.standalone-pwa .pt-nav-safe {
+  padding-top: env(safe-area-inset-top);
 }
 
 /* ── PWA launch splash animation ───────────────────────────────────────────── */

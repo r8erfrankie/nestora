@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { MobileFocusHandler } from '@/app/components/mobile-focus-handler';
 import { ServiceWorkerRegistration } from '@/app/components/service-worker-registration';
+import { StandaloneDetector } from '@/app/components/standalone-detector';
 import { SplashScreen } from '@/components/splash-screen';
 import './globals.css';
 import 'yet-another-react-lightbox/styles.css';
@@ -87,6 +88,7 @@ export default function RootLayout({
         <Toaster position="top-right" richColors />
         <MobileFocusHandler />
         <ServiceWorkerRegistration />
+        <StandaloneDetector />
       </body>
     </html>
   );
