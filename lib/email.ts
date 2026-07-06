@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { BRAND_FOOTER, BRAND_FOOTER_CONTRACTOR } from './email-brand-footer';
 
 // Single Resend instance — instantiated lazily at module load in server context only.
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -135,7 +136,7 @@ export async function sendTenantAccessGrantedEmail({
             </p>
           </td>
         </tr>
-
+        ${BRAND_FOOTER}
       </table>
     </td></tr>
   </table>
@@ -246,7 +247,7 @@ export async function sendTenantInviteEmail({
             </p>
           </td>
         </tr>
-
+        ${BRAND_FOOTER}
       </table>
     </td></tr>
   </table>
@@ -351,7 +352,7 @@ export async function sendContractorInviteEmail({
             </p>
           </td>
         </tr>
-
+        ${BRAND_FOOTER_CONTRACTOR}
       </table>
     </td></tr>
   </table>

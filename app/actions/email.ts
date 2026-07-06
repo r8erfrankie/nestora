@@ -1,6 +1,7 @@
 'use server';
 
 import { formatUnit, getLabelWord } from '@/lib/unit-label';
+import { BRAND_FOOTER, BRAND_FOOTER_CONTRACTOR } from '@/lib/email-brand-footer';
 
 /**
  * Centralized email sending via Resend for work order notifications.
@@ -71,7 +72,10 @@ const INSTALL_BLOCK = `
     </tr>`;
 
 // Shared HTML chrome — header + outer table wrappers.
-function emailWrap(body: string) {
+// `audience` picks which brand-footer tagline to show; defaults to 'contractor'
+// since most current callers are contractor-facing.
+function emailWrap(body: string, audience: 'contractor' | 'landlord' = 'contractor') {
+  const brandFooter = audience === 'landlord' ? BRAND_FOOTER : BRAND_FOOTER_CONTRACTOR;
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -101,6 +105,7 @@ function emailWrap(body: string) {
             </p>
           </td>
         </tr>
+        ${brandFooter}
       </table>
     </td></tr>
   </table>
@@ -248,7 +253,7 @@ export async function notifyLandlordStatusChange(data: {
     from: FROM,
     to: data.landlordEmail,
     subject: `Work order update: "${data.title}" is now ${data.newStatus}`,
-    html: emailWrap(body),
+    html: emailWrap(body, 'landlord'),
   });
   if (error) console.error('[notifyLandlordStatusChange] Resend error:', error.message);
 }
@@ -413,7 +418,8 @@ export async function notifyLandlordNewRequest(data: {
           You're receiving this because a tenant submitted a maintenance request on a property you manage in Nestora.
         </p>
       </td>
-    </tr>`;
+    </tr>
+    ${BRAND_FOOTER}`;
 
   const html = `
 <!DOCTYPE html>
@@ -506,7 +512,8 @@ export async function notifyLandlordWorkOrderUpdate(data: {
           You're receiving this because a contractor updated a work order on a property you manage in Nestora.
         </p>
       </td>
-    </tr>`;
+    </tr>
+    ${BRAND_FOOTER}`;
 
   const html = `
 <!DOCTYPE html>
@@ -603,7 +610,8 @@ export async function notifyTenantNewNote(data: {
           You're receiving this because your landlord left a note on your maintenance request in Nestora.
         </p>
       </td>
-    </tr>`;
+    </tr>
+    ${BRAND_FOOTER}`;
 
   const html = `
 <!DOCTYPE html>
