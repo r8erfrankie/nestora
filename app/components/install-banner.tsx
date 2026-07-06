@@ -1,13 +1,48 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { Layers, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+type MobilePlatform = 'ios' | 'android';
+
+function detectMobilePlatform(): MobilePlatform | null {
+  const ua = navigator.userAgent.toLowerCase();
+  if (/iphone|ipad|ipod/.test(ua)) return 'ios';
+  if (/android/.test(ua)) return 'android';
+  return null;
+}
+
+const STEPS: Record<MobilePlatform, ReactNode[]> = {
+  ios: [
+    <span key={0}>
+      Tap the <strong>Share</strong> button (↑) at the bottom of Safari
+    </span>,
+    <span key={1}>
+      Scroll and tap <strong>&ldquo;Add to Home Screen&rdquo;</strong>
+    </span>,
+    <span key={2}>
+      Tap <strong>Add</strong> — Nestora appears on your home screen
+    </span>,
+  ],
+  android: [
+    <span key={0}>
+      Tap the <strong>⋮ menu</strong> (top right) in Chrome
+    </span>,
+    <span key={1}>
+      Tap <strong>&ldquo;Install app&rdquo;</strong> (or{' '}
+      <strong>&ldquo;Add to Home screen&rdquo;</strong>)
+    </span>,
+    <span key={2}>
+      Tap <strong>Install</strong> — Nestora appears on your home screen
+    </span>,
+  ],
+};
 
 export function InstallBanner() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [installPrompt, setInstallPrompt] = useState<any>(null);
-  const [isIOS, setIsIOS] = useState(false);
+  const [detected, setDetected] = useState<MobilePlatform | null>(null);
   const [show, setShow] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -16,9 +51,12 @@ export function InstallBanner() {
     if (isStandalone) return;
     if (localStorage.getItem('nestora_install_dismissed')) return;
 
-    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent.toLowerCase());
-    setIsIOS(ios);
-    if (ios) setShow(true);
+    const mobile = detectMobilePlatform();
+    if (mobile) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDetected(mobile);
+      setShow(true);
+    }
 
     const handler = (e: Event) => {
       e.preventDefault();
@@ -50,7 +88,7 @@ export function InstallBanner() {
     <div className="overflow-hidden border-b border-teal-100 bg-teal-50">
       <button
         type="button"
-        onClick={() => setOpen(v => !v)}
+        onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between px-4 py-3"
       >
         <div className="flex items-center gap-2.5">
@@ -59,23 +97,21 @@ export function InstallBanner() {
           </div>
           <span className="text-sm font-medium text-teal-900">Install the Nestora app</span>
         </div>
-        <ChevronDown className={cn(
-          'h-4 w-4 text-teal-600 transition-transform duration-200',
-          open && 'rotate-180'
-        )} />
+        <ChevronDown
+          className={cn(
+            'h-4 w-4 text-teal-600 transition-transform duration-200',
+            open && 'rotate-180'
+          )}
+        />
       </button>
 
       {open && (
-        <div className="border-t border-teal-100 px-4 pb-4 pt-3">
-          {isIOS ? (
+        <div className="border-t border-teal-100 px-4 pt-3 pb-4">
+          {detected ? (
             <div className="space-y-3 text-sm text-teal-800">
               <p className="font-medium">Add to your home screen:</p>
               <ol className="space-y-2 text-teal-700">
-                {([
-                  <span key={0}>Tap the <strong>Share</strong> button (↑) at the bottom of Safari</span>,
-                  <span key={1}>Scroll and tap <strong>&ldquo;Add to Home Screen&rdquo;</strong></span>,
-                  <span key={2}>Tap <strong>Add</strong> — Nestora appears on your home screen</span>,
-                ] as React.ReactNode[]).map((content, i) => (
+                {STEPS[detected].map((content, i) => (
                   <li key={i} className="flex items-start gap-2">
                     <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-700 text-[10px] font-bold text-white">
                       {i + 1}
