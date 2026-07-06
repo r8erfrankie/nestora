@@ -29,6 +29,52 @@ const URGENCY = ['Emergency', 'Urgent', 'Routine'] as const;
 
 type Mode = 'builder' | 'tenant';
 
+function buildSubject(propertyName: string, category: string, urgency: string) {
+  const base = `Maintenance Request — ${propertyName || 'Property'} (${category}`;
+  if (urgency === 'Emergency') return `${base}, EMERGENCY)`;
+  if (urgency === 'Urgent') return `${base}, URGENT)`;
+  return `${base})`;
+}
+
+function buildEmailBody(fields: {
+  propertyName: string;
+  propertyAddress: string;
+  tenantName: string;
+  unit: string;
+  tenantContact: string;
+  category: string;
+  urgency: string;
+  accessTimes: string;
+  description: string;
+  photoName: string | null;
+}) {
+  const lines: string[] = ['New maintenance request submitted via Nestora:', '', 'PROPERTY'];
+  lines.push(`Property: ${fields.propertyName || '—'}`);
+  if (fields.propertyAddress) lines.push(`Address: ${fields.propertyAddress}`);
+
+  lines.push('', 'TENANT', `Name: ${fields.tenantName || '—'}`);
+  if (fields.unit) lines.push(`Unit: ${fields.unit}`);
+  lines.push(`Contact: ${fields.tenantContact || '—'}`);
+
+  lines.push('', 'ISSUE', `Category: ${fields.category}`, `Urgency: ${fields.urgency}`);
+  if (fields.accessTimes) lines.push(`Preferred access: ${fields.accessTimes}`);
+  lines.push('Description:', fields.description || '—');
+
+  if (fields.photoName) {
+    lines.push(
+      '',
+      `Note: Attach the photo "${fields.photoName}" to this email before sending — it can't be attached automatically.`
+    );
+  }
+
+  lines.push('', '—', 'Sent via Nestora · gonestora.app');
+  return lines.join('\n');
+}
+
+function openMailto(mailto: string) {
+  window.location.href = mailto;
+}
+
 function buildShareUrl(fields: {
   propertyName: string;
   propertyAddress: string;
@@ -68,6 +114,8 @@ export function MaintenanceRequestToolClient() {
   const [photoName, setPhotoName] = useState<string | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [submittedBody, setSubmittedBody] = useState('');
+  const [copied, setCopied] = useState(false);
 
   // Determine mode from the URL on mount — a shared link carries property/landlord
   // details as query params and switches this same page into tenant-fill mode.
@@ -112,30 +160,36 @@ export function MaintenanceRequestToolClient() {
 
   const handleTenantSubmit = (e: FormEvent) => {
     e.preventDefault();
-    const subject = `Maintenance Request — ${propertyName || 'Property'} (${category})`;
-    const lines = [
-      `Property: ${propertyName || '—'}`,
-      propertyAddress ? `Address: ${propertyAddress}` : null,
-      `Tenant: ${tenantName || '—'}`,
-      unit ? `Unit: ${unit}` : null,
-      `Contact: ${tenantContact || '—'}`,
-      `Category: ${category}`,
-      `Urgency: ${urgency}`,
-      '',
-      'Description:',
-      description || '—',
-      '',
-      accessTimes ? `Preferred access times: ${accessTimes}` : null,
-      photoName
-        ? `\n(Attach the photo "${photoName}" to this email before sending — it can't be attached automatically.)`
-        : null,
-    ].filter((l): l is string => l !== null);
+    const subject = buildSubject(propertyName, category, urgency);
+    const body = buildEmailBody({
+      propertyName,
+      propertyAddress,
+      tenantName,
+      unit,
+      tenantContact,
+      category,
+      urgency,
+      accessTimes,
+      description,
+      photoName,
+    });
 
     const mailto = `mailto:${encodeURIComponent(landlordEmail)}?subject=${encodeURIComponent(
       subject
-    )}&body=${encodeURIComponent(lines.join('\n'))}`;
+    )}&body=${encodeURIComponent(body)}`;
+    setSubmittedBody(body);
     setSubmitted(true);
-    window.location.href = mailto;
+    openMailto(mailto);
+  };
+
+  const handleCopyRequest = async () => {
+    try {
+      await navigator.clipboard.writeText(submittedBody);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Could not copy automatically. Select the text and copy it manually.');
+    }
   };
 
   // Avoid a layout jump while we determine mode from the URL on the client.
@@ -279,13 +333,37 @@ export function MaintenanceRequestToolClient() {
           </div>
 
           {submitted ? (
-            <div className="flex flex-col items-center gap-2 py-10 text-center">
-              <CheckCircle2 className="h-9 w-9 text-teal-600" />
-              <p className="font-semibold text-gray-900">Request ready to send</p>
-              <p className="max-w-xs text-sm text-gray-500">
-                Your email app should have opened with these details filled in. Attach your photo
-                before sending, if you added one.
-              </p>
+            <div className="py-6">
+              <div className="flex flex-col items-center gap-2 pb-6 text-center">
+                <CheckCircle2 className="h-9 w-9 text-teal-600" />
+                <p className="font-semibold text-gray-900">Request ready to send</p>
+                <p className="max-w-xs text-sm text-gray-500">
+                  Your email app should have opened with these details filled in. Attach your photo
+                  before sending, if you added one.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-gray-100 bg-slate-50 p-4 text-left">
+                <p className="text-sm text-gray-600">
+                  Didn&rsquo;t your email app open? Copy the request below and send it to your
+                  landlord at{' '}
+                  <span className="font-medium text-gray-900">
+                    {landlordEmail || 'their email'}
+                  </span>
+                  .
+                </p>
+                <pre className="mt-3 max-h-56 overflow-y-auto rounded-lg border border-gray-200 bg-white p-3 text-xs whitespace-pre-wrap text-gray-700">
+                  {submittedBody}
+                </pre>
+                <button
+                  type="button"
+                  onClick={handleCopyRequest}
+                  className="mt-3 inline-flex items-center gap-2 rounded-lg border border-teal-200 bg-white px-4 py-2 text-sm font-medium text-teal-700 shadow-sm transition-colors hover:bg-teal-50"
+                >
+                  <Copy className="h-4 w-4" />
+                  {copied ? 'Copied!' : 'Copy to clipboard'}
+                </button>
+              </div>
             </div>
           ) : (
             <form onSubmit={handleTenantSubmit} className="space-y-4">
