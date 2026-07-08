@@ -5,6 +5,7 @@ import { formatUnit, getLabelWord } from '@/lib/unit-label';
 import Link from 'next/link';
 import Lightbox from 'yet-another-react-lightbox';
 import Counter from 'yet-another-react-lightbox/plugins/counter';
+import Zoom from 'yet-another-react-lightbox/plugins/zoom';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -2298,7 +2299,7 @@ export function WorkOrdersClient({
                   close={closeFullScreen}
                   index={lightboxIndex}
                   slides={photos.map((p) => ({ src: p.url, alt: p.name || '' }))}
-                  plugins={[Counter]}
+                  plugins={[Counter, Zoom]}
                 />
 
                 {/* Activity log + manual notes */}

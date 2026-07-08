@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Lightbox from 'yet-another-react-lightbox';
 import Counter from 'yet-another-react-lightbox/plugins/counter';
+import Zoom from 'yet-another-react-lightbox/plugins/zoom';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -554,7 +555,7 @@ export function WorkOrderDetailClient({ workOrder, initialPhotos, isArchived: in
           close={() => setLightboxOpen(false)}
           index={lightboxIndex}
           slides={photos.map((p) => ({ src: p.url, alt: p.name ?? '' }))}
-          plugins={[Counter]}
+          plugins={[Counter, Zoom]}
         />
 
         {/* ── Activity ── */}

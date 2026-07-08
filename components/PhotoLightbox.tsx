@@ -1,6 +1,7 @@
 'use client';
 
 import Lightbox from 'yet-another-react-lightbox';
+import Zoom from 'yet-another-react-lightbox/plugins/zoom';
 import 'yet-another-react-lightbox/styles.css';
 
 interface PhotoLightboxProps {
@@ -17,6 +18,7 @@ export function PhotoLightbox({ images, startIndex = 0, open, onClose }: PhotoLi
       close={onClose}
       index={startIndex}
       slides={images.map((src) => ({ src }))}
+      plugins={[Zoom]}
     />
   );
 }
