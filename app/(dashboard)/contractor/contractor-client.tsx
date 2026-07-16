@@ -18,6 +18,7 @@ import {
 import { acceptOrCompleteWorkOrder } from './contractor-actions';
 import { archiveWorkOrderForUser, unarchiveWorkOrderForUser } from '@/app/actions/archive-actions';
 import { formatUnit } from '@/lib/unit-label';
+import { Greeting } from '@/components/greeting';
 
 export interface ContractorWorkOrder {
   id: string;
@@ -77,13 +78,11 @@ function formatCurrency(n: number | null | undefined) {
 
 export function ContractorClient({
   workOrders: initialOrders,
-  greeting,
   firstName,
   archivedWorkOrderIds,
   currentUserId = '',
 }: {
   workOrders: ContractorWorkOrder[];
-  greeting: string;
   firstName: string | null;
   archivedWorkOrderIds: string[];
   currentUserId?: string;
@@ -172,8 +171,7 @@ export function ContractorClient({
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
-            {greeting}
-            {firstName ? `, ${firstName}` : ''}
+            <Greeting name={firstName} />
           </h1>
           <p className="text-muted-foreground mt-0.5 text-sm">
             {totalNonArchived === 0 && archivedList.length === 0

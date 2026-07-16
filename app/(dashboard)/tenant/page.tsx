@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
-import { getGreeting } from '@/lib/utils';
+import { Greeting } from '@/components/greeting';
 import { Button } from '@/components/ui/button';
 import { PushPrompt } from '@/app/components/push-prompt';
 import { TenantRequestsList } from './tenant-requests-list';
@@ -77,7 +77,6 @@ export default async function TenantDashboardPage() {
 
   const fullName = profile?.full_name as string | null;
   const firstName = fullName ? fullName.trim().split(/\s+/)[0] : null;
-  const greeting = getGreeting();
 
   // Parallel fetch — links, requests, archived IDs, and lease data.
   const [{ data: rawLinks }, { data: rawRequests }, { data: rawArchives }, { data: rawLeases }] = await Promise.all([
@@ -162,7 +161,9 @@ export default async function TenantDashboardPage() {
       <PushPrompt role="tenant" />
       {/* Page header */}
       <div>
-        <p className="text-muted-foreground text-sm">{greeting}</p>
+        <p className="text-muted-foreground text-sm">
+          <Greeting />
+        </p>
         <h1 className="mt-0.5 text-2xl font-semibold tracking-tight">
           {firstName ? `${firstName}'s Dashboard` : 'My Dashboard'}
         </h1>

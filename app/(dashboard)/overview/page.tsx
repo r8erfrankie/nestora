@@ -10,7 +10,8 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { Onboarding } from '@/components/onboarding';
-import { timeAgo, getGreeting, cn } from '@/lib/utils';
+import { Greeting } from '@/components/greeting';
+import { timeAgo, cn } from '@/lib/utils';
 import { cookies } from 'next/headers';
 
 export default async function DashboardPage() {
@@ -27,7 +28,6 @@ export default async function DashboardPage() {
 
   const fullName = (profile as any)?.full_name as string | null | undefined;
   const greetingName = fullName ? fullName.trim().split(/\s+/)[0] : null;
-  const greeting = getGreeting();
 
   const now = new Date();
   const today = now.toISOString().split('T')[0];
@@ -159,7 +159,7 @@ export default async function DashboardPage() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
-            {greeting}{greetingName ? `, ${greetingName}` : ''}
+            <Greeting name={greetingName} />
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {allClear

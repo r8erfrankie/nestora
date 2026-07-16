@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { getGreeting } from '@/lib/utils';
 import { ContractorClient, type ContractorWorkOrder } from './contractor-client';
 import { PushPrompt } from '@/app/components/push-prompt';
 
@@ -24,7 +23,6 @@ export default async function ContractorDashboardPage() {
 
   const fullName = (profile as any)?.full_name as string | null | undefined;
   const firstName = fullName ? fullName.trim().split(/\s+/)[0] : null;
-  const greeting = getGreeting();
 
   const userEmail = (user?.email ?? '').toLowerCase();
 
@@ -71,7 +69,6 @@ export default async function ContractorDashboardPage() {
       <PushPrompt role="contractor" />
       <ContractorClient
         workOrders={((workOrders ?? []) as any) as ContractorWorkOrder[]}
-        greeting={greeting}
         firstName={firstName}
         archivedWorkOrderIds={archivedWorkOrderIds}
         currentUserId={user?.id ?? ''}
