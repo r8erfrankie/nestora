@@ -41,7 +41,7 @@ function AlertDialogContent({
   return (
     <AlertDialogPortal>
       <AlertDialogOverlay />
-      <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="fixed top-0 right-0 left-0 z-50 h-[100dvh] overflow-y-auto">
         <div
           className="flex min-h-full items-center justify-center p-4"
           style={{

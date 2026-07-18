@@ -1311,7 +1311,7 @@ export function WorkOrdersClient({
 
       {/* Create Work Order Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-[520px]">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[520px]">
           <DialogHeader>
             <DialogTitle>Create New Work Order</DialogTitle>
             <DialogDescription>
@@ -1671,7 +1671,7 @@ export function WorkOrdersClient({
 
       {/* Detail / View Dialog */}
       <Dialog open={isDetailOpen} onOpenChange={(open) => !open && closeDetail()}>
-        <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-[620px]">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[620px]">
           {selectedWorkOrder && (
             <>
               <DialogHeader>

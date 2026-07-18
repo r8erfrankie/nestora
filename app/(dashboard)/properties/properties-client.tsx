@@ -341,7 +341,7 @@ export function PropertiesClient({
 
       {/* Create / Edit / View Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={(open) => !open && closeDialog()}>
-        <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-[480px]">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle>
               {dialogMode === 'create' && 'Add New Property'}

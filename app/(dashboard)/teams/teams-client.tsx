@@ -363,7 +363,7 @@ export function TeamsClient({ initialContractors }: { initialContractors: Contra
 
       {/* Add / Edit dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => !open && setDialogOpen(false)}>
-        <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-[480px]">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle>{editTarget ? 'Edit Contractor' : 'Add Contractor'}</DialogTitle>
             <DialogDescription>
