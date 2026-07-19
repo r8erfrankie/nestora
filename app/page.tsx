@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { SessionRehydrateGuard } from './components/session-rehydrate-guard';
 import LandingPage from './landing/page';
 
 export const metadata = {
@@ -33,7 +34,12 @@ export default async function RootPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return <LandingPage />;
+    return (
+      <>
+        <SessionRehydrateGuard />
+        <LandingPage />
+      </>
+    );
   }
 
   const { data: profile } = await supabase
